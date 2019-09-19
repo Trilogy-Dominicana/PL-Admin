@@ -1,0 +1,16 @@
+version: "3.7"
+services:
+  pap:
+    image: viva/pap
+    container_name: pap-python
+    build:
+      context: './'
+    volumes:
+      - ./:/app
+    tty: true
+    networks:
+      - backend
+networks:
+  backend:
+volumes:
+  data:
