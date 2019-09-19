@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import sys
 import getopt
-
+from src.database import Database
 
 def main(argv):
     """Main function to execute command line"""
@@ -16,7 +16,7 @@ def main(argv):
 
     for opt, arg in opts:
         if opt == '-h':
-            print('Available opcions -e <metho_name>\n')
+            print('Available opcions -e <method_name>\n')
             # help(rlFManager)
             sys.exit('0')
         elif opt in ("-e", "--emethod"):
@@ -25,7 +25,9 @@ def main(argv):
             sys.exit()
 
     if emethod == 'run':
-        print('Excecuting method git pull')
+        db = Database()
+        db.connect()
+        print('Excecuting')
     else:
         print('No method reconaized')
 
