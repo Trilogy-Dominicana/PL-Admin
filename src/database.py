@@ -31,16 +31,24 @@ class Database():
         ''' Listing invalid Packages, Functions and Procedures '''
         if not db:
             db = self.dbConnect()
+            localClose = True
 
         cursor = db.cursor()
-        query = "SELECT * FROM all_objects WHERE status = 'INVALID' and object_type in ('PACKAGE','FUNCTION','PROCEDURE')"
+        query = "SELECT * FROM all_objects WHERE status = 'VALID' AND object_type in ('PACKAGE','FUNCTION','PROCEDURE')"
 
         result = cursor.execute(query)
 
         # Overriding rowfactory method to get the data in a dictionary
         result.rowfactory = self.makeDictFactory(result)
 
-        data = result.fetchone()
+        data = result.fetchall()
+
+        # Close DB connection
+        cursor.close()
+
+        # If the connection was open on this method, close localy.
+        if localClose:
+            db.close()
 
         return data
 
