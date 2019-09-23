@@ -26,8 +26,7 @@ def main(argv):
 
     if emethod == 'run':
         db = Database()
-        db.connect()
-        print('Excecuting')
+        print(db.listInvalidObjects())
     else:
         print('No method reconaized')
 
