@@ -1,46 +1,39 @@
-import cx_Oracle, os
+import cx_Oracle, os, re
 from dotenv import load_dotenv
 load_dotenv()
 
 class Database():
-    def dbConnect(self):
-        '''Encharge to connect to Oracle database'''
+    service_name = os.getenv("DB_SERVICE_NAME")
+    user         = os.getenv("DB_USER")
+    password     = os.getenv("DB_PASSWORD")
+    host         = os.getenv("DB_HOST")
+    port         = os.getenv("DB_PORT")
 
-        service_name = os.getenv("DB_SERVICE_NAME")
-        user         = os.getenv("DB_USER")
-        password     = os.getenv("DB_PASSWORD")
-        host         = os.getenv("DB_HOST")
-        port         = os.getenv("DB_PORT")
-        dsn          = cx_Oracle.makedsn(host, port, service_name=service_name)
-        
-        connection = ''
+    def listInvalidObjects(self, status='', db=False):
+        ''' List invalid Packages, Functions and Procedures and Views 
+        Params:
+        ------
+        status (string): Valid values [VALID, INVALID].
+        db (cx_Oracle) is an instance of cx_Oracle lib
+        '''
 
-        try:
-            connection = cx_Oracle.connect(user=user, password=password, dsn=dsn, mode=False, encoding="UTF-8")
-            # connection = cx_Oracle.connect(user=user, password=password, dsn=dsn, mode=cx_Oracle.SYSDBA, encoding="UTF-8")
-            # logger.info("Successfully connected as SYSDBA")
-        except Exception as e:
-            content= 'DB Error: %s ' % (str(e)).strip()
-            print(content)
-            return content
-        
-        return connection
-
-
-    def listInvalidObjects(self, db=False):
-        ''' Listing invalid Packages, Functions and Procedures '''
         if not db:
             db = self.dbConnect()
             localClose = True
-
+        
         cursor = db.cursor()
-        query = "SELECT * FROM all_objects WHERE status = 'VALID' AND object_type in ('PACKAGE','FUNCTION','PROCEDURE')"
+        query = "SELECT * FROM all_objects WHERE object_type in ('PACKAGE','FUNCTION','PROCEDURE', 'VIEW') AND owner = '%s'" % self.user
 
+        # If re.match(r'VALID|INVALID', status):
+        if ('INVALID' == status) or 'VALID' == status:
+            query = query + " AND status = '%s'" % status
+        
         result = cursor.execute(query)
 
         # Overriding rowfactory method to get the data in a dictionary
         result.rowfactory = self.makeDictFactory(result)
 
+        # Fetching data from DB
         data = result.fetchall()
 
         # Close DB connection
@@ -52,11 +45,41 @@ class Database():
 
         return data
 
+    
+    def executeScript(slef):
+        ''' Función para crear (recompilar) paquetes, funciones y procedimientos '''
+        # Just tu execute and script
 
     def makeDictFactory(self, cursor):
-        ''' cx-oracle library do not bring to us a simple way to make result query into a dictionary.'''
+        ''' cx_Oracle library doesn't bring a simple way to convert a query result into a dictionary. '''
         columnNames = [d[0].lower() for d in cursor.description]
         def createRow(*args):
             return dict(zip(columnNames, args))
 
         return createRow
+
+    def dbConnect(self):
+        """ 
+        Encharge to connect to Oracle database
+
+        Params:
+        -------
+        mode (cx_Oracle): e.g: cx_Oracle.SYSDBA 
+        """
+        dsn = cx_Oracle.makedsn(self.host, self.port, service_name=self.service_name, asDBA=False)
+        
+        if asDBA:
+            mode = cx_Oracle.SYSDBA
+
+        connection = ''
+    
+        try:
+            connection = cx_Oracle.connect(user=self.user, password=self.password, dsn=self.dsn, mode=False, encoding="UTF-8")
+            # connection = cx_Oracle.connect(user=user, password=password, dsn=dsn, , encoding="UTF-8")
+            # logger.info("Successfully connected as SYSDBA")
+        except Exception as e:
+            content= 'DB Error: %s ' % (str(e)).strip()
+            print(content)
+            return content
+        
+        return connection

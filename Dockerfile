@@ -14,7 +14,7 @@ WORKDIR /app
   
 
 RUN apk update; \
-  apk add gcc musl-dev libnsl libaio autoconf curl unzip
+  apk add gcc musl-dev libnsl libaio autoconf curl unzip git
 
 RUN curl -k -o /tmp/basic.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-basic-linux.x64-11.2.0.4.0.zip && \
   curl -k -o /tmp/devel.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-sdk-linux.x64-11.2.0.4.0.zip && \
