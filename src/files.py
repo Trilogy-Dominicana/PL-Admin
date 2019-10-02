@@ -1,7 +1,24 @@
+import os, re, shutil, glob
+
 class Files():
     plsql_path = os.path.join(os.getcwd(), 'plsql')
 
-    def listPendingFiles(self):
+    def __init__(self):
+        self.objTypes = self.objTypesList()
+
+
+    def objTypesList(self):
+        data = {}
+        data['package'] = '.psk'
+        data['package_body'] = '.pbk'
+        data['view'] = '.vew'
+        data['function'] = '.fnc'
+        data['procedure'] = '.prc'
+
+        return data
+
+
+    def listModifedFiles(self):
         """Listing Pending files"""
         data = []
         # List all .par into Pending dir
@@ -11,7 +28,8 @@ class Files():
             data.append({'name': name['name'], 'ext': name['ext'], 'path': file})
 
         return data
-        
+
+
     def unzipFiles(self):
         """ Create files just to unzip the files and remove .zg file
         
@@ -50,6 +68,7 @@ class Files():
             zfile.close()
         return emptyFiles
 
+
     def getFiles(self):
         '''This method read and copy files from ftp
             Rerturn: (List) with each donwloaded file name '''
@@ -81,25 +100,6 @@ class Files():
         sftp.close()
         return downloadedFiles
 
-    def ftpConnect(self, host, user, password):
-        """ Connect to sFTP using pysftp library
-           
-            Parameters
-            ----------
-            host: (string) FTP host
-            user: (string) FTP User
-            passwd: (string) FTP Password 
- 
-            Returns: (object) pysftp object library"""
-
-        # cnopts = pysftp.CnOpts()
-        try:
-            return pysftp.Connection(host, username=user, password=password)
-        except Exception as e:
-            print('Error al conectar al FTP')
-            # print('Error: {0}'.format(err))
-            print('*** Caught exception: %s: %s' % (e.__class__, e))
-            return False
 
     def findFile(self, name, path):
         """ Determinate if a exist into a tree directory """

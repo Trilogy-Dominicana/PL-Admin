@@ -10,7 +10,8 @@ class Database():
     port         = os.getenv("DB_PORT")
 
     def listInvalidObjects(self, status='', db=False):
-        ''' List invalid Packages, Functions and Procedures and Views
+        ''' 
+        List invalid Packages, Functions and Procedures and Views
         
         Params:
         ------
@@ -23,7 +24,7 @@ class Database():
             localClose = True
         
         cursor = db.cursor()
-        query = "SELECT * FROM all_objects WHERE object_type in ('PACKAGE','FUNCTION','PROCEDURE', 'VIEW') AND owner = '%s'" % self.user
+        query = "SELECT * FROM all_objects WHERE object_type in ('PACKAGE','PACKAGE BODY','FUNCTION','PROCEDURE', 'VIEW') AND owner = '%s'" % self.user
 
         # If re.match(r'VALID|INVALID', status):
         if ('INVALID' == status) or 'VALID' == status:
