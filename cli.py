@@ -13,7 +13,7 @@ def main(argv):
         # print('Something wrong with the args. type -h to see help ')
         sys.exit(2)
 
-    print('Probando')
+    # print('Probando')
     
     for opt, arg in opts:
         if opt in ('-i'):

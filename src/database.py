@@ -66,15 +66,12 @@ class Database():
             mode = cx_Oracle.SYSDBA
 
         try:
-            connection = cx_Oracle.connect(user=self.user, password=self.password, dsn=self.dsn, mode=mode, encoding="UTF-8")
-            # connection = cx_Oracle.connect(user=user, password=password, dsn=dsn, , encoding="UTF-8")
-            # logger.info("Successfully connected as SYSDBA")
+            return cx_Oracle.connect(user=self.user, password=self.password, dsn=self.dsn, mode=mode, encoding="UTF-8")
+
         except Exception as e:
             content= 'DB Error: %s ' % (str(e)).strip()
             print(content)
             return content
-        
-        return connection
 
 
     def makeDictFactory(self, cursor):
