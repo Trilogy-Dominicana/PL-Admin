@@ -19,7 +19,7 @@ class Files():
 
 
     def listModifedFiles(self):
-        """Listing Pending files"""
+        '''Listing Pending files'''
         data = []
         # List all .par into Pending dir
         files = glob.glob(os.path.join(self.pending_files, '*.par'))

@@ -9,14 +9,45 @@ class Database():
     host         = os.getenv("DB_HOST")
     port         = os.getenv("DB_PORT")
 
-    def listInvalidObjects(self, status='', db=False):
+    
+    def listInvalidObjects(self, status=None):
         ''' 
         List invalid Packages, Functions and Procedures and Views
         
         Params:
         ------
         status (string): Valid values [VALID, INVALID].
-        db (cx_Oracle) is an instance of cx_Oracle lib
+        db (cx_Oracle) is an instance of cx_Oracle lib.
+        '''
+        
+        query = """
+        SELECT     
+            owner
+            ,object_id
+            ,object_name
+            ,object_type
+            ,status
+            ,last_ddl_time
+            ,created 
+        FROM all_objects WHERE object_type in ('PACKAGE','PACKAGE BODY','FUNCTION','PROCEDURE', 'VIEW') AND owner = '%s'""" % self.user
+
+        # If re.match(r'VALID|INVALID', status):
+        if ('INVALID' == status) or 'VALID' == status:
+            query = query + " AND status = '%s'" % status
+        
+        result = self.getDataFromDB(query)
+        
+        return result
+
+
+    def getDataFromDB(self, query, db=False):
+        ''' 
+        List invalid Packages, Functions and Procedures and Views
+        
+        Params:
+        ------
+        query (string): SQL query data.
+        db (cx_Oracle) is an instance of cx_Oracle lib.
         '''
 
         if not db:
@@ -24,11 +55,6 @@ class Database():
             localClose = True
         
         cursor = db.cursor()
-        query = "SELECT * FROM all_objects WHERE object_type in ('PACKAGE','PACKAGE BODY','FUNCTION','PROCEDURE', 'VIEW') AND owner = '%s'" % self.user
-
-        # If re.match(r'VALID|INVALID', status):
-        if ('INVALID' == status) or 'VALID' == status:
-            query = query + " AND status = '%s'" % status
         
         result = cursor.execute(query)
 
@@ -68,7 +94,6 @@ class Database():
 
         try:
             return cx_Oracle.connect(user=self.user, password=self.password, dsn=self.dsn, mode=mode, encoding="UTF-8")
-
         except Exception as e:
             content= 'DB Error: %s ' % (str(e)).strip()
             print(content)
