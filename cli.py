@@ -19,8 +19,10 @@ def main(argv):
         if opt in ('-i'):
             ''' List invalid packages on DB '''
             print('Fetching packages... \n')
+
             db = Database()
             result = db.listInvalidObjects(status='INVALID')[0]
+
             print(result)
         elif opt in ("-e", "--emethod"):
             emethod = arg

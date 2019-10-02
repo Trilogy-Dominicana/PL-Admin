@@ -10,7 +10,8 @@ class Database():
     port         = os.getenv("DB_PORT")
 
     def listInvalidObjects(self, status='', db=False):
-        ''' List invalid Packages, Functions and Procedures and Views 
+        ''' List invalid Packages, Functions and Procedures and Views
+        
         Params:
         ------
         status (string): Valid values [VALID, INVALID].
@@ -50,31 +51,22 @@ class Database():
         ''' Función para crear (recompilar) paquetes, funciones y procedimientos '''
         # Just tu execute and script
 
-    def makeDictFactory(self, cursor):
-        ''' cx_Oracle library doesn't bring a simple way to convert a query result into a dictionary. '''
-        columnNames = [d[0].lower() for d in cursor.description]
-        def createRow(*args):
-            return dict(zip(columnNames, args))
-
-        return createRow
-
-    def dbConnect(self):
+    def dbConnect(self, sysDBA=False):
         """ 
         Encharge to connect to Oracle database
 
         Params:
         -------
-        mode (cx_Oracle): e.g: cx_Oracle.SYSDBA 
+        sysDBA (boolean): True of False
         """
-        dsn = cx_Oracle.makedsn(self.host, self.port, service_name=self.service_name, asDBA=False)
+        self.dsn = cx_Oracle.makedsn(self.host, self.port, service_name=self.service_name)
         
-        if asDBA:
+        mode = False
+        if sysDBA:
             mode = cx_Oracle.SYSDBA
 
-        connection = ''
-    
         try:
-            connection = cx_Oracle.connect(user=self.user, password=self.password, dsn=self.dsn, mode=False, encoding="UTF-8")
+            connection = cx_Oracle.connect(user=self.user, password=self.password, dsn=self.dsn, mode=mode, encoding="UTF-8")
             # connection = cx_Oracle.connect(user=user, password=password, dsn=dsn, , encoding="UTF-8")
             # logger.info("Successfully connected as SYSDBA")
         except Exception as e:
@@ -83,3 +75,12 @@ class Database():
             return content
         
         return connection
+
+
+    def makeDictFactory(self, cursor):
+        ''' cx_Oracle library doesn't bring a simple way to convert a query result into a dictionary. '''
+        columnNames = [d[0].lower() for d in cursor.description]
+        def createRow(*args):
+            return dict(zip(columnNames, args))
+
+        return createRow
