@@ -1,4 +1,4 @@
-import cx_Oracle, os, re
+import cx_Oracle, os, re, glob
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -9,8 +9,42 @@ class Database():
     host         = os.getenv("DB_HOST")
     port         = os.getenv("DB_PORT")
 
+
+
+    def compileObj(self, obj=None, db=None):
+        ''' Función para crear (recompilar) paquetes, funciones y procedimientos '''
+        
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        
+        cursor = db.cursor()
+
+        # List all files in on pending dir ({self.pending_files}) directory and push into {file} var
+        path = os.path.join('plsql', 'packages', '*.psk')
+        files = glob.glob(path)
+        
+        for f in files:
+            opf = open(f, 'r')
+            # fname = self.getFileName(f)
+            content = opf.read()
+            
+            cursor.execute(content)  
+
+            db.commit()
+
+        # print(content)
+        # print(files)
+
     
-    def listInvalidObjects(self, status=None):
+    def getObjErrors(self, objName):
+        query = "SELECT * FROM all_errors WHERE owner = '%s' and NAME = '%s'" % (self.user, 'TX_CL_ENCUESTA')
+        result = self.getData(query)
+        print(result)
+
+
+    def getObjStatus(self, status=None):
+        # [] Se debe agregar a este metodo el porqué el objeto está invalido
         ''' 
         List invalid Packages, Functions and Procedures and Views
         
@@ -35,12 +69,12 @@ class Database():
         if ('INVALID' == status) or 'VALID' == status:
             query = query + " AND status = '%s'" % status
         
-        result = self.getDataFromDB(query)
+        result = self.getData(query)
         
         return result
 
 
-    def getDataFromDB(self, query, db=False):
+    def getData(self, query, db=False):
         ''' 
         List invalid Packages, Functions and Procedures and Views
         
@@ -73,13 +107,9 @@ class Database():
 
         return data
 
-    
-    def executeScript(slef):
-        ''' Función para crear (recompilar) paquetes, funciones y procedimientos '''
-        # Just tu execute and script
 
     def dbConnect(self, sysDBA=False):
-        """ 
+        """
         Encharge to connect to Oracle database
 
         Params:

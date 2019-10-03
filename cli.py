@@ -2,6 +2,7 @@
 import sys, getopt, json
 
 from src.database import Database
+from src.files import Files
 
 def main(argv):
     ''' Main function to execute command line '''
@@ -13,17 +14,23 @@ def main(argv):
         # print('Something wrong with the args. type -h to see help ')
         sys.exit(2)
 
-    # print('Probando')
+    
     
     for opt, arg in opts:
         if opt in ('-i'):
             ''' List invalid packages on DB '''
-            print('Fetching packages... \n')
+            
+            # files = Files()
+            # print(files.objType.package)
 
             db = Database()
-            result = db.listInvalidObjects(status='INVALID')[0]
+            # result = db.listInvalidObjects(status='INVALID')[0]
+            db.compileObj()
 
-            print(result)
+            # print(result['object_name'])
+            # print(result)
+
+            
         elif opt in ("-e", "--emethod"):
             emethod = arg
         else:
