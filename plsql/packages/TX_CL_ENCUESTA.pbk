@@ -11,13 +11,13 @@ IS
     IS
         -- Variables obligatorias de seguridad y logs
         v_cod_tran                    VARCHAR2 (100) := v_cod_ent || '.CREAR_ENCUESTA';
-        v_reg_entidad                 cnf_entidad%ROWTYPE;
         v_rowid_entidad               ROWID;
         v_nombre_tabla                VARCHAR2 (50) := NULL;
         v_pk_registro                 VARCHAR2 (250);
         v_trama_in                    VARCHAR2 (4000);
         v_trama_out                   VARCHAR2 (2000);
         v_respuesta_abierta           VARCHAR2 (300) := '';
+        err_app                       EXCEPTION;
     BEGIN
     
     
@@ -25,7 +25,7 @@ IS
         IF pi_cod_usuario IS NULL
            OR pi_master IS NULL THEN
             po_cod_err    := 'CLI-2655';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Algun parametro de entrada requerido es nulo.
-            RAISE err_app;
+            -- RAISE err_app;
         END IF;
 
 
@@ -35,20 +35,9 @@ IS
             IF po_cod_err != 'OK' THEN
                 RAISE err_app;
             END IF;
-
             COMMIT;
-        END IF;
 
     EXCEPTION
-        WHEN err_app THEN
-            IF pi_master = c_verdadero THEN
-                ROLLBACK;
-            END IF;
-
-            IF po_msj_err IS NULL THEN
-                po_msj_err    := get_error (po_cod_err);
-            END IF;
-
         WHEN OTHERS THEN
             IF pi_master = c_verdadero THEN
                 ROLLBACK;
@@ -67,18 +56,13 @@ IS
     IS
         -- Variables obligatorias de seguridad y logs
         v_cod_tran                    VARCHAR2 (100) := v_cod_ent || '.CREAR_ENCUESTA';
-        v_reg_entidad                 cnf_entidad%ROWTYPE;
         v_rowid_entidad               ROWID;
         v_nombre_tabla                VARCHAR2 (50) := NULL;
         v_pk_registro                 VARCHAR2 (250);
         v_trama_in                    VARCHAR2 (4000);
         v_trama_out                   VARCHAR2 (2000);
-        v_id_tran                     tx_historico_transaccion.id_tran%TYPE;
-        v_cod_gestion_tran            tx_historico_transaccion.cod_gestion_tran%TYPE;
-        v_fch_tran                    tx_historico_transaccion.fch_tran%TYPE;
         err_app                       EXCEPTION;
         -- Variables propias del procedimiento
-        v_id_encuesta                 cl_encuesta.id_encuesta%TYPE;
         v_pendientes                  PLS_INTEGER;
     BEGIN
       
@@ -95,18 +79,12 @@ IS
             IF pi_master = c_verdadero THEN
                 ROLLBACK;
             END IF;
-
-            IF po_msj_err IS NULL THEN
-                po_msj_err    := get_error (po_cod_err);
-            END IF;
-
            
         WHEN OTHERS THEN
             IF pi_master = c_verdadero THEN
                 ROLLBACK;
             END IF;
 
-            po_msj_err     := get_sys_error (po_cod_err, SQLERRM);
             -- Inicializar variables para logs, trama de salida
             v_trama_out    :=
                               ---------- parametros obligatorios ---------------

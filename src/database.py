@@ -1,5 +1,8 @@
 import cx_Oracle, os, re, glob
 from dotenv import load_dotenv
+from src.files import Files as fileLib
+
+fileLib = fileLib()
 load_dotenv()
 
 class Database():
@@ -10,10 +13,10 @@ class Database():
     port         = os.getenv("DB_PORT")
 
 
-
     def compileObj(self, obj=None, db=None):
         ''' Función para crear (recompilar) paquetes, funciones y procedimientos '''
         
+        localClose = False
         if not db:
             db = self.dbConnect()
             localClose = True
@@ -21,26 +24,37 @@ class Database():
         cursor = db.cursor()
 
         # List all files in on pending dir ({self.pending_files}) directory and push into {file} var
-        path = os.path.join('plsql', 'packages', '*.psk')
+        path = os.path.join('plsql', 'packages', '*.pbk')
         files = glob.glob(path)
         
         for f in files:
-            opf = open(f, 'r')
-            # fname = self.getFileName(f)
-            content = opf.read()
-            
-            cursor.execute(content)  
+            fname = fileLib.getFileName(f)
 
-            db.commit()
+            opf = open(f, 'r')
+            content = opf.read()
+            opf.close()
+            
+            cursor.execute(content)
+            data = self.getObjErrors(owner=self.user, objName=fname['name'], db=db)
+
+            # db.commit() # The commit is not necessary
+
+        if localClose:
+            db.close()
+            
+        print(data)
 
         # print(content)
         # print(files)
 
     
-    def getObjErrors(self, objName):
-        query = "SELECT * FROM all_errors WHERE owner = '%s' and NAME = '%s'" % (self.user, 'TX_CL_ENCUESTA')
-        result = self.getData(query)
-        print(result)
+    def getObjErrors(self, owner, objName, db=None):
+        ''' Get object errors on execution time '''
+
+        query = "SELECT * FROM all_errors WHERE owner = '%s' and NAME = '%s'" % (owner, objName)
+        result = self.getData(query=query, db=db)
+        
+        return result
 
 
     def getObjStatus(self, status=None):
@@ -74,7 +88,7 @@ class Database():
         return result
 
 
-    def getData(self, query, db=False):
+    def getData(self, query, db=None):
         ''' 
         List invalid Packages, Functions and Procedures and Views
         
@@ -84,6 +98,7 @@ class Database():
         db (cx_Oracle) is an instance of cx_Oracle lib.
         '''
 
+        localClose = False
         if not db:
             db = self.dbConnect()
             localClose = True

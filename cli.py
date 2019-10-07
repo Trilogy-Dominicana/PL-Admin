@@ -20,12 +20,15 @@ def main(argv):
         if opt in ('-i'):
             ''' List invalid packages on DB '''
             
-            # files = Files()
-            # print(files.objType.package)
+            files = Files()
+            files.listAllObj()
+            # print()
 
             db = Database()
             # result = db.listInvalidObjects(status='INVALID')[0]
-            db.compileObj()
+            # db.compileObj()
+
+            # db.getObjErrors('EBRADMIN', 'TX_CL_ENCUESTA')
 
             # print(result['object_name'])
             # print(result)

@@ -17,7 +17,18 @@ class Files():
 
         return data
 
-    
+
+    def listAllObj(self):
+        types = self.objTypesList().values()
+        objs = []
+
+        for files in types:
+            path = os.path.join(self.plsql_path, '**/*' + files)
+            objs.extend(glob.glob(path, recursive=True))
+        
+        return files
+
+
     def listModifedFiles(self):
         '''Listing Pending files'''
         data = []
@@ -28,45 +39,6 @@ class Files():
             data.append({'name': name['name'], 'ext': name['ext'], 'path': file})
 
         return data
-
-
-    def unzipFiles(self):
-        """ Create files just to unzip the files and remove .zg file
-        
-        Parameters
-        ---------
-        files: (List) This list contaning a dictionany with file name and content file"""
-
-        # Getting files from host dir (self.host_files_dir) 
-        files = glob.glob(os.path.join(self.host_files_dir, '*.ascii.gz'))
-        emptyFiles = 0
-
-        # Open compress files
-        for file in files:
-            zfile = gzip.open(file)
-            zcont = zfile.read()
-
-            # Avoiding empty files.
-            if len(zcont) < 1:
-                print('Archivo vacío %s' % file)
-                # Move empty file to empty_gz_backup dir
-                shutil.move(file, self.empty_gzbackup)
-                emptyFiles += 1
-                continue
-
-            # get just file name to move to zgbackup dir and create new .par file
-            fname = self.getFileName(file)
-
-            newFileName = os.path.join(*[self.host_files_dir, self.pending_files, fname['name'] + '.par'])
-            fileToBeSaved = open(newFileName, 'wb')
-            fileToBeSaved.write(zcont)
-            fileToBeSaved.close()
-
-            # Move gz file to gzbackup dir
-            shutil.move(file, self.gzbackup)
-
-            zfile.close()
-        return emptyFiles
 
 
     def getFiles(self):
