@@ -3,29 +3,39 @@ import os, re, shutil, glob
 class Files():
     plsql_path = os.path.join(os.getcwd(), 'plsql')
 
-    def __init__(self):
-        self.objTypes = self.objTypesList()
+    # def __init__(self):
+        # self.objTypes = self.objTypes()
 
 
-    def objTypesList(self):
+    def objTypes(self):
         data = {}
-        data['package'] = '.psk'
-        data['package_body'] = '.pbk'
-        data['view'] = '.vew'
-        data['function'] = '.fnc'
-        data['procedure'] = '.prc'
+        data['PACKAGE'] = '.psk'
+        data['VIEW'] = '.vew'
+        data['FUNCTION'] = '.fnc'
+        data['PROCEDURE'] = '.prc'
+        data['PACKAGE BODY'] = '.pbk'
 
         return data
 
 
-    def listAllObj(self):
-        types = self.objTypesList().values()
+    def listAllObjsFiles(self):
+        types = self.objTypes().values()
         objs = []
 
         for files in types:
             path = os.path.join(self.plsql_path, '**/*' + files)
             objs.extend(glob.glob(path, recursive=True))
-        
+
+        return objs
+
+
+    def findObjFileByType(self, objType, objectName):
+
+        oType = self.objTypes()[objType]
+
+        path = os.path.join(self.plsql_path, '**/' + objectName + oType)
+        files = glob.glob(path)
+
         return files
 
 
