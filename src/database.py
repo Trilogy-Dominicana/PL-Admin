@@ -7,47 +7,43 @@ load_dotenv()
 
 class Database():
     service_name = os.getenv("DB_SERVICE_NAME")
+    dba_user         = os.getenv("DB_DBA_USER")
+    dba_password     = os.getenv("DB_DBA_PASSWORD")
     user         = os.getenv("DB_USER")
     password     = os.getenv("DB_PASSWORD")
     host         = os.getenv("DB_HOST")
     port         = os.getenv("DB_PORT")
 
 
-    def compileObj(self, obj=None, db=None):
+    def createReplaceObject(self, path=None, db=None):
         ''' Función para crear (recompilar) paquetes, funciones y procedimientos '''
-        
+        data = []
+
         localClose = False
         if not db:
             db = self.dbConnect()
             localClose = True
         
         cursor = db.cursor()
-
-        # List all files in on pending dir ({self.pending_files}) directory and push into {file} var
-        path = os.path.join('plsql', 'packages', '*.pbk')
-        files = glob.glob(path)
         
-        for f in files:
+        for f in path:
             fname = fileLib.getFileName(f)
 
             opf = open(f, 'r')
             content = opf.read()
             opf.close()
             
-            cursor.execute(content)
-            data = self.getObjErrors(owner=self.user, objName=fname['name'], db=db)
+            cursor.execute('CREATE OR REPLACE ' + content)
+            data.extend(self.getObjErrors(owner=self.user, objName=fname['name'], db=db))
 
             # db.commit() # The commit is not necessary
 
         if localClose:
             db.close()
             
-        print(data)
-
-        # print(content)
-        # print(files)
-
+        return data
     
+
     def getObjErrors(self, owner, objName, db=None):
         ''' Get object errors on execution time '''
 
@@ -123,7 +119,28 @@ class Database():
         return data
 
 
-    def dbConnect(self, sysDBA=False):
+    def createSchema(self):
+        cursor = self.dbConnect(asDBA=True)
+
+        print("*CREATE SCHEMA")
+        
+
+        print("*GRANT ALL")
+        # dataDevel.grantAll(self.dbUser)
+        
+        print("ACTUALIZANDO SINONIMOS")
+        # self.updateSynonyms(self.dbDataSchema)
+
+        print("COMPILAR PAQUETES DESDE EL REPOSITORIO A LA DB")
+        # list(self.wc2db())
+        
+        print("RECOMPILANDO")
+        # self.DBCompile()
+
+
+
+
+    def dbConnect(self, asDBA=False, sysDBA=False):
         """
         Encharge to connect to Oracle database
 
@@ -132,13 +149,19 @@ class Database():
         sysDBA (boolean): True of False
         """
         self.dsn = cx_Oracle.makedsn(self.host, self.port, service_name=self.service_name)
-        
+        user=self.user
+        password=self.password
+
         mode = False
         if sysDBA:
             mode = cx_Oracle.SYSDBA
 
+        if asDBA:
+            user=self.dba_user
+            password=self.dba_password
+
         try:
-            return cx_Oracle.connect(user=self.user, password=self.password, dsn=self.dsn, mode=mode, encoding="UTF-8")
+            return cx_Oracle.connect(user=user, password=password, dsn=self.dsn, mode=mode, encoding="UTF-8")
         except Exception as e:
             content= 'DB Error: %s ' % (str(e)).strip()
             print(content)
