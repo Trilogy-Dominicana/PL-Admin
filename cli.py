@@ -1,8 +1,10 @@
 #!/usr/bin/python
 import sys, getopt, json
 
+# from dotenv import load_dotenv
 from src.database import Database
 from src.files import Files
+
 
 def main(argv):
     ''' Main function to execute command line '''
@@ -19,19 +21,29 @@ def main(argv):
     for opt, arg in opts:
         if opt in ('-i'):
             ''' List invalid packages on DB '''
-            
             files = Files()
-            files.listAllObj()
-            # print()
-
             db = Database()
-            # result = db.listInvalidObjects(status='INVALID')[0]
-            # db.compileObj()
-
-            # db.getObjErrors('EBRADMIN', 'TX_CL_ENCUESTA')
-
-            # print(result['object_name'])
-            # print(result)
+            # con = db.dbConnect(asAdmin=True)
+            
+            # Create schemas
+            # print(db.createSchema())
+            
+            # List objects in files
+            datos = files.listAllObjsFiles()
+            # print(datos)
+ 
+            # List invalid objects
+            # print(db.getObjStatus(status='INVALID'))
+            
+            # Get error, warnnings, info of a invalid package
+            # print(db.getObjErrors('EBRADMIN', 'TX_CL_ENCUESTA'))
+            
+            # Get object path by type of db and nada
+            # datos = files.findObjFileByType(objType='PACKAGE BODY', objectName='TX_CL_ENCUESTA')
+            # print(datos)
+            
+            # Compiple an object list
+            print(len(db.createReplaceObject(datos)))
 
             
         elif opt in ("-e", "--emethod"):

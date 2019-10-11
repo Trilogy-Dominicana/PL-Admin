@@ -6,10 +6,14 @@ fileLib = fileLib()
 load_dotenv()
 
 class Database():
+    db_admin_user          = os.getenv("DB_ADMIN_USER")
+    db_admin_password      = os.getenv("DB_ADMIN_PASSWORD")
+    db_default_table_space = os.getenv("DB_DEFAULT_TABLE_SPACE")
+    db_temp_table_space    = os.getenv("DB_TEMP_TABLE_SPACE")
+    db_main_schema         = os.getenv("DB_MAIN_SCHEMA")
+    
     service_name = os.getenv("DB_SERVICE_NAME")
-    dba_user         = os.getenv("DB_DBA_USER")
-    dba_password     = os.getenv("DB_DBA_PASSWORD")
-    user         = os.getenv("DB_USER")
+    user         = os.getenv("DB_USER").upper()
     password     = os.getenv("DB_PASSWORD")
     host         = os.getenv("DB_HOST")
     port         = os.getenv("DB_PORT")
@@ -84,6 +88,83 @@ class Database():
         return result
 
 
+    def createSchema(self):
+        # To create users, give permission, etc. We need to connect with admin user using param asAdmin
+        db      = self.dbConnect(asAdmin=True)
+        cursor  = db.cursor()
+
+        # Firts, we need to validate if the user exist COUNT(1)
+        sql = "SELECT COUNT(1) AS v_count FROM dba_users WHERE username = :pldb_user"
+        cursor.execute(sql, {'pldb_user': self.user})
+        
+        # Add parameter drop the user in case of 
+        if cursor.fetchone()[0] > 0:
+            print('DROP USER %s' % self.user)
+            cursor.execute("DROP USER %s CASCADE" % self.user)
+
+        # print("*CREATE SCHEMA")
+        sql = "CREATE USER %s IDENTIFIED BY %s DEFAULT TABLESPACE %s TEMPORARY TABLESPACE %s QUOTA UNLIMITED ON %s" % (
+            self.user, 
+            self.password,
+            self.db_default_table_space,
+            self.db_temp_table_space, 
+            self.db_default_table_space
+        )
+        cursor.execute(sql)
+
+        # print("*GRANT ALL")
+        self.schemaPermision(db, self.user)
+
+
+        # print("ACTUALIZANDO SINONIMOS")
+        synonyms = self.getSynonyms(mainSchema=self.db_main_schema, dbUser=self.user, db=db)
+
+
+        self.updateSynonyms(synonyms=synonyms, originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
+
+
+        # print("COMPILAR PAQUETES DESDE EL REPOSITORIO A LA DB")
+        # list(self.wc2db())
+        
+        print("RECOMPILANDO")
+        # self.DBCompile()
+
+    def updateSynonyms(self, synonyms, originSchema, detinationSchema, db):
+        cursor = db.cursor()
+
+        for synon in synonyms:
+            # If we need to exclude some object
+            # if object_name in excludes:
+            #     continue
+            sql = "CREATE SYNONYM %s.%s FOR %s.%s" % (detinationSchema, synon['object_name'], originSchema, synon['object_name'])
+
+            print(sql)
+            cursor.execute(sql)
+
+        cursor.close()
+
+    def getSynonyms(self, mainSchema, dbUser, db=None):
+        ''' This method get synonyms type ('SEQUENCE', 'TABLE', 'TYPE') from owner and avoid '''
+
+        sql = """ SELECT oo.object_name, oo.object_type, oo.status
+                FROM sys.dba_objects oo
+                WHERE     oo.owner = '%s'
+                    AND oo.object_type IN ('SEQUENCE', 'TABLE', 'TYPE')
+                    AND oo.object_name NOT LIKE 'SYS_PLSQL_%%'
+                    AND oo.object_name NOT LIKE 'QTSF_CHAIN_%%'
+                    AND oo.object_name <> 'METADATA_TABLE'
+                    AND NOT EXISTS
+                            (SELECT 1
+                                FROM sys.dba_objects tob
+                                WHERE     tob.owner = '%s'
+                                    AND tob.object_name = oo.object_name)
+                    AND status = 'VALID' """ % (mainSchema, dbUser)
+
+        result = self.getData(sql, db)
+       
+        return result
+
+
     def getData(self, query, db=None):
         ''' 
         List invalid Packages, Functions and Procedures and Views
@@ -119,28 +200,22 @@ class Database():
         return data
 
 
-    def createSchema(self):
-        cursor = self.dbConnect(asDBA=True)
-
-        print("*CREATE SCHEMA")
+    def schemaPermision(self, db, user):
+        cursor  = db.cursor()
         
-
-        print("*GRANT ALL")
-        # dataDevel.grantAll(self.dbUser)
+        cursor.execute("GRANT CREATE PROCEDURE TO %s" % user)
+        cursor.execute("GRANT CREATE SEQUENCE TO %s" % user)
+        cursor.execute("GRANT CREATE TABLE TO %s" % user)
+        cursor.execute("GRANT CREATE VIEW TO %s" % user)
+        cursor.execute("GRANT CREATE TRIGGER TO %s" % user)
+        cursor.execute("GRANT EXECUTE ANY PROCEDURE TO %s" % user)
+        cursor.execute("GRANT SELECT ANY DICTIONARY TO %s" % user)
+        cursor.execute("GRANT CREATE SESSION TO %s" % user)
         
-        print("ACTUALIZANDO SINONIMOS")
-        # self.updateSynonyms(self.dbDataSchema)
-
-        print("COMPILAR PAQUETES DESDE EL REPOSITORIO A LA DB")
-        # list(self.wc2db())
-        
-        print("RECOMPILANDO")
-        # self.DBCompile()
+        cursor = db.cursor()
 
 
-
-
-    def dbConnect(self, asDBA=False, sysDBA=False):
+    def dbConnect(self, asAdmin=False, sysDBA=False):
         """
         Encharge to connect to Oracle database
 
@@ -156,9 +231,9 @@ class Database():
         if sysDBA:
             mode = cx_Oracle.SYSDBA
 
-        if asDBA:
-            user=self.dba_user
-            password=self.dba_password
+        if asAdmin:
+            user=self.db_admin_user
+            password=self.db_admin_password
 
         try:
             return cx_Oracle.connect(user=user, password=password, dsn=self.dsn, mode=mode, encoding="UTF-8")
