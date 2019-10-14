@@ -102,7 +102,7 @@ class Database():
             print('DROP USER %s' % self.user)
             cursor.execute("DROP USER %s CASCADE" % self.user)
 
-        # print("*CREATE SCHEMA")
+        print('CREATED USER %s' % self.user)
         sql = "CREATE USER %s IDENTIFIED BY %s DEFAULT TABLESPACE %s TEMPORARY TABLESPACE %s QUOTA UNLIMITED ON %s" % (
             self.user, 
             self.password,
@@ -111,42 +111,74 @@ class Database():
             self.db_default_table_space
         )
         cursor.execute(sql)
-
-        # print("*GRANT ALL")
-        self.schemaPermision(db, self.user)
+        
+        # Give grants to the user
+        self.createGramtsTo(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
 
 
         # print("ACTUALIZANDO SINONIMOS")
-        synonyms = self.getSynonyms(mainSchema=self.db_main_schema, dbUser=self.user, db=db)
-
-
-        self.updateSynonyms(synonyms=synonyms, originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
+        self.createSynonyms(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
 
 
         # print("COMPILAR PAQUETES DESDE EL REPOSITORIO A LA DB")
         # list(self.wc2db())
         
-        print("RECOMPILANDO")
+        # print("RECOMPILANDO")
         # self.DBCompile()
+        # db.close()
 
-    def updateSynonyms(self, synonyms, originSchema, detinationSchema, db):
+
+    def createGramtsTo(self, originSchema, detinationSchema, db=None):
+        
+        cursor  = db.cursor()
+        cursor.execute("GRANT CREATE PROCEDURE TO %s" % detinationSchema)
+        cursor.execute("GRANT CREATE SEQUENCE TO %s" % detinationSchema)
+        cursor.execute("GRANT CREATE TABLE TO %s" % detinationSchema)
+        cursor.execute("GRANT CREATE VIEW TO %s" % detinationSchema)
+        cursor.execute("GRANT CREATE TRIGGER TO %s" % detinationSchema)
+        cursor.execute("GRANT EXECUTE ANY PROCEDURE TO %s" % detinationSchema)
+        cursor.execute("GRANT SELECT ANY DICTIONARY TO %s" % detinationSchema)
+        cursor.execute("GRANT CREATE SESSION TO %s" % detinationSchema)
+        cursor.execute("GRANT SELECT ANY DICTIONARY TO %s" % detinationSchema)
+        cursor.execute("GRANT EXECUTE ANY PROCEDURE TO %s" % detinationSchema)
+        cursor.execute("GRANT EXECUTE ANY TYPE TO %s" % detinationSchema)
+        cursor.execute("GRANT ALTER ANY TABLE TO %s" % detinationSchema)
+        cursor.execute("GRANT ALTER ANY SEQUENCE TO %s" % detinationSchema)
+        cursor.execute("GRANT UPDATE ANY TABLE TO %s" % detinationSchema)
+        cursor.execute("GRANT DEBUG ANY PROCEDURE TO %s" % detinationSchema)
+        cursor.execute("GRANT DEBUG CONNECT ANY to %s" % detinationSchema)
+        cursor.execute("GRANT DELETE ANY TABLE TO %s" % detinationSchema)
+        cursor.execute("GRANT ALTER ANY INDEX TO %s" % detinationSchema)
+        cursor.execute("GRANT INSERT ANY TABLE TO %s" % detinationSchema)
+        cursor.execute("GRANT READ ANY TABLE TO %s" % detinationSchema)
+        cursor.execute("GRANT SELECT ANY TABLE TO %s" % detinationSchema)
+        cursor.execute("GRANT SELECT ANY SEQUENCE TO %s" % detinationSchema)
+
+
+        # Now, we hace to get 
+        # sql = ''' SELECT oo.object_name, oo.object_type, oo.status
+        #         FROM sys.dba_objects oo
+        #         WHERE oo.owner=:origin_schema
+        #         AND oo.object_type in ('SEQUENCE','TABLE','TYPE')
+        #         AND oo.object_name not like 'SYS_PLSQL_%%'
+        #         AND oo.object_name not like 'QTSF_CHAIN_%%'
+        #         AND oo.status='VALID'
+        #         AND oo.object_name not in (SELECT tp.table_name FROM dba_tab_privs tp where tp.grantee=:destination_schema AND owner=:origin_schema) '''
+        
+        # result = self.getData(sql, {'origin_schema': originSchema, 'destination_schema': detinationSchema })
+
+        # for obj in result:
+        #     sql = "GRANT ALL PRIVILEGES ON %s.%s TO %s" % (originSchema, obj['object_name'], detinationSchema)
+        #     cursor.execute(sql)
+
+        # cursor = db.close()
+
+
+    def createSynonyms(self, originSchema, detinationSchema, db):
+        """ Create synonyms types ('SEQUENCE', 'TABLE', 'TYPE') from originSchema to destinationSchema """
+
         cursor = db.cursor()
-
-        for synon in synonyms:
-            # If we need to exclude some object
-            # if object_name in excludes:
-            #     continue
-            sql = "CREATE SYNONYM %s.%s FOR %s.%s" % (detinationSchema, synon['object_name'], originSchema, synon['object_name'])
-
-            print(sql)
-            cursor.execute(sql)
-
-        cursor.close()
-
-    def getSynonyms(self, mainSchema, dbUser, db=None):
-        ''' This method get synonyms type ('SEQUENCE', 'TABLE', 'TYPE') from owner and avoid '''
-
-        sql = """ SELECT oo.object_name, oo.object_type, oo.status
+        sql = ''' SELECT oo.object_name, oo.object_type, oo.status
                 FROM sys.dba_objects oo
                 WHERE     oo.owner = '%s'
                     AND oo.object_type IN ('SEQUENCE', 'TABLE', 'TYPE')
@@ -158,14 +190,20 @@ class Database():
                                 FROM sys.dba_objects tob
                                 WHERE     tob.owner = '%s'
                                     AND tob.object_name = oo.object_name)
-                    AND status = 'VALID' """ % (mainSchema, dbUser)
+                    AND status = 'VALID' ''' % (originSchema, detinationSchema)
 
-        result = self.getData(sql, db)
-       
-        return result
+        synonyms = self.getData(query=sql, db=db)
 
 
-    def getData(self, query, db=None):
+        for synon in synonyms:
+            sql = "CREATE SYNONYM %s.%s FOR %s.%s" % (detinationSchema, synon['object_name'], originSchema, synon['object_name'])
+            print(sql)
+            cursor.execute(sql)
+
+        cursor.close()
+
+
+    def getData(self, query, params=None, db=None):
         ''' 
         List invalid Packages, Functions and Procedures and Views
         
@@ -181,8 +219,10 @@ class Database():
             localClose = True
         
         cursor = db.cursor()
-        
-        result = cursor.execute(query)
+        if not params:
+            result = cursor.execute(query)
+        else:
+            result = cursor.execute(query, data)
 
         # Overriding rowfactory method to get the data in a dictionary
         result.rowfactory = self.makeDictFactory(result)
@@ -191,28 +231,13 @@ class Database():
         data = result.fetchall()
 
         # Close DB connection
-        cursor.close()
+        # cursor.close()
 
         # If the connection was open on this method, close localy.
         if localClose:
             db.close()
 
         return data
-
-
-    def schemaPermision(self, db, user):
-        cursor  = db.cursor()
-        
-        cursor.execute("GRANT CREATE PROCEDURE TO %s" % user)
-        cursor.execute("GRANT CREATE SEQUENCE TO %s" % user)
-        cursor.execute("GRANT CREATE TABLE TO %s" % user)
-        cursor.execute("GRANT CREATE VIEW TO %s" % user)
-        cursor.execute("GRANT CREATE TRIGGER TO %s" % user)
-        cursor.execute("GRANT EXECUTE ANY PROCEDURE TO %s" % user)
-        cursor.execute("GRANT SELECT ANY DICTIONARY TO %s" % user)
-        cursor.execute("GRANT CREATE SESSION TO %s" % user)
-        
-        cursor = db.cursor()
 
 
     def dbConnect(self, asAdmin=False, sysDBA=False):

@@ -28,9 +28,6 @@ def main(argv):
             # Create schemas
             # print(db.createSchema())
             
-            # List objects in files
-            datos = files.listAllObjsFiles()
-            # print(datos)
  
             # List invalid objects
             # print(db.getObjStatus(status='INVALID'))
@@ -43,6 +40,7 @@ def main(argv):
             # print(datos)
             
             # Compiple an object list
+            datos = files.listAllObjsFiles()
             print(len(db.createReplaceObject(datos)))
 
             
