@@ -1,9 +1,23 @@
-CREATE OR REPLACE PACKAGE BODY TX_CL_ENCUESTA
+PACKAGE BODY TX_CL_ENCUESTA
 IS
     PROCEDURE crear_encuesta (
+        -- Input parameters
+        pi_id_entidad_consumo     IN       cl_encuesta.id_entidad_consumo%TYPE,
+        pi_nro_documento          IN       cl_encuesta.nro_documento%TYPE DEFAULT NULL,
+        pi_cod_tipo_documento     IN       cl_encuesta.cod_tipo_documento%TYPE DEFAULT NULL,
+        pi_id_entidad_venta       IN       cl_encuesta.id_entidad_venta%TYPE,
+        pi_cod_tipo_encuesta      IN       cl_encuesta.cod_tipo_encuesta%TYPE,
+        pi_id_externo             IN       cl_encuesta.id_externo%TYPE,
+        pi_cod_transaccion        IN       cl_encuesta.cod_transaccion%TYPE,
+        pi_cod_interfaz           IN       cl_encuesta.cod_interfaz%TYPE,
+        pi_datos                  IN       VARCHAR2 DEFAULT NULL,
         pi_cod_usuario            IN       VARCHAR2,
         pi_master                 IN       VARCHAR2,
-
+        pi_id_tran                IN       tx_historico_transaccion.id_tran%TYPE,
+        pi_fch_tran               IN       tx_historico_transaccion.fch_tran%TYPE,
+        pi_cod_gestion_tran       IN       tx_historico_transaccion.cod_gestion_tran%TYPE,
+        pi_cod_unidad_negocio     IN       tx_historico_transaccion.cod_unidad_negocio%TYPE,
+        pi_respuesta_abierta      IN       VARCHAR2 DEFAULT NULL,
         -- Output parameters
         po_cod_err                OUT      VARCHAR2,
         po_msj_err                OUT      VARCHAR2
@@ -11,61 +25,633 @@ IS
     IS
         -- Variables obligatorias de seguridad y logs
         v_cod_tran                    VARCHAR2 (100) := v_cod_ent || '.CREAR_ENCUESTA';
+        v_reg_entidad                 cnf_entidad%ROWTYPE;
         v_rowid_entidad               ROWID;
         v_nombre_tabla                VARCHAR2 (50) := NULL;
         v_pk_registro                 VARCHAR2 (250);
         v_trama_in                    VARCHAR2 (4000);
         v_trama_out                   VARCHAR2 (2000);
         v_respuesta_abierta           VARCHAR2 (300) := '';
+        v_id_tran                     tx_historico_transaccion.id_tran%TYPE;
+        v_cod_gestion_tran            tx_historico_transaccion.cod_gestion_tran%TYPE;
+        v_fch_tran                    tx_historico_transaccion.fch_tran%TYPE;
         err_app                       EXCEPTION;
+        -- Variables propias del procedimiento
+        v_aplica_trans                PLS_INTEGER := c_falso;
+        v_cant_envio_hoy              PLS_INTEGER;
+        v_cant_envio_mes              PLS_INTEGER;
+        v_reg_entidad_consumo         cl_entidad_consumo%ROWTYPE;
+        v_cod_linea_negocio           bm_grupo_plan.cod_linea_negocio%TYPE;
+        v_id_ussd                     ussd_transaccion.id_ussd%TYPE;
+        v_msisdn                      VARCHAR2 (50);
+        v_id_encuesta                 cl_encuesta.id_encuesta%TYPE;
+        v_id_encuesta_preg            cl_encuesta_pregunta.id_registro%TYPE;
+        v_reg_pregunta                cl_cnf_pregunta%ROWTYPE;
+        v_texto                       ussd_transaccion.texto%TYPE;
+        v_dummy                       PLS_INTEGER;
+        v_datos                       json.jsonstructobj;
+        i                             PLS_INTEGER;
+        v_id_pregunta                 cl_encuesta_pregunta.id_encuesta%TYPE;
+        v_cod_respuesta               VARCHAR2 (200);
+        v_id_entidad_consumo          cl_entidad_consumo.id_entidad_consumo%TYPE;
+        v_nro_documento               cl_encuesta.nro_documento%TYPE;
+        v_cod_tipo_documento          cl_encuesta.cod_tipo_documento%TYPE;
+        v_intervalo_espera            PLS_INTEGER;
     BEGIN
     
     
-        -- Validar parametros de entrada obligatorios
-        IF pi_cod_usuario IS NULL
-           OR pi_master IS NULL THEN
-            po_cod_err    := 'CLI-2655';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Algun parametro de entrada requerido es nulo.
-            -- RAISE err_app;
+        -- Obtener registro de la entidad
+        tx_cnf_entidad.get_entidad (v_cod_tran,
+                                    v_reg_entidad,
+                                    v_rowid_entidad,
+                                    po_cod_err,
+                                    po_msj_err
+                                   );
+
+        IF po_cod_err != 'OK' THEN
+            RAISE err_app;
         END IF;
 
+        -- Inicializar variables para logs, trama inicial
+        v_trama_in     :=
+                             ---------- parametros variables ------------------
+                             'pi_id_entidad_consumo:'
+                          || pi_id_entidad_consumo
+                          || '|'
+                          || 'pi_id_externo:'
+                          || pi_id_externo
+                          || '|'
+                          || 'pi_cod_tipo_encuesta:'
+                          || pi_cod_tipo_encuesta
+                          || '|'
+                          || 'pi_cod_transaccion:'
+                          || pi_cod_transaccion
+                          || '|'
+                          ---------- parametros obligatorios ---------------
+                          || 'pi_cod_usuario:'
+                          || pi_cod_usuario
+                          || '|'
+                          || 'pi_master:'
+                          || pi_master
+                          || '|'
+                          || 'pi_id_tran:'
+                          || pi_id_tran
+                          || '|'
+                          || 'pi_cod_gestion_tran:'
+                          || pi_cod_gestion_tran
+                          || '|'
+                          || 'pi_fch_tran:'
+                          || pi_fch_tran
+                          || '|'
+                          || 'pi_cod_unidad_negocio:'
+                          || pi_cod_unidad_negocio
+                          || '|'
+                          || 'usuario:'
+                          || USER;
 
-        ------------------------------ Fin Logica del procedimiento ---------------------
-        po_cod_err     := 'OK';
-        po_msj_err     := '';
+        -- Validar parametros de entrada obligatorios
+        IF    pi_cod_tipo_encuesta IS NULL
+           OR pi_cod_transaccion IS NULL
+           OR pi_cod_usuario IS NULL
+           OR pi_master IS NULL THEN
+            po_cod_err    := 'CLI-2655';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Algun parametro de entrada requerido es nulo.
+            RAISE err_app;
+        END IF;
+
+        -- Verificar permisos de ejecucion si es una transaccion maestra
+        IF pi_master = c_verdadero THEN
+            IF tiene_permiso (v_cod_tran, v_reg_entidad.validar_seguridad, pi_cod_usuario) = c_falso THEN
+                po_cod_err    := 'CLI-2656';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: No tiene permiso para realizar la operacion.
+                RAISE err_app;
+            END IF;
+        END IF;
+
+        -- Validar parametros transaccionales para transacciones no maestras
+        IF     pi_master = c_falso
+           AND (pi_id_tran IS NULL OR pi_cod_gestion_tran IS NULL OR pi_fch_tran IS NULL) THEN
+            po_cod_err    := 'CLI-2657';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Algun parametro transaccional es nulo.
+            RAISE err_app;
+        END IF;
+
+        -- Obtener atributos transaccionales
+        IF pi_master = c_verdadero THEN
+            tx_transaccion.get_transaccion (pi_cod_unidad_negocio,
+                                            v_id_tran,
+                                            v_cod_gestion_tran,
+                                            v_fch_tran,
+                                            po_cod_err,
+                                            po_msj_err
+                                           );
+
             IF po_cod_err != 'OK' THEN
                 RAISE err_app;
             END IF;
-            COMMIT;
+        ELSE
+            v_id_tran             := pi_id_tran;
+            v_cod_gestion_tran    := pi_cod_gestion_tran;
+            v_fch_tran            := pi_fch_tran;
+        END IF;
+        
+        
+        
+        ------------------------------ Logica del procedimiento -------------------------
+        IF pi_cod_interfaz = c_interfaz_ussd AND pi_cod_tipo_encuesta <> c_encuesta_ussd_subsidio THEN
+            po_cod_err    := 'CLI-2715';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al identificar el tipo de usuario de la transaccion.
 
-    EXCEPTION
-        WHEN OTHERS THEN
-            IF pi_master = c_verdadero THEN
-                ROLLBACK;
+            SELECT COUNT (1)
+              INTO v_aplica_trans
+              FROM seg_usuario s
+             WHERE s.cod_usuario = pi_cod_usuario
+               AND s.fch_inicio = s.fch_fin
+               AND s.fch_fin = c_fecha_fin;
+
+            IF v_aplica_trans = 0 THEN
+                po_cod_err          := 'CLI-2658';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al obtener el registro de la entidad.
+
+                SELECT *
+                  INTO v_reg_entidad_consumo
+                  FROM cl_entidad_consumo ec
+                 WHERE ec.id_entidad_consumo = pi_id_entidad_consumo;
+
+                po_cod_err          := 'CLI-2716';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al obtener los datos de la persona.
+
+                SELECT cod_tipo_documento,
+                       nro_documento
+                  INTO v_cod_tipo_documento,
+                       v_nro_documento
+                  FROM cl_persona
+                 WHERE id_persona = v_reg_entidad_consumo.id_persona;
+
+                --Validar que la transaccion aplique a la encuesta
+                IF pi_cod_transaccion LIKE 'TX_TRAN_ACTIVACION%' THEN
+                    --Validar Linea de negocio
+                    SELECT COUNT (1)
+                      INTO v_aplica_trans
+                      FROM cnf_configuracion_especial
+                     WHERE nombre_tabla = 'CNF_ENCUESTA_SAT'
+                       AND tipo = 'LN_ACTIVACIONES'
+                       AND cod_registro = get_linea_negocio (v_reg_entidad_consumo.cod_plan)
+                       AND parametro_1 = c_estado_activo;
+
+                    v_intervalo_espera    := 10;
+                ELSE
+                    --Validar por codigo de transaccion postventa
+                    SELECT COUNT (1)
+                      INTO v_aplica_trans
+                      FROM cnf_configuracion_especial
+                     WHERE nombre_tabla = 'CNF_ENCUESTA_SAT'
+                       AND tipo = 'TX_TRANS_POSTVENTA'
+                       AND cod_registro = pi_cod_transaccion
+                       AND parametro_1 = c_estado_activo;
+
+                    v_intervalo_espera    := 1;
+                END IF;
+
+                --En caso de que no es postventa o activacion, verficar si aplica por modulos (CRM, REPARACIONES ...)
+                IF v_aplica_trans = c_falso THEN
+                    SELECT COUNT (1)
+                      INTO v_aplica_trans
+                      FROM cnf_configuracion_especial
+                     WHERE nombre_tabla = 'CNF_ENCUESTA_SAT'
+                       AND tipo = 'TX_MODULOS'
+                       AND cod_registro = pi_cod_transaccion
+                       AND parametro_1 = c_estado_activo;
+                END IF;
+
+                --Obtener el numero de envios de la encuesta a nivel de cliente.
+                v_cant_envio_hoy    := get_envios_hoy (v_nro_documento, v_cod_tipo_documento,pi_cod_interfaz);
+                v_cant_envio_mes    := get_envios_mes (v_nro_documento, v_cod_tipo_documento);
+
+                IF     v_aplica_trans <> c_falso
+                   AND v_cant_envio_hoy < c_limite_envio_diario
+                   AND v_cant_envio_mes < c_limite_envio_mensual
+                   AND v_reg_entidad_consumo.cod_tecnologia <> 'TV' THEN
+                    po_cod_err    := 'CLI-2659';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al obtener la pregunta de la encuesta.
+
+                    FOR cur_preg IN (SELECT   ROWNUM AS fila,
+                                              p.*
+                                         FROM cl_cnf_pregunta p
+                                        WHERE p.cod_tipo_encuesta = pi_cod_tipo_encuesta
+                                          AND p.estado = c_estado_activo
+                                     ORDER BY p.orden ASC)
+                    LOOP
+                        IF cur_preg.fila = 1 THEN
+                            v_texto       := cur_preg.pregunta;
+
+                            --Buscar posibles respuesta a la pregunta
+                            FOR cur_resp IN
+                                (SELECT   *
+                                     FROM cnf_catalogo
+                                    WHERE cod_catalogo IN (SELECT cod_respuesta
+                                                             FROM cl_cnf_pregunta_respuesta
+                                                            WHERE id_pregunta = cur_preg.id_pregunta)
+                                      AND cod_entidad = 'CNF_RESPUESTA_' || pi_cod_tipo_encuesta
+                                      AND estado = c_estado_activo
+                                 ORDER BY abreviatura DESC)
+                            LOOP
+                                v_texto    := v_texto || CHR (10) || cur_resp.descripcion;
+                            END LOOP;
+
+                            po_cod_err    := 'CLI-2660';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al registrar el USSD PUSH.
+                            tx_ussd.push (pi_origen                      => c_servicio_smsg,
+                                          pi_destino                     => v_reg_entidad_consumo.identificador_entidad,
+                                          pi_texto                       => v_texto,
+                                          pi_dialogo                     => 1,
+                                          pi_id_tran                     => v_id_tran,
+                                          pi_fch_tran                    =>   v_fch_tran
+                                                                            + (  v_intervalo_espera
+                                                                               / 1440
+                                                                              ),
+                                          pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                          pi_cod_usuario                 => pi_cod_usuario,
+                                          pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                          pi_master                      => c_falso,
+                                          po_id_ussd                     => v_id_ussd,
+                                          po_msisdn                      => v_msisdn,
+                                          po_cod_err                     => po_cod_err,
+                                          po_msj_err                     => po_msj_err
+                                         );
+
+                            IF po_cod_err != 'OK' THEN
+                                RAISE err_app;
+                            END IF;
+
+                            po_cod_err    := 'CLI-2661';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al registrar la encuesta.
+                            cc_cl_encuesta.alta
+                                 (pi_id_entidad_consumo          => v_reg_entidad_consumo.id_entidad_consumo,
+                                  pi_nro_documento               => v_nro_documento,
+                                  pi_cod_tipo_documento          => v_cod_tipo_documento,
+                                  pi_id_entidad_venta            => pi_id_entidad_venta,
+                                  pi_cod_tipo_encuesta           => pi_cod_tipo_encuesta,
+                                  pi_id_externo                  => pi_id_externo,
+                                  pi_cod_transaccion             => pi_cod_transaccion,
+                                  pi_cod_interfaz                => pi_cod_interfaz,
+                                  pi_estado                      => c_estado_activo,
+                                  pi_cod_usuario                 => pi_cod_usuario,
+                                  pi_id_tran                     => v_id_tran,
+                                  pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                  pi_fch_tran                    => v_fch_tran,
+                                  pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                  po_id_encuesta                 => v_id_encuesta,
+                                  po_cod_err                     => po_cod_err,
+                                  po_msj_err                     => po_msj_err
+                                 );
+
+                            IF po_cod_err != 'OK' THEN
+                                RAISE err_app;
+                            END IF;
+                        END IF;
+
+                        po_cod_err    := 'CLI-2662';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al registrar la pregunta de la encuesta.
+                        cc_cl_encuesta_pregunta.alta
+                                                    (pi_id_encuesta                 => v_id_encuesta,
+                                                     pi_id_pregunta                 => cur_preg.id_pregunta,
+                                                     pi_id_externo                  => pi_id_externo,
+                                                     pi_cod_respuesta               => NULL,
+                                                     pi_estado                      => c_estado_activo,
+                                                     pi_cod_usuario                 => pi_cod_usuario,
+                                                     pi_id_tran                     => v_id_tran,
+                                                     pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                                     pi_fch_tran                    => v_fch_tran,
+                                                     pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                                     pi_respuesta_abierta           => pi_respuesta_abierta,
+                                                     po_id_registro                 => v_id_encuesta_preg,
+                                                     po_cod_err                     => po_cod_err,
+                                                     po_msj_err                     => po_msj_err
+                                                    );
+
+                        IF po_cod_err != 'OK' THEN
+                            RAISE err_app;
+                        END IF;
+
+                        IF cur_preg.orden = 1 THEN
+                            cc_cl_encuesta_pregunta.modificacion
+                                                   (pi_id_registro                 => v_id_encuesta_preg,
+                                                    pi_cod_respuesta               => NULL,
+                                                    pi_estado                      => 'E',
+                                                    pi_cod_usuario                 => pi_cod_usuario,
+                                                    pi_id_tran                     => v_id_tran,
+                                                    pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                                    pi_fch_tran                    => v_fch_tran,
+                                                    pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                                    pi_respuesta_abierta           => pi_respuesta_abierta,
+                                                    po_cod_err                     => po_cod_err,
+                                                    po_msj_err                     => po_msj_err
+                                                   );
+
+                            IF po_cod_err != 'OK' THEN
+                                RAISE err_app;
+                            END IF;
+                        END IF;
+                    END LOOP;
+                END IF;
+            END IF;
+        ELSIF pi_cod_interfaz = c_interfaz_web THEN
+            po_cod_err    := 'CLI-2717';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Motivo no valido para registrar los datos de la encuesta.
+
+            SELECT 1
+              INTO v_dummy
+              FROM cnf_catalogo
+             WHERE cod_entidad = 'CNF_CAUSA_VISITA'
+               AND estado = 'A'
+               AND fch_fin = TO_DATE ('33331231 235959', 'YYYYMMDD HH24MISS')
+               AND cod_catalogo = pi_cod_transaccion;
+
+            IF pi_id_entidad_consumo IS NOT NULL THEN
+                v_id_entidad_consumo    := pi_id_entidad_consumo;
+            ELSE
+                v_id_entidad_consumo    := 0;
             END IF;
 
-    END crear_encuesta;
+            po_cod_err    := 'CLI-2718';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al registrar la encuesta
+            cc_cl_encuesta.alta (pi_id_entidad_consumo          => v_id_entidad_consumo,
+                                 pi_nro_documento               => pi_nro_documento,
+                                 pi_cod_tipo_documento          => pi_cod_tipo_documento,
+                                 pi_id_entidad_venta            => pi_id_entidad_venta,
+                                 pi_cod_tipo_encuesta           => pi_cod_tipo_encuesta,
+                                 pi_id_externo                  => pi_id_externo,
+                                 pi_cod_transaccion             => pi_cod_transaccion,
+                                 pi_cod_interfaz                => pi_cod_interfaz,
+                                 pi_estado                      => c_estado_activo,
+                                 pi_cod_usuario                 => pi_cod_usuario,
+                                 pi_id_tran                     => v_id_tran,
+                                 pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                 pi_fch_tran                    => v_fch_tran,
+                                 pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                 po_id_encuesta                 => v_id_encuesta,
+                                 po_cod_err                     => po_cod_err,
+                                 po_msj_err                     => po_msj_err
+                                );
 
-    PROCEDURE responder_encuesta (
-        pi_cod_usuario            IN       VARCHAR2,
-        pi_master                 IN       VARCHAR2,
+            IF po_cod_err != 'OK' THEN
+                RAISE err_app;
+            END IF;
 
-        -- Output parameters
-        po_cod_err                OUT      VARCHAR2,
-        po_msj_err                OUT      VARCHAR2
-    )
-    IS
-        -- Variables obligatorias de seguridad y logs
-        v_cod_tran                    VARCHAR2 (100) := v_cod_ent || '.CREAR_ENCUESTA';
-        v_rowid_entidad               ROWID;
-        v_nombre_tabla                VARCHAR2 (50) := NULL;
-        v_pk_registro                 VARCHAR2 (250);
-        v_trama_in                    VARCHAR2 (4000);
-        v_trama_out                   VARCHAR2 (2000);
-        err_app                       EXCEPTION;
-        -- Variables propias del procedimiento
-        v_pendientes                  PLS_INTEGER;
-    BEGIN
+            v_datos       := json.string2json (pi_datos, '"');
+            i             := v_datos.FIRST;
+
+            WHILE (i IS NOT NULL)
+            LOOP
+                IF v_datos (i).TYPE = 'ATTRNAME' THEN
+                    v_id_pregunta    := REPLACE (v_datos (i).item, '"', '');
+                    i                := v_datos.NEXT (i);
+
+                    IF v_datos (i).TYPE = 'ATTRDATA' THEN
+                        v_cod_respuesta    := REPLACE (v_datos (i).item, '"', '');
+                    END IF;
+
+                    if v_cod_respuesta = 'RWEB06' then
+                        v_respuesta_abierta := pi_respuesta_abierta;
+                    end if;
+
+                    po_cod_err       := 'CLI-2719';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al dar de alta el registro encuesta
+                    cc_cl_encuesta_pregunta.alta (pi_id_encuesta                 => v_id_encuesta,
+                                                  pi_id_pregunta                 => v_id_pregunta,
+                                                  pi_id_externo                  => pi_id_externo,
+                                                  pi_cod_respuesta               => v_cod_respuesta,
+                                                  pi_estado                      => c_estado_respondido,
+                                                  pi_cod_usuario                 => pi_cod_usuario,
+                                                  pi_id_tran                     => v_id_tran,
+                                                  pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                                  pi_fch_tran                    => v_fch_tran,
+                                                  pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                                  pi_respuesta_abierta           => v_respuesta_abierta,
+                                                  po_id_registro                 => v_id_encuesta_preg,
+                                                  po_cod_err                     => po_cod_err,
+                                                  po_msj_err                     => po_msj_err
+                                                 );
+
+                    IF po_cod_err != 'OK' THEN
+                        RAISE err_app;
+                    END IF;
+                END IF;
+
+                i    := v_datos.NEXT (i);
+            END LOOP;
+         ELSIF pi_cod_interfaz = c_interfaz_paginaweb THEN
+            po_cod_err    := 'CLI-2720';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Motivo no valido para registrar los datos de la encuesta.
+
+            SELECT 1
+              INTO v_dummy
+              FROM cnf_catalogo
+             WHERE cod_entidad = 'CNF_CAUSA_VISITA'
+               AND estado = 'A'
+               AND fch_fin = TO_DATE ('33331231 235959', 'YYYYMMDD HH24MISS')
+               AND cod_catalogo = pi_cod_transaccion;
+
+            IF pi_id_entidad_consumo IS NOT NULL THEN
+                v_id_entidad_consumo    := pi_id_entidad_consumo;
+            ELSE
+                v_id_entidad_consumo    := 0;
+            END IF;
+
+            po_cod_err    := 'CLI-2721';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al registrar la encuesta
+            cc_cl_encuesta.alta (pi_id_entidad_consumo          => v_id_entidad_consumo,
+                                 pi_nro_documento               => pi_nro_documento,
+                                 pi_cod_tipo_documento          => pi_cod_tipo_documento,
+                                 pi_id_entidad_venta            => pi_id_entidad_venta,
+                                 pi_cod_tipo_encuesta           => pi_cod_tipo_encuesta,
+                                 pi_id_externo                  => pi_id_externo,
+                                 pi_cod_transaccion             => pi_cod_transaccion,
+                                 pi_cod_interfaz                => pi_cod_interfaz,
+                                 pi_estado                      => c_estado_activo,
+                                 pi_cod_usuario                 => pi_cod_usuario,
+                                 pi_id_tran                     => v_id_tran,
+                                 pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                 pi_fch_tran                    => v_fch_tran,
+                                 pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                 po_id_encuesta                 => v_id_encuesta,
+                                 po_cod_err                     => po_cod_err,
+                                 po_msj_err                     => po_msj_err
+                                );
+
+            IF po_cod_err != 'OK' THEN
+                RAISE err_app;
+            END IF;
+
+            v_datos       := json.string2json (pi_datos, '"');
+            i             := v_datos.FIRST;
+
+            WHILE (i IS NOT NULL)
+            LOOP
+                IF v_datos (i).TYPE = 'ATTRNAME' THEN
+                    v_id_pregunta    := REPLACE (v_datos (i).item, '"', '');
+                    i                := v_datos.NEXT (i);
+
+                    IF v_datos (i).TYPE = 'ATTRDATA' THEN
+                        v_cod_respuesta    := REPLACE (v_datos (i).item, '"', '');
+                    END IF;
+
+                    if v_cod_respuesta = 'RWEB06' then
+                        v_respuesta_abierta := pi_respuesta_abierta;
+                    end if;
+
+                    po_cod_err       := 'CLI-2722';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al dar de alta el registro
+                    cc_cl_encuesta_pregunta.alta (pi_id_encuesta                 => v_id_encuesta,
+                                                  pi_id_pregunta                 => v_id_pregunta,
+                                                  pi_id_externo                  => pi_id_externo,
+                                                  pi_cod_respuesta               => v_cod_respuesta,
+                                                  pi_estado                      => c_estado_respondido,
+                                                  pi_cod_usuario                 => pi_cod_usuario,
+                                                  pi_id_tran                     => v_id_tran,
+                                                  pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                                  pi_fch_tran                    => v_fch_tran,
+                                                  pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                                  pi_respuesta_abierta           => v_respuesta_abierta,
+                                                  po_id_registro                 => v_id_encuesta_preg,
+                                                  po_cod_err                     => po_cod_err,
+                                                  po_msj_err                     => po_msj_err
+                                                 );
+
+                    IF po_cod_err != 'OK' THEN
+                        RAISE err_app;
+                    END IF;
+                END IF;
+
+                i    := v_datos.NEXT (i);
+            END LOOP;
+
+        ELSIF pi_cod_tipo_encuesta = c_encuesta_ussd_subsidio THEN
+
+             po_cod_err          := 'CLI-2871';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al obtener el registro de la entidad.
+             SELECT *
+               INTO v_reg_entidad_consumo
+               FROM cl_entidad_consumo ec
+              WHERE ec.id_entidad_consumo = pi_id_entidad_consumo;
+
+             po_cod_err          := 'CLI-2872';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al obtener los datos de la persona.
+             SELECT cod_tipo_documento,
+                    nro_documento
+               INTO v_cod_tipo_documento,
+                    v_nro_documento
+               FROM cl_persona
+              WHERE id_persona = v_reg_entidad_consumo.id_persona;
+
+
+            FOR cur_preg IN ( SELECT ROWNUM AS fila,
+                                     p.*
+                                FROM cl_cnf_pregunta p
+                               WHERE p.cod_tipo_encuesta = pi_cod_tipo_encuesta
+                                 AND p.estado = c_estado_activo
+                            ORDER BY p.orden ASC)
+            LOOP
+               IF cur_preg.fila = 1 THEN
+
+                   po_cod_err    := 'CLI-2873';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al registrar la encuesta.
+                   cc_cl_encuesta.alta
+                        (pi_id_entidad_consumo          => v_reg_entidad_consumo.id_entidad_consumo,
+                         pi_nro_documento               => v_nro_documento,
+                         pi_cod_tipo_documento          => v_cod_tipo_documento,
+                         pi_id_entidad_venta            => pi_id_entidad_venta,
+                         pi_cod_tipo_encuesta           => pi_cod_tipo_encuesta,
+                         pi_id_externo                  => pi_id_externo,
+                         pi_cod_transaccion             => pi_cod_transaccion,
+                         pi_cod_interfaz                => pi_cod_interfaz,
+                         pi_estado                      => c_estado_activo,
+                         pi_cod_usuario                 => pi_cod_usuario,
+                         pi_id_tran                     => v_id_tran,
+                         pi_cod_gestion_tran            => v_cod_gestion_tran,
+                         pi_fch_tran                    => v_fch_tran,
+                         pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                         po_id_encuesta                 => v_id_encuesta,
+                         po_cod_err                     => po_cod_err,
+                         po_msj_err                     => po_msj_err
+                        );
+
+                   IF po_cod_err != 'OK' THEN
+                       RAISE err_app;
+                   END IF;
+               END IF;
+
+               po_cod_err    := 'CLI-2874';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al registrar la pregunta de la encuesta.
+               cc_cl_encuesta_pregunta.alta
+                                           (pi_id_encuesta                 => v_id_encuesta,
+                                            pi_id_pregunta                 => cur_preg.id_pregunta,
+                                            pi_id_externo                  => pi_id_externo,
+                                            pi_cod_respuesta               => NULL,
+                                            pi_estado                      => c_estado_activo,
+                                            pi_cod_usuario                 => pi_cod_usuario,
+                                            pi_id_tran                     => v_id_tran,
+                                            pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                            pi_fch_tran                    => v_fch_tran,
+                                            pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                            pi_respuesta_abierta           => pi_respuesta_abierta,
+                                            po_id_registro                 => v_id_encuesta_preg,
+                                            po_cod_err                     => po_cod_err,
+                                            po_msj_err                     => po_msj_err
+                                           );
+
+               IF po_cod_err != 'OK' THEN
+                   RAISE err_app;
+               END IF;
+               
+           END LOOP;
+
+        -- Encuesta satisfaccion nuevos clientes
+        ELSIF pi_cod_interfaz = 'WEBOMG' THEN
       
+            FOR cur_preg IN (SELECT ROWNUM AS fila,
+                                     p.*
+                                FROM cl_cnf_pregunta p
+                               WHERE p.cod_tipo_encuesta = pi_cod_tipo_encuesta
+                                 AND p.estado = c_estado_activo
+                            ORDER BY fila ASC)
+            LOOP
+            
+               IF cur_preg.fila = 1 THEN
+                    
+                   po_cod_err    := 'CLI-2873';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al registrar la encuesta.
+                   cc_cl_encuesta.alta
+                        (pi_id_entidad_consumo          => 0,
+                         pi_nro_documento               => pi_nro_documento,
+                         pi_cod_tipo_documento          => pi_cod_tipo_documento,
+                         pi_id_entidad_venta            => pi_id_entidad_venta,
+                         pi_cod_tipo_encuesta           => pi_cod_tipo_encuesta,
+                         pi_id_externo                  => pi_id_externo,
+                         pi_cod_transaccion             => pi_cod_transaccion,
+                         pi_cod_interfaz                => pi_cod_interfaz,
+                         pi_estado                      => c_estado_activo,
+                         pi_cod_usuario                 => pi_cod_usuario,
+                         pi_id_tran                     => v_id_tran,
+                         pi_cod_gestion_tran            => v_cod_gestion_tran,
+                         pi_fch_tran                    => v_fch_tran,
+                         pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                         
+                         po_id_encuesta                 => v_id_encuesta,
+                         po_cod_err                     => po_cod_err,
+                         po_msj_err                     => po_msj_err
+                    );
+
+                   IF po_cod_err != 'OK' THEN
+                       RAISE err_app;
+                   END IF;
+               END IF;
+               
+               po_cod_err    := 'CLI-2874';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Error al registrar la pregunta de la encuesta.
+               cc_cl_encuesta_pregunta.alta(
+                    pi_id_encuesta                 => v_id_encuesta,
+                    pi_id_pregunta                 => cur_preg.id_pregunta,
+                    pi_id_externo                  => pi_id_externo,
+                    pi_cod_respuesta               => NULL,
+                    pi_estado                      => c_estado_activo,
+                    pi_cod_usuario                 => pi_cod_usuario,
+                    pi_id_tran                     => v_id_tran,
+                    pi_cod_gestion_tran            => v_cod_gestion_tran,
+                    pi_fch_tran                    => v_fch_tran,
+                    pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                    pi_respuesta_abierta           => pi_respuesta_abierta,
+                    po_id_registro                 => v_id_encuesta_preg,
+                    po_cod_err                     => po_cod_err,
+                    po_msj_err                     => po_msj_err
+               );
+
+               IF po_cod_err != 'OK' THEN
+                   RAISE err_app;
+               END IF;
+               
+           END LOOP;
+        END IF;
+
         ------------------------------ Fin Logica del procedimiento ---------------------
         po_cod_err     := 'OK';
         po_msj_err     := '';
@@ -73,21 +659,514 @@ IS
         v_trama_out    :=   ---------- parametros obligatorios ---------------
                          'po_cod_err:' || po_cod_err || '|' || 'po_msj_err:' || po_msj_err;
 
-    
+        IF pi_master = c_verdadero THEN
+            tx_transaccion.set_transaccion (v_id_tran,
+                                            v_cod_gestion_tran,
+                                            pi_cod_unidad_negocio,
+                                            v_cod_tran,
+                                            v_fch_tran,
+                                            pi_cod_usuario,
+                                            v_trama_in,
+                                            v_trama_out,
+                                            c_verdadero,
+                                            po_cod_err,
+                                            po_msj_err
+                                           );
+
+            IF po_cod_err != 'OK' THEN
+                RAISE err_app;
+            END IF;
+
+            COMMIT;
+        END IF;
+
+        -- Registrar el log
+        tx_log.registra_log (v_id_tran,
+                             v_cod_gestion_tran,
+                             pi_cod_unidad_negocio,
+                             v_nombre_tabla,
+                             v_pk_registro,
+                             v_reg_entidad.cod_entidad,
+                             pi_cod_usuario,
+                             v_trama_in,
+                             v_trama_out,
+                             po_cod_err,
+                             po_msj_err,
+                             v_reg_entidad.log_file,
+                             v_reg_entidad.log_table
+                            );
     EXCEPTION
         WHEN err_app THEN
             IF pi_master = c_verdadero THEN
                 ROLLBACK;
             END IF;
-           
+
+            IF po_msj_err IS NULL THEN
+                po_msj_err    := get_error (po_cod_err);
+            END IF;
+
+            -- Inicializar variables para logs, trama de salida
+            v_trama_out    :=   ---------- parametros obligatorios ---------------
+                             'po_cod_err:' || po_cod_err || '|' || 'po_msj_err:' || po_msj_err;
+            -- Registrar el log
+            tx_log.registra_log (v_id_tran,
+                                 v_cod_gestion_tran,
+                                 pi_cod_unidad_negocio,
+                                 v_nombre_tabla,
+                                 v_pk_registro,
+                                 v_reg_entidad.cod_entidad,
+                                 pi_cod_usuario,
+                                 v_trama_in,
+                                 v_trama_out,
+                                 po_cod_err,
+                                 po_msj_err,
+                                 v_reg_entidad.log_file,
+                                 v_reg_entidad.log_table
+                                );
         WHEN OTHERS THEN
             IF pi_master = c_verdadero THEN
                 ROLLBACK;
             END IF;
 
+            po_msj_err     := get_sys_error (po_cod_err, SQLERRM);
+            -- Inicializar variables para logs, trama de salida
+            v_trama_out    :=   ---------- parametros obligatorios ---------------
+                             'po_cod_err:' || po_cod_err || '|' || 'po_msj_err:' || po_msj_err;
+            -- Registrar el log
+            tx_log.registra_log (v_id_tran,
+                                 v_cod_gestion_tran,
+                                 pi_cod_unidad_negocio,
+                                 v_nombre_tabla,
+                                 v_pk_registro,
+                                 v_reg_entidad.cod_entidad,
+                                 pi_cod_usuario,
+                                 v_trama_in,
+                                 v_trama_out,
+                                 po_cod_err,
+                                 po_msj_err,
+                                 v_reg_entidad.log_file,
+                                 v_reg_entidad.log_table
+                                );
+    END crear_encuesta;
+
+    PROCEDURE responder_encuesta (
+        -- Input parameters
+        pi_id_registro            IN       cl_encuesta.id_encuesta%TYPE,
+        pi_cod_respuesta          IN       cl_encuesta_pregunta.cod_respuesta%TYPE,
+        pi_cod_usuario            IN       VARCHAR2,
+        pi_master                 IN       VARCHAR2,
+        pi_id_tran                IN       tx_historico_transaccion.id_tran%TYPE,
+        pi_fch_tran               IN       tx_historico_transaccion.fch_tran%TYPE,
+        pi_cod_gestion_tran       IN       tx_historico_transaccion.cod_gestion_tran%TYPE,
+        pi_cod_unidad_negocio     IN       tx_historico_transaccion.cod_unidad_negocio%TYPE,
+        pi_respuesta_abierta      IN       VARCHAR2 DEFAULT NULL,
+        -- Output parameters
+        po_cod_err                OUT      VARCHAR2,
+        po_msj_err                OUT      VARCHAR2
+    )
+    IS
+        -- Variables obligatorias de seguridad y logs
+        v_cod_tran                    VARCHAR2 (100) := v_cod_ent || '.CREAR_ENCUESTA';
+        v_reg_entidad                 cnf_entidad%ROWTYPE;
+        v_rowid_entidad               ROWID;
+        v_nombre_tabla                VARCHAR2 (50) := NULL;
+        v_pk_registro                 VARCHAR2 (250);
+        v_trama_in                    VARCHAR2 (4000);
+        v_trama_out                   VARCHAR2 (2000);
+        v_id_tran                     tx_historico_transaccion.id_tran%TYPE;
+        v_cod_gestion_tran            tx_historico_transaccion.cod_gestion_tran%TYPE;
+        v_fch_tran                    tx_historico_transaccion.fch_tran%TYPE;
+        err_app                       EXCEPTION;
+        -- Variables propias del procedimiento
+        v_id_encuesta                 cl_encuesta.id_encuesta%TYPE;
+        v_pendientes                  PLS_INTEGER;
+    BEGIN
+        -- Obtener registro de la entidad
+        tx_cnf_entidad.get_entidad (v_cod_tran,
+                                    v_reg_entidad,
+                                    v_rowid_entidad,
+                                    po_cod_err,
+                                    po_msj_err
+                                   );
+
+        IF po_cod_err != 'OK' THEN
+            RAISE err_app;
+        END IF;
+
+        -- Inicializar variables para logs, trama inicial
+        v_trama_in     :=
+                             ---------- parametros variables ------------------
+                             'pi_id_registro:'
+                          || pi_id_registro
+                          || '|'
+                          ---------- parametros obligatorios ---------------
+                          || 'pi_cod_usuario:'
+                          || pi_cod_usuario
+                          || '|'
+                          || 'pi_master:'
+                          || pi_master
+                          || '|'
+                          || 'pi_id_tran:'
+                          || pi_id_tran
+                          || '|'
+                          || 'pi_cod_gestion_tran:'
+                          || pi_cod_gestion_tran
+                          || '|'
+                          || 'pi_fch_tran:'
+                          || pi_fch_tran
+                          || '|'
+                          || 'pi_cod_unidad_negocio:'
+                          || pi_cod_unidad_negocio
+                          || '|'
+                          || 'usuario:'
+                          || USER;
+
+        -- Validar parametros de entrada obligatorios
+        IF pi_id_registro IS NULL OR pi_cod_usuario IS NULL OR pi_master IS NULL THEN
+            po_cod_err    := 'CLI-2655';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Algun parametro de entrada requerido es nulo.
+            RAISE err_app;
+        END IF;
+
+        -- Verificar permisos de ejecucion si es una transaccion maestra
+        IF pi_master = c_verdadero THEN
+            IF tiene_permiso (v_cod_tran, v_reg_entidad.validar_seguridad, pi_cod_usuario) =
+                                                                                            c_falso THEN
+                po_cod_err    := 'CLI-2656';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: No tiene permiso para realizar la operacion.
+                RAISE err_app;
+            END IF;
+        END IF;
+
+        -- Validar parametros transaccionales para transacciones no maestras
+        IF     pi_master = c_falso
+           AND (pi_id_tran IS NULL OR pi_cod_gestion_tran IS NULL OR pi_fch_tran IS NULL) THEN
+            po_cod_err    := 'CLI-2657';   --TX_CL_ENCUESTA.CREAR_ENCUESTA: Algun parametro transaccional es nulo.
+            RAISE err_app;
+        END IF;
+
+        -- Obtener atributos transaccionales
+        IF pi_master = c_verdadero THEN
+            tx_transaccion.get_transaccion (pi_cod_unidad_negocio,
+                                            v_id_tran,
+                                            v_cod_gestion_tran,
+                                            v_fch_tran,
+                                            po_cod_err,
+                                            po_msj_err
+                                           );
+
+            IF po_cod_err != 'OK' THEN
+                RAISE err_app;
+            END IF;
+        ELSE
+            v_id_tran             := pi_id_tran;
+            v_cod_gestion_tran    := pi_cod_gestion_tran;
+            v_fch_tran            := pi_fch_tran;
+        END IF;
+
+        ------------------------------ Logica del procedimiento -------------------------
+        po_cod_err     := 'CLI-2723';   --TX_CL_ENCUESTA.RESPONDER_ENCUESTA: Error al obtener el identificador de la encuesta.
+
+        SELECT id_encuesta
+          INTO v_id_encuesta
+          FROM cl_encuesta_pregunta
+         WHERE id_registro = pi_id_registro;
+
+        po_cod_err     := 'CLI-2724';   --TX_CL_ENCUESTA.RESPONDER_ENCUESTA: Error al registrar la respuesta.
+        cc_cl_encuesta_pregunta.modificacion (pi_id_registro                 => pi_id_registro,
+                                              pi_cod_respuesta               => pi_cod_respuesta,
+                                              pi_estado                      => 'R',
+                                              pi_respuesta_abierta           => pi_respuesta_abierta,
+                                              pi_cod_usuario                 => pi_cod_usuario,
+                                              pi_id_tran                     => v_id_tran,
+                                              pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                              pi_fch_tran                    => v_fch_tran,
+                                              pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                              po_cod_err                     => po_cod_err,
+                                              po_msj_err                     => po_msj_err
+                                             );
+
+        IF po_cod_err != 'OK' THEN
+            RAISE err_app;
+        END IF;
+
+        SELECT COUNT (1)
+          INTO v_pendientes
+          FROM cl_encuesta_pregunta ep
+         WHERE ep.id_encuesta = v_id_encuesta AND ep.estado = 'A';
+
+        IF v_pendientes = 0 THEN
+            cc_cl_encuesta.modificacion (pi_id_encuesta                 => v_id_encuesta,
+                                         pi_estado                      => 'R',
+                                         pi_cod_usuario                 => pi_cod_usuario,
+                                         pi_id_tran                     => v_id_tran,
+                                         pi_cod_gestion_tran            => v_cod_gestion_tran,
+                                         pi_fch_tran                    => v_fch_tran,
+                                         pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                         po_cod_err                     => po_cod_err,
+                                         po_msj_err                     => po_msj_err
+                                        );
+
+            IF po_cod_err != 'OK' THEN
+                RAISE err_app;
+            END IF;
+        END IF;
+
+        ------------------------------ Fin Logica del procedimiento ---------------------
+        po_cod_err     := 'OK';
+        po_msj_err     := '';
+        -- Inicializar variables para logs, trama de salida
+        v_trama_out    :=   ---------- parametros obligatorios ---------------
+                         'po_cod_err:' || po_cod_err || '|' || 'po_msj_err:' || po_msj_err;
+
+        IF pi_master = c_verdadero THEN
+            tx_transaccion.set_transaccion (v_id_tran,
+                                            v_cod_gestion_tran,
+                                            pi_cod_unidad_negocio,
+                                            v_cod_tran,
+                                            v_fch_tran,
+                                            pi_cod_usuario,
+                                            v_trama_in,
+                                            v_trama_out,
+                                            c_verdadero,
+                                            po_cod_err,
+                                            po_msj_err
+                                           );
+
+            IF po_cod_err != 'OK' THEN
+                RAISE err_app;
+            END IF;
+
+            COMMIT;
+        END IF;
+
+        -- Registrar el log
+        tx_log.registra_log (v_id_tran,
+                             v_cod_gestion_tran,
+                             pi_cod_unidad_negocio,
+                             v_nombre_tabla,
+                             v_pk_registro,
+                             v_reg_entidad.cod_entidad,
+                             pi_cod_usuario,
+                             v_trama_in,
+                             v_trama_out,
+                             po_cod_err,
+                             po_msj_err,
+                             v_reg_entidad.log_file,
+                             v_reg_entidad.log_table
+                            );
+    EXCEPTION
+        WHEN err_app THEN
+            IF pi_master = c_verdadero THEN
+                ROLLBACK;
+            END IF;
+
+            IF po_msj_err IS NULL THEN
+                po_msj_err    := get_error (po_cod_err);
+            END IF;
+
+            -- Inicializar variables para logs, trama de salida
+            v_trama_out    :=   ---------- parametros obligatorios ---------------
+                             'po_cod_err:' || po_cod_err || '|' || 'po_msj_err:' || po_msj_err;
+            -- Registrar el log
+            tx_log.registra_log (v_id_tran,
+                                 v_cod_gestion_tran,
+                                 pi_cod_unidad_negocio,
+                                 v_nombre_tabla,
+                                 v_pk_registro,
+                                 v_reg_entidad.cod_entidad,
+                                 pi_cod_usuario,
+                                 v_trama_in,
+                                 v_trama_out,
+                                 po_cod_err,
+                                 po_msj_err,
+                                 v_reg_entidad.log_file,
+                                 v_reg_entidad.log_table
+                                );
+        WHEN OTHERS THEN
+            IF pi_master = c_verdadero THEN
+                ROLLBACK;
+            END IF;
+
+            po_msj_err     := get_sys_error (po_cod_err, SQLERRM);
             -- Inicializar variables para logs, trama de salida
             v_trama_out    :=
                               ---------- parametros obligatorios ---------------
                               'po_cod_err:' || po_cod_err || '|' || 'po_msj_err:' || po_msj_err;
+            -- Registrar el log
+            tx_log.registra_log (v_id_tran,
+                                 v_cod_gestion_tran,
+                                 pi_cod_unidad_negocio,
+                                 v_nombre_tabla,
+                                 v_pk_registro,
+                                 v_reg_entidad.cod_entidad,
+                                 pi_cod_usuario,
+                                 v_trama_in,
+                                 v_trama_out,
+                                 po_cod_err,
+                                 po_msj_err,
+                                 v_reg_entidad.log_file,
+                                 v_reg_entidad.log_table
+                                );
     END responder_encuesta;
+
+    FUNCTION get_envios_hoy (pi_nro_documento IN VARCHAR2, pi_cod_tipo_documento IN VARCHAR2,pi_cod_interfaz IN VARCHAR2)
+        RETURN INT
+    IS
+        v_cant_enviado                INT;
+    BEGIN
+        SELECT COUNT (*)
+          INTO v_cant_enviado
+          FROM cl_encuesta
+         WHERE nro_documento = pi_nro_documento
+           AND cod_tipo_documento = pi_cod_tipo_documento
+           AND estado IN ('A', 'R')
+           AND cod_interfaz = pi_cod_interfaz
+           AND fch_tran_inicio>= TRUNC (SYSDATE);
+
+        RETURN (v_cant_enviado);
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN 0;
+    END get_envios_hoy;
+
+    FUNCTION get_envios_mes (pi_nro_documento IN VARCHAR2, pi_cod_tipo_documento IN VARCHAR2)
+        RETURN INT
+    IS
+        v_cant_enviado                INT;
+    BEGIN
+        SELECT COUNT (*)
+          INTO v_cant_enviado
+          FROM cl_encuesta
+         WHERE nro_documento = pi_nro_documento
+           AND cod_tipo_documento = pi_cod_tipo_documento
+           AND estado IN ('A', 'R')
+           AND TO_CHAR (fch_tran_inicio, 'MMYYYY') = TO_CHAR (SYSDATE, 'MMYYYY');
+
+        RETURN (v_cant_enviado);
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN 0;
+    END get_envios_mes;
+
+    PROCEDURE proc_termina_encuesta_cam_eq (
+        pi_cod_proceso            IN       flw_cnf_proceso.cod_proceso%TYPE,
+        pi_fch_inicio_proceso     IN       flw_proceso_ejecucion.fch_inicio_periodo%TYPE,
+        pi_fch_fin_proceso        IN       flw_proceso_ejecucion.fch_fin_periodo%TYPE,
+        pi_subcolas               IN       flw_cnf_proceso.colas%TYPE,
+        pi_subcola                IN       flw_cnf_proceso.colas%TYPE,
+        pi_cod_usuario            IN       VARCHAR2,
+        pi_master                 IN       VARCHAR2,
+        pi_id_tran                IN       tx_historico_transaccion.id_tran%TYPE,
+        pi_cod_gestion_tran       IN       tx_historico_transaccion.cod_gestion_tran%TYPE,
+        pi_fch_tran               IN       tx_historico_transaccion.fch_tran%TYPE,
+        pi_cod_unidad_negocio     IN       bm_unidad_negocio.cod_unidad_negocio%TYPE,
+        -- Parametros de salida
+        po_registros_procesados   OUT      flw_proceso_ejecucion.registros_procesados%TYPE,
+        po_registros_error        OUT      flw_proceso_ejecucion.registros_error%TYPE,
+        po_cod_err                OUT      VARCHAR2,
+        po_msj_err                OUT      VARCHAR2
+    )
+    IS
+        v_etapa                       flw_proceso_log.etapa%TYPE;
+        c_procesado_servicio          VARCHAR2(10):='PS';
+        v_cod_etapa                   flw_proceso_log.cod_etapa%TYPE;
+        err_app                       EXCEPTION;
+        v_id_cnf_promocion            prm_cnf_promocion.id_cnf_promocion%TYPE:=TO_NUMBER(tx_cnf_constante.get_constante('ID_CNF_PROMO_BASE_TV_PREMIUN'));
+        v_id_proceso_ejecucion        flw_proceso_ejecucion.id_proceso_ejecucion%TYPE;
+        v_dummy                       PLS_INTEGER := 0;
+        po_id_tran                    tx_historico_transaccion.id_tran%TYPE;
+        po_cod_gestion_tran           tx_historico_transaccion.cod_gestion_tran%TYPE;
+        v_id_prospecto                NUMBER;
+        v_encuestas_pendientes        NUMBER;
+        v_encuestas_respondidas       NUMBER;
+        v_texto                       VARCHAR2(200);
+        TYPE v_pcs_notificaciones     IS VARRAY(3) OF VARCHAR2(20);
+        v_pcs_noti                    v_pcs_notificaciones := v_pcs_notificaciones('8097774542','8094084115','8094412090');
+        v_id_sms                      sms_despachador.id_sms%TYPE;
+    BEGIN
+        po_registros_procesados    := 1;
+        po_registros_error         := 0;
+        v_etapa                    := 1;
+
+        po_cod_err    := 'CLI-2875';   --TX_CL_ENCUESTA.PROC_TERMINA_ENCUESTA_CAM_EQ: Error al obtener encuestas pendiente de los ultimios 5 dias.
+        SELECT COUNT(1)
+          INTO v_encuestas_pendientes
+          FROM cl_encuesta enc, cl_entidad_consumo ec
+         WHERE enc.cod_tipo_encuesta = 'ENCSUB'
+           AND ec.id_entidad_consumo = enc.id_entidad_consumo
+           AND ec.estado NOT IN ('TER','I','POST')
+           AND ec.cod_tecnologia = 'GSM'
+           AND enc.estado = c_estado_activo
+           AND fch_tran_fin = c_fecha_fin
+           AND TRUNC(SYSDATE) - TRUNC(fch_tran_inicio) <= 5
+           AND TRUNC(SYSDATE) <> TRUNC(fch_tran_inicio);
+
+        po_cod_err    := 'CLI-2876';   --TX_CL_ENCUESTA.PROC_TERMINA_ENCUESTA_CAM_EQ: Error al obtener las encuestas respondidas en el dia anterior.
+        SELECT COUNT(1)
+          INTO v_encuestas_respondidas
+          FROM cl_encuesta enc
+         WHERE enc.cod_tipo_encuesta = 'ENCSUB'
+           AND enc.estado = c_estado_respondido
+           AND trunc(fch_tran_fin) = TRUNC(pi_fch_tran -1);
+
+
+        FOR i IN 1..v_pcs_noti.count LOOP
+
+           v_texto := 'Clientes con encuestas pendiente: '||v_encuestas_pendientes||'. Clientes que contestaron la encuesta en el dia de ayer: '||v_encuestas_respondidas;
+           po_cod_err    := 'CLI-2877';   --TX_CL_ENCUESTA.PROC_TERMINA_ENCUESTA_CAM_EQ: Error al enviar SMS de notificacion.
+           tx_sms.alta
+               (pi_origen                      => 'VIDAS',
+                pi_destino                     => v_pcs_noti(i),
+                pi_texto                       => v_texto,
+                pi_prioridad                   => '1',
+                pi_id_tran                     => pi_id_tran,
+                pi_fch_tran                    => pi_fch_tran,
+                pi_cod_gestion_tran            => pi_cod_gestion_tran,
+                pi_cod_usuario                 => pi_cod_usuario,
+                pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                pi_master                      => c_falso,
+                po_id_sms                      => v_id_sms,
+                po_cod_err                     => po_cod_err,
+                po_msj_err                     => po_msj_err
+                );
+
+            IF po_cod_err <> 'OK' THEN
+                 RAISE err_app;
+            END IF;
+
+        END LOOP;
+
+        FOR anular_encuestas IN (SELECT *
+                                   FROM cl_encuesta enc
+                                   WHERE enc.cod_tipo_encuesta = 'ENCSUB'
+                                     AND enc.estado = c_estado_activo
+                                     AND fch_tran_fin = c_fecha_fin
+                                     AND TRUNC(SYSDATE) - TRUNC(fch_tran_inicio) > 5
+                                  )
+        LOOP
+            po_cod_err    := 'CLI-2878';   --TX_CL_ENCUESTA.PROC_TERMINA_ENCUESTA_CAM_EQ: Error al anular encuestas con mas de 5 dias sin que hayan sido respondidas.
+            cc_cl_encuesta.modificacion (pi_id_encuesta                 => anular_encuestas.id_encuesta,
+                                         pi_estado                      => 'ANU',
+                                         pi_cod_usuario                 => pi_cod_usuario,
+                                         pi_id_tran                     => pi_id_tran,
+                                         pi_cod_gestion_tran            => pi_cod_gestion_tran,
+                                         pi_fch_tran                    => pi_fch_tran,
+                                         pi_cod_unidad_negocio          => pi_cod_unidad_negocio,
+                                         po_cod_err                     => po_cod_err,
+                                         po_msj_err                     => po_msj_err
+                                        );
+
+            IF po_cod_err != 'OK' THEN
+                RAISE err_app;
+            END IF;
+        END LOOP;
+
+        COMMIT;
+        po_cod_err                 := 'OK';
+        po_msj_err                 := 'OK';
+    EXCEPTION
+        WHEN OTHERS THEN
+            ROLLBACK;
+            po_registros_error    := 1;
+            po_msj_err            := get_sys_error (po_cod_err, SQLERRM);
+    END proc_termina_encuesta_cam_eq;
 END;

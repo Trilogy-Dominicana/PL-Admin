@@ -30,7 +30,9 @@ def main(argv):
             
  
             # List invalid objects
-            # print(db.getObjStatus(status='INVALID'))
+            # print(db.getObjStatus(status='INVALID')[0])
+            invalids = db.getObjStatus(status='INVALID')
+            print(db.compileObj(invalids))
             
             # Get error, warnnings, info of a invalid package
             # print(db.getObjErrors('EBRADMIN', 'TX_CL_ENCUESTA'))
@@ -40,8 +42,14 @@ def main(argv):
             # print(datos)
             
             # Compiple an object list
-            datos = files.listAllObjsFiles()
-            print(len(db.createReplaceObject(datos)))
+            # datos = files.listAllObjsFiles()
+            # data = []
+            # invalids = db.getObjStatus(status='INVALID', withPath=True)
+            # for v in invalids:
+                # data.insert(0,v['path'])
+
+            # print(invalids)
+            # print(db.createReplaceObject(data))
 
             
         elif opt in ("-e", "--emethod"):

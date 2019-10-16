@@ -1,22 +1,82 @@
 import cx_Oracle, os, re, glob
 from dotenv import load_dotenv
-from src.files import Files as fileLib
+from src.files import Files as files
 
-fileLib = fileLib()
+files = files()
 load_dotenv()
 
 class Database():
-    db_admin_user          = os.getenv("DB_ADMIN_USER")
+
+    db_admin_user          = os.getenv("DB_ADMIN_USER").upper()
     db_admin_password      = os.getenv("DB_ADMIN_PASSWORD")
-    db_default_table_space = os.getenv("DB_DEFAULT_TABLE_SPACE")
-    db_temp_table_space    = os.getenv("DB_TEMP_TABLE_SPACE")
-    db_main_schema         = os.getenv("DB_MAIN_SCHEMA")
-    
-    service_name = os.getenv("DB_SERVICE_NAME")
-    user         = os.getenv("DB_USER").upper()
-    password     = os.getenv("DB_PASSWORD")
-    host         = os.getenv("DB_HOST")
-    port         = os.getenv("DB_PORT")
+    db_default_table_space = os.getenv("DB_DEFAULT_TABLE_SPACE").upper()
+    db_temp_table_space    = os.getenv("DB_TEMP_TABLE_SPACE").upper()
+    db_main_schema         = os.getenv("DB_MAIN_SCHEMA").upper()
+    service_name           = os.getenv("DB_SERVICE_NAME")
+    user                   = os.getenv("DB_USER").upper()
+    password               = os.getenv("DB_PASSWORD")
+    host                   = os.getenv("DB_HOST")
+    port                   = os.getenv("DB_PORT")
+
+    def createSchema(self):
+        # To create users, give permission, etc. We need to connect with admin user using param asAdmin
+        db      = self.dbConnect(sysDBA=True)
+        cursor  = db.cursor()
+
+        # Firts, we need to validate if the user exist COUNT(1)
+        sql = "SELECT COUNT(1) AS v_count FROM dba_users WHERE username = :pldb_user"
+        cursor.execute(sql, {'pldb_user': self.user})
+        
+        # Add parameter drop the user in case of 
+        if cursor.fetchone()[0] > 0:
+            print('DROP USER %s' % self.user)
+            cursor.execute("DROP USER %s CASCADE" % self.user)
+
+        print('CREATED USER %s' % self.user)
+        sql = "CREATE USER %s IDENTIFIED BY %s DEFAULT TABLESPACE %s TEMPORARY TABLESPACE %s QUOTA UNLIMITED ON %s" % (
+            self.user,
+            self.password,
+            self.db_default_table_space,
+            self.db_temp_table_space,
+            self.db_default_table_space
+        )
+        cursor.execute(sql)
+        
+        # Give grants to the user
+        self.createGramtsTo(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
+
+        # print("ACTUALIZANDO SINONIMOS")
+        self.createSynonyms(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
+
+        # print("COMPILAR PAQUETES DESDE EL REPOSITORIO A LA DB")
+        data = files.listAllObjsFiles()
+        self.createReplaceObject(data)
+        
+        # print("RECOMPILANDO")
+        db.getObjStatus(status='INVALID')
+        db.compileObj(invalids)
+
+
+    def compileObj(self, objList, db=None):
+
+        localClose = False
+        data = []
+
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        
+        cursor = db.cursor()
+        
+        for obj in objList:
+            sql = 'ALTER %s %s.%s COMPILE'%(obj['object_type'], obj['owner'], obj['object_name'])
+            cursor.execute(sql)
+            # data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
+
+        if localClose:
+            db.close()
+
+        return data
 
 
     def createReplaceObject(self, path=None, db=None):
@@ -31,20 +91,28 @@ class Database():
         cursor = db.cursor()
         
         for f in path:
-            fname = fileLib.getFileName(f)
+            fi = files.getFileName(f)
+            fname = fi['name']
+            ftype = fi['ext']
 
             opf = open(f, 'r')
             content = opf.read()
             opf.close()
             
-            cursor.execute('CREATE OR REPLACE ' + content)
-            data.extend(self.getObjErrors(owner=self.user, objName=fname['name'], db=db))
+            print('Compiling %s.%s' % (fname, ftype))
+
+            context = 'CREATE OR REPLACE '
+            if ftype == 'vew':
+                context = 'CREATE OR REPLACE FORCE VIEW %s AS \n' % fname
+            
+            cursor.execute(context + content)
+            data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
 
             # db.commit() # The commit is not necessary
 
         if localClose:
             db.close()
-            
+
         return data
     
 
@@ -57,7 +125,7 @@ class Database():
         return result
 
 
-    def getObjStatus(self, status=None):
+    def getObjStatus(self, status=None, withPath=False):
         # [] Se debe agregar a este metodo el porqué el objeto está invalido
         ''' 
         List invalid Packages, Functions and Procedures and Views
@@ -84,48 +152,15 @@ class Database():
             query = query + " AND status = '%s'" % status
         
         result = self.getData(query)
-        
+
+        i = 0
+        if withPath: 
+            for obj in result:
+                p = files.findObjFileByType(objType=obj['object_type'], objectName=obj['object_name'])
+                result[i].update({'path': p[0]})
+                i = i + 1
+
         return result
-
-
-    def createSchema(self):
-        # To create users, give permission, etc. We need to connect with admin user using param asAdmin
-        db      = self.dbConnect(asAdmin=True)
-        cursor  = db.cursor()
-
-        # Firts, we need to validate if the user exist COUNT(1)
-        sql = "SELECT COUNT(1) AS v_count FROM dba_users WHERE username = :pldb_user"
-        cursor.execute(sql, {'pldb_user': self.user})
-        
-        # Add parameter drop the user in case of 
-        if cursor.fetchone()[0] > 0:
-            print('DROP USER %s' % self.user)
-            cursor.execute("DROP USER %s CASCADE" % self.user)
-
-        print('CREATED USER %s' % self.user)
-        sql = "CREATE USER %s IDENTIFIED BY %s DEFAULT TABLESPACE %s TEMPORARY TABLESPACE %s QUOTA UNLIMITED ON %s" % (
-            self.user, 
-            self.password,
-            self.db_default_table_space,
-            self.db_temp_table_space, 
-            self.db_default_table_space
-        )
-        cursor.execute(sql)
-        
-        # Give grants to the user
-        self.createGramtsTo(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
-
-
-        # print("ACTUALIZANDO SINONIMOS")
-        self.createSynonyms(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
-
-
-        # print("COMPILAR PAQUETES DESDE EL REPOSITORIO A LA DB")
-        # list(self.wc2db())
-        
-        # print("RECOMPILANDO")
-        # self.DBCompile()
-        # db.close()
 
 
     def createGramtsTo(self, originSchema, detinationSchema, db=None):
@@ -154,6 +189,9 @@ class Database():
         cursor.execute("GRANT SELECT ANY TABLE TO %s" % detinationSchema)
         cursor.execute("GRANT SELECT ANY SEQUENCE TO %s" % detinationSchema)
 
+        cursor.execute("GRANT UPDATE ON SYS.SOURCE$ TO %s" % detinationSchema)
+        cursor.execute("GRANT EXECUTE ON SYS.DBMS_LOCK TO %s" % detinationSchema)
+        cursor.execute("CREATE SYNONYM %s.FERIADOS FOR OMEGA.FERIADOS" % detinationSchema)
 
         # Now, we hace to get 
         # sql = ''' SELECT oo.object_name, oo.object_type, oo.status
@@ -255,8 +293,6 @@ class Database():
         mode = False
         if sysDBA:
             mode = cx_Oracle.SYSDBA
-
-        if asAdmin:
             user=self.db_admin_user
             password=self.db_admin_password
 

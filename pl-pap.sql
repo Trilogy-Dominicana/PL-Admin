@@ -30,7 +30,9 @@ SELECT distinct object_type FROM all_objects;
 SELECT distinct status FROM all_objects;
 
 
-select * from dba_errors where owner = 'WDELACRUZ3';
+select * from dba_errors where owner = 'WDELACRUZ3'
+AND name = 'TX_VDA_JOBS';
+-- group by name;
 
 
 select * from
@@ -39,6 +41,8 @@ select * from all_dependencies;
 
 select * from dba_users;
 
+
+ALTER PACKAGE BODY WDELACRUZ3.TX_PTO_ENTREGAPUNTO COMPILE
 
 
 

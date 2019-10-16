@@ -8,6 +8,7 @@ class Files():
 
 
     def objTypes(self):
+        ''' Do not change the order of items''' 
         data = {}
         data['PACKAGE'] = '.psk'
         data['VIEW'] = '.vew'
