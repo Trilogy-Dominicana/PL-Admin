@@ -5,3 +5,6 @@ __pycache__
 .pylintrc
 .vscode/
 /plsql
+/build
+/dist
+/vivapl.egg-info
