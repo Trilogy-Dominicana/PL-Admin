@@ -7,12 +7,6 @@ WORKDIR /app
 
 # COPY requirements.txt .
 
-# RUN apk update; \
-#   apk add --no-cache --virtual .build-deps \
-#   build-base openssl-dev pkgconfig libffi-dev cups-dev
-  # pip install --no-cache-dir -r requirements.txt && \
-  
-
 RUN apk update; \
   apk add gcc musl-dev libnsl libaio autoconf curl unzip git
 
@@ -33,5 +27,9 @@ RUN unzip -d /usr/local/ /tmp/basic.zip && \
   ln -s /usr/lib/libnsl.so.2.0.0  /usr/lib/libnsl.so.1
 
 RUN rm -rf /tmp/*.zip /var/cache/apk/* /tmp/oracle-sdk
+
+RUN python -m pip install --upgrade pip setuptools wheel && \
+  python -m pip install tqdm && \
+  python -m pip install --user --upgrade twine
 
 # CMD ["python --version"]

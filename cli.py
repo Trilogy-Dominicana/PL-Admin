@@ -2,8 +2,8 @@
 import sys, getopt, json
 
 # from dotenv import load_dotenv
-from src.database import Database
-from src.files import Files
+from vivapl.database import Database
+from vivapl.files import Files
 
 
 def main(argv):

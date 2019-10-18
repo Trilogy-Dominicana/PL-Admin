@@ -1,6 +1,6 @@
 import cx_Oracle, os, re, glob
 from dotenv import load_dotenv
-from src.files import Files as files
+from vivapl.files import Files as files
 
 files = files()
 load_dotenv()
