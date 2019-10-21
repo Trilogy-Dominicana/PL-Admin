@@ -1,4 +1,4 @@
-import os, re, shutil, glob
+import os, re, shutil, glob, git
 
 class Files():
     plsql_path = os.path.join(os.getcwd(), 'plsql')
@@ -10,13 +10,17 @@ class Files():
     def objTypes(self):
         ''' Do not change the order of items''' 
         data = {}
-        data['PACKAGE'] = '.psk'
-        data['VIEW'] = '.vew'
-        data['FUNCTION'] = '.fnc'
-        data['PROCEDURE'] = '.prc'
+        data['PACKAGE']      = '.psk'
+        data['VIEW']         = '.vew'
+        data['FUNCTION']     = '.fnc'
+        data['PROCEDURE']    = '.prc'
         data['PACKAGE BODY'] = '.pbk'
 
         return data
+
+    def localChanges(diff):
+        ''' Just to list files changed on local repo (git diff .)'''
+
 
 
     def listAllObjsFiles(self):

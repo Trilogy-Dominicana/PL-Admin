@@ -18,6 +18,10 @@ class Database():
     host                   = os.getenv("DB_HOST")
     port                   = os.getenv("DB_PORT")
 
+    def __init__(self):
+        print(os.getcwd())
+        
+
     def createSchema(self):
         # To create users, give permission, etc. We need to connect with admin user using param asAdmin
         db      = self.dbConnect(sysDBA=True)
@@ -193,24 +197,6 @@ class Database():
         cursor.execute("GRANT EXECUTE ON SYS.DBMS_LOCK TO %s" % detinationSchema)
         cursor.execute("CREATE SYNONYM %s.FERIADOS FOR OMEGA.FERIADOS" % detinationSchema)
 
-        # Now, we hace to get 
-        # sql = ''' SELECT oo.object_name, oo.object_type, oo.status
-        #         FROM sys.dba_objects oo
-        #         WHERE oo.owner=:origin_schema
-        #         AND oo.object_type in ('SEQUENCE','TABLE','TYPE')
-        #         AND oo.object_name not like 'SYS_PLSQL_%%'
-        #         AND oo.object_name not like 'QTSF_CHAIN_%%'
-        #         AND oo.status='VALID'
-        #         AND oo.object_name not in (SELECT tp.table_name FROM dba_tab_privs tp where tp.grantee=:destination_schema AND owner=:origin_schema) '''
-        
-        # result = self.getData(sql, {'origin_schema': originSchema, 'destination_schema': detinationSchema })
-
-        # for obj in result:
-        #     sql = "GRANT ALL PRIVILEGES ON %s.%s TO %s" % (originSchema, obj['object_name'], detinationSchema)
-        #     cursor.execute(sql)
-
-        # cursor = db.close()
-
 
     def createSynonyms(self, originSchema, detinationSchema, db):
         """ Create synonyms types ('SEQUENCE', 'TABLE', 'TYPE') from originSchema to destinationSchema """
@@ -254,6 +240,8 @@ class Database():
         localClose = False
         if not db:
             db = self.dbConnect()
+            print(db)
+            exit()
             localClose = True
         
         cursor = db.cursor()

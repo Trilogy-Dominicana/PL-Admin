@@ -5,10 +5,10 @@ ENV ORACLE_HOME /usr/local/instantclient
 
 WORKDIR /app
 
-# COPY requirements.txt .
+COPY requirements.txt .
 
 RUN apk update; \
-  apk add gcc musl-dev libnsl libaio autoconf curl unzip git
+  apk add gcc musl-dev libnsl libaio autoconf curl unzip git openssl-dev
 
 RUN curl -k -o /tmp/basic.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-basic-linux.x64-11.2.0.4.0.zip && \
   curl -k -o /tmp/devel.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-sdk-linux.x64-11.2.0.4.0.zip && \
@@ -28,11 +28,12 @@ RUN unzip -d /usr/local/ /tmp/basic.zip && \
 
 RUN rm -rf /tmp/*.zip /var/cache/apk/* /tmp/oracle-sdk
 
-RUN python -m pip install --upgrade pip setuptools wheel && \
-  python -m pip install tqdm && \
-  python -m pip install --user --upgrade twine
 
 # Create package global
-# RUN 
+RUN pip install --upgrade pip setuptools wheel && \
+  pip install -r requirements.txt
+#   pip install tqdm && \
+#   pip install --user --upgrade twine
+
 
 # CMD ["python --version"]

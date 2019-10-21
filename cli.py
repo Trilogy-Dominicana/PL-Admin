@@ -17,7 +17,7 @@ def main(argv):
         sys.exit(2)
 
     
-    
+
     for opt, arg in opts:
         if opt in ('-i'):
             ''' List invalid packages on DB '''
