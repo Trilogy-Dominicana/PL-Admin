@@ -3,7 +3,8 @@ import os, re, shutil, glob, git
 class Files():
     plsql_path = os.path.join(os.getcwd(), 'plsql')
 
-    # def __init__(self):
+    def __init__(self):
+        print(plsql_path)
         # self.objTypes = self.objTypes()
 
 
@@ -19,8 +20,9 @@ class Files():
         return data
 
     def localChanges(diff):
-        ''' Just to list files changed on local repo (git diff .)'''
-
+        ''' Just to list files changed on local repo (git diff .) ''' 
+        for item in repo.index.diff(None):
+            print(item.a_path)
 
 
     def listAllObjsFiles(self):
