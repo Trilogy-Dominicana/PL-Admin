@@ -7,13 +7,14 @@ services:
       context: './'
     volumes:
       - ./:/app
+      - ${PLSQL_PATH}:/plsql
     tty: true
     networks:
       - backend
     environment:
       - DEBUG=False
       - TESTING=False
-      - PLSQL_PATH='plsql'
+      - PLSQL_URL_REPO='git@gitlab.viva.com.do:anaiboa/pl-sql.git'
       - DB_SERVICE_NAME='DIAOMEGA'
       - DB_HOST='maisi.om.do'
       - DB_USER='WDELACRUZ4'

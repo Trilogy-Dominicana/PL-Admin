@@ -4,6 +4,7 @@ ENV LD_LIBRARY_PATH /usr/local/instantclient
 ENV ORACLE_HOME /usr/local/instantclient
 
 WORKDIR /app
+RUN mkdir /plsql
 
 COPY requirements.txt .
 
