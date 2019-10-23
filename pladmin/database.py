@@ -1,9 +1,9 @@
 import cx_Oracle, os, re, glob
-from dotenv import load_dotenv
-from vivapl.files import Files as files
+# from dotenv import load_dotenv
+from pladmin.files import Files as files
 
 files = files()
-load_dotenv()
+# load_dotenv()
 
 class Database():
 
@@ -18,8 +18,8 @@ class Database():
     host                   = os.getenv("DB_HOST")
     port                   = os.getenv("DB_PORT")
 
-    def __init__(self):
-        print(os.getcwd())
+    # def __init__(self):
+        # print(os.getcwd())
         
 
     def createSchema(self):
@@ -27,16 +27,16 @@ class Database():
         db      = self.dbConnect(sysDBA=True)
         cursor  = db.cursor()
 
-        # Firts, we need to validate if the user exist COUNT(1)
-        sql = "SELECT COUNT(1) AS v_count FROM dba_users WHERE username = :pldb_user"
-        cursor.execute(sql, {'pldb_user': self.user})
+        # Firts, we need to validate if the user exist
+        sql = "SELECT COUNT(1) AS v_count FROM dba_users WHERE username = :db_user"
+        cursor.execute(sql, {'db_user': self.user})
         
-        # Add parameter drop the user in case of 
+        # If user exist, drop it
         if cursor.fetchone()[0] > 0:
             print('DROP USER %s' % self.user)
             cursor.execute("DROP USER %s CASCADE" % self.user)
 
-        print('CREATED USER %s' % self.user)
+        # Create the user
         sql = "CREATE USER %s IDENTIFIED BY %s DEFAULT TABLESPACE %s TEMPORARY TABLESPACE %s QUOTA UNLIMITED ON %s" % (
             self.user,
             self.password,
@@ -49,16 +49,16 @@ class Database():
         # Give grants to the user
         self.createGramtsTo(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
 
-        # print("ACTUALIZANDO SINONIMOS")
+        # Create synonyms
         self.createSynonyms(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
 
-        # print("COMPILAR PAQUETES DESDE EL REPOSITORIO A LA DB")
+        # Create o replace packages, views, functions and procedures (All elements in files.objTypes())
         data = files.listAllObjsFiles()
-        self.createReplaceObject(data)
+        self.createReplaceObject(path=data, db=db)
         
-        # print("RECOMPILANDO")
-        db.getObjStatus(status='INVALID')
-        db.compileObj(invalids)
+        # If some objects are invalids, try to compile
+        invalids = self.getObjStatus(status='INVALID')
+        self.compileObj(invalids)
 
 
     def compileObj(self, objList, db=None):
@@ -84,7 +84,7 @@ class Database():
 
 
     def createReplaceObject(self, path=None, db=None):
-        ''' Función para crear (recompilar) paquetes, funciones y procedimientos '''
+        ''' Create or Replace packges, views, procedures and functions '''
         data = []
 
         localClose = False
@@ -112,7 +112,6 @@ class Database():
             cursor.execute(context + content)
             data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
 
-            # db.commit() # The commit is not necessary
 
         if localClose:
             db.close()
@@ -131,7 +130,7 @@ class Database():
 
     def getObjStatus(self, status=None, withPath=False):
         # [] Se debe agregar a este metodo el porqué el objeto está invalido
-        ''' 
+        '''
         List invalid Packages, Functions and Procedures and Views
         
         Params:
@@ -162,7 +161,7 @@ class Database():
             for obj in result:
                 p = files.findObjFileByType(objType=obj['object_type'], objectName=obj['object_name'])
                 result[i].update({'path': p[0]})
-                i = i + 1
+                i += 1
 
         return result
 
@@ -240,8 +239,6 @@ class Database():
         localClose = False
         if not db:
             db = self.dbConnect()
-            print(db)
-            exit()
             localClose = True
         
         cursor = db.cursor()
@@ -257,7 +254,7 @@ class Database():
         data = result.fetchall()
 
         # Close DB connection
-        # cursor.close()
+        cursor.close()
 
         # If the connection was open on this method, close localy.
         if localClose:
@@ -266,30 +263,26 @@ class Database():
         return data
 
 
-    def dbConnect(self, asAdmin=False, sysDBA=False):
-        """
+    def dbConnect(self, sysDBA=False):
+        '''
         Encharge to connect to Oracle database
 
         Params:
         -------
         sysDBA (boolean): True of False
-        """
+        '''
+
         self.dsn = cx_Oracle.makedsn(self.host, self.port, service_name=self.service_name)
-        user=self.user
-        password=self.password
+        user     = self.user
+        password = self.password
 
-        mode = False
+        mode = 0
         if sysDBA:
-            mode = cx_Oracle.SYSDBA
-            user=self.db_admin_user
-            password=self.db_admin_password
+            mode     = cx_Oracle.SYSDBA 
+            user     = self.db_admin_user
+            password = self.db_admin_password
 
-        try:
-            return cx_Oracle.connect(user=user, password=password, dsn=self.dsn, mode=mode, encoding="UTF-8")
-        except Exception as e:
-            content= 'DB Error: %s ' % (str(e)).strip()
-            print(content)
-            return content
+        return cx_Oracle.connect(user=user, password=password, dsn=self.dsn, mode=mode, encoding="UTF-8")
 
 
     def makeDictFactory(self, cursor):

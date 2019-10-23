@@ -1,11 +1,11 @@
 import os, re, shutil, glob, git
 
 class Files():
-    plsql_path = os.path.join(os.getcwd(), 'plsql')
+    pl_path = os.path.join('/plsql')
 
     def __init__(self):
-        print(plsql_path)
-        # self.objTypes = self.objTypes()
+        # Initialize git repo
+        self.repo = git.Repo(self.pl_path)
 
 
     def objTypes(self):
@@ -19,8 +19,10 @@ class Files():
 
         return data
 
-    def localChanges(diff):
+
+    def localChanges(self):
         ''' Just to list files changed on local repo (git diff .) ''' 
+        repo = self.repo
         for item in repo.index.diff(None):
             print(item.a_path)
 
@@ -30,32 +32,29 @@ class Files():
         objs = []
 
         for files in types:
-            path = os.path.join(self.plsql_path, '**/*' + files)
+            path = os.path.join(self.pl_path, '**/*' + files)
             objs.extend(glob.glob(path, recursive=True))
 
         return objs
 
 
     def findObjFileByType(self, objType, objectName):
+        ''' Search file by objetct type on DB and return complete path
+        
+        Params:
+        ------
+        objType (string) Object Type on DB (PACKAGE, PACKAGE BODY, PROCEDURE, VIEW or FUNCTION)
+        objectName (string) Object name on DB, the name has to be the same on DB and the repo (e.g MY_PACKAGE_EXAMPLE)
+
+        return (array) with the complete path of file '''
 
         oType = self.objTypes()[objType]
 
-        path = os.path.join(self.plsql_path, '**/' + objectName + oType)
+        path = os.path.join(self.pl_path, '**/' + objectName + oType)
         files = glob.glob(path)
 
         return files
 
-
-    def listModifedFiles(self):
-        '''Listing Pending files'''
-        data = []
-        # List all .par into Pending dir
-        files = glob.glob(os.path.join(self.pending_files, '*.par'))
-        for file in files:
-            name = self.getFileName(file)
-            data.append({'name': name['name'], 'ext': name['ext'], 'path': file})
-
-        return data
 
 
     def getFiles(self):

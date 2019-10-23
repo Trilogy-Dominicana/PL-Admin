@@ -4,15 +4,20 @@ import sys, getopt, json, os
 
 
 # from dotenv import load_dotenv
-from vivapl.database import Database 
-from vivapl.files import Files
+from pladmin.database import Database 
+from pladmin.files import Files
 # from pip._internal.main import main as _main  # isort:skip # noqa
-
 
 
 def _main():
     files = Files()
+    # db = Database()
+    # files.localChanges()
     db = Database()
+    db.createSchema()
+
+
+
     
 
 if __name__ == '__main__':

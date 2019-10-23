@@ -6,7 +6,7 @@ SELECT
     , status
     , last_ddl_time
     , created
-FROM all_objects WHERE owner= 'WDELACRUZ3' AND status = 'INVALID' AND object_type in ('PACKAGE','FUNCTION','PROCEDURE', 'VIEW');
+FROM dba_objects WHERE owner= 'WDELACRUZ3' AND status = 'INVALID' AND object_type in ('PACKAGE','FUNCTION','PROCEDURE', 'VIEW');
 
 
 SELECT

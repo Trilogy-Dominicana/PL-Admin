@@ -16,8 +16,17 @@ git@gitlab.viva.com.do:anaiboa/plsql-manager.git
 # Where goin to be your PL/SQL source code? 
 export PLSQL_PATH=</var/www/your_pl_path>
 
-# Add you repo url
-export PLSQL_URL_REPO='git@gitlab.viva.com.do:anaiboa/pl-sql.git'
+# - DB_SERVICE_NAME='DIAOMEGA'
+# - DB_HOST='maisi.om.do'
+# - DB_USER='WDELACRUZ4'
+# - DB_PASSWORD='temp'
+# - DB_PORT=1521
+# - DB_ADMIN_USER='sys'
+# - DB_ADMIN_PASSWORD='infinityqx35'
+# - DB_DEFAULT_TABLE_SPACE='OMEGA_DATA'
+# - DB_TEMP_TABLE_SPACE='TEMP_TBS'
+# - DB_MAIN_SCHEMA='OMEGA'
+
 ```
 
 ### Build the container
