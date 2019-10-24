@@ -54,7 +54,7 @@ class Database():
 
         # Create o replace packages, views, functions and procedures (All elements in files.objTypes())
         data = files.listAllObjsFiles()
-        self.createReplaceObject(path=data, db=db)
+        self.createReplaceObject(path=data)
         
         # If some objects are invalids, try to compile
         invalids = self.getObjStatus(status='INVALID')
@@ -103,13 +103,14 @@ class Database():
             content = opf.read()
             opf.close()
             
-            print('Compiling %s.%s' % (fname, ftype))
 
             context = 'CREATE OR REPLACE '
             if ftype == 'vew':
                 context = 'CREATE OR REPLACE FORCE VIEW %s AS \n' % fname
             
+            print('Compiling %s.%s' % (fname, ftype))
             cursor.execute(context + content)
+            
             data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
 
 

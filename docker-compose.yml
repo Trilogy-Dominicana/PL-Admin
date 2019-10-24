@@ -1,8 +1,8 @@
 version: "3.7"
 services:
-  plsql-manager:
-    image: viva/plsql-manager
-    container_name: plsql-manager
+  pl-admin:
+    image: viva/pl-admin
+    container_name: pl-admin
     build:
       context: './'
     volumes:

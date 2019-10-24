@@ -11,14 +11,12 @@ from pladmin.files import Files
 
 def _main():
     files = Files()
-    # db = Database()
-    # files.localChanges()
     db = Database()
+
+    # files.localChanges()
     db.createSchema()
 
 
-
-    
 
 if __name__ == '__main__':
     sys.exit(_main())
