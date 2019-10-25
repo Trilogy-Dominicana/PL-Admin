@@ -1,24 +1,35 @@
 #!/usr/bin/python
 from __future__ import absolute_import
-import sys, getopt, json, os
+import sys, getopt, json, os, argparse
 
-
-# from dotenv import load_dotenv
 from pladmin.database import Database 
 from pladmin.files import Files
-# from pip._internal.main import main as _main  # isort:skip # noqa
+
+# parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
+# parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
 
 
-def _main():
+
+
+def main():
     files = Files()
     db = Database()
 
-    files.localChanges()
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('action', metavar='action', type=str, help='Push the method name')
+
+    args = parser.parse_args()
+    action = args.action
+    
+    if action == 'updateSchema':
+        update = db.updateSchema()
+        print(update)
+
+    # print(args.action)
+    # files.localChanges()
     # files.remoteChanges()
     
     # db.createSchema()
-    update = db.updateSchema()
-    print(update)
     # db.getDBObjects()
 
     # updateSchema
@@ -28,4 +39,4 @@ def _main():
 
 
 if __name__ == '__main__':
-    sys.exit(_main())
+    sys.exit(main())

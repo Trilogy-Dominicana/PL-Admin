@@ -24,8 +24,8 @@ class Database():
 
     def updateSchema(self):
         result = {}
-        data = files.localChanges()
-        data = [files.pl_path + '/' + x for x in data]
+        changes = files.localChanges()
+        data = [files.pl_path + '/' + x for x in changes]
 
         invalids = self.createReplaceObject(path=data)
         # If some objects are invalids, try to compile again
@@ -92,7 +92,6 @@ class Database():
         dbObj = self.getData(query=oSql, db=db)
 
         # cursor.execute(sql)
-        print(dbObj)
 
  
     def compileObj(self, objList, db=None):
@@ -155,7 +154,7 @@ class Database():
                 context = 'CREATE OR REPLACE FORCE VIEW %s AS \n' % fname
             
             cursor.execute(context + content)
-            print('Replaced %s.%s' % (fname, ftype))
+            # print('INFO: Replaced %s.%s' % (fname, ftype))
 
             # Check if the object has some errors
             data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
@@ -187,8 +186,9 @@ class Database():
         ------
         status (string): Valid values [VALID, INVALID].
         db (cx_Oracle) is an instance of cx_Oracle lib.
+
+        return (dic) with all objects listed
         '''
-        
 
         types = "', '".join(self.types)
         query = """
@@ -206,7 +206,7 @@ class Database():
         if ('INVALID' == status) or 'VALID' == status:
             query += " AND status = '%s'" % status
 
-        
+        # Return a dic with the data
         result = self.getData(query)
 
         if len(result) and withPath: 
