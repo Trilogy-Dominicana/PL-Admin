@@ -25,6 +25,14 @@ def main():
         update = db.updateSchema()
         print(update)
 
+    if action == 'createSchema':
+        invalids = db.createSchema()
+        
+        if len(invalids):
+            print(invalids)
+        else:
+            print('Schema created successfully!')
+
     # print(args.action)
     # files.localChanges()
     # files.remoteChanges()
@@ -34,7 +42,7 @@ def main():
 
     # updateSchema
     # files.localChanges()
-
+    
     # print(files.getFileName('you/path/dir/to/file.pbk'))
 
 

@@ -22,16 +22,17 @@ class Database():
         self.types = files.objectsTypes().keys()
         self.extentions = files.objectsTypes().values()
 
+
     def updateSchema(self):
         result = {}
         changes = files.localChanges()
         data = [files.pl_path + '/' + x for x in changes]
 
         invalids = self.createReplaceObject(path=data)
+        
         # If some objects are invalids, try to compile again
         # if len(invalids):
             # self.compileObj(invalids)
-
 
         return invalids
 
@@ -73,6 +74,8 @@ class Database():
         # If some objects are invalids, try to compile
         invalids = self.getObjects(status='INVALID')
         self.compileObj(invalids)
+        
+        return invalids
 
 
     def getDBObjects(self):
