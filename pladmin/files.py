@@ -44,7 +44,7 @@ class Files():
 
         for files in types:
             path = os.path.join(self.pl_path, '**/*' + files)
-            objs.append(glob.glob(path, recursive=True))
+            objs.extend(glob.glob(path, recursive=True))
 
         return objs
 

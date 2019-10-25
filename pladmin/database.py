@@ -161,9 +161,8 @@ class Database():
 
             # Check if the object has some errors
             data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
-            
             return data
-
+            
 
         if localClose:
             db.close()
