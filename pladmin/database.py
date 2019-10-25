@@ -18,9 +18,23 @@ class Database():
     host                   = os.getenv("DB_HOST")
     port                   = os.getenv("DB_PORT")
 
-    # def __init__(self):
-        # print(os.getcwd())
-        
+    def __init__(self):
+        self.types = files.objectsTypes().keys()
+        self.extentions = files.objectsTypes().values()
+
+    def updateSchema(self):
+        result = {}
+        data = files.localChanges()
+        data = [files.pl_path + '/' + x for x in data]
+
+        invalids = self.createReplaceObject(path=data)
+        # If some objects are invalids, try to compile again
+        # if len(invalids):
+            # self.compileObj(invalids)
+
+
+        return invalids
+
 
     def createSchema(self):
         # To create users, give permission, etc. We need to connect with admin user using param asAdmin
@@ -52,15 +66,35 @@ class Database():
         # Create synonyms
         self.createSynonyms(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
 
-        # Create o replace packages, views, functions and procedures (All elements in files.objTypes())
+        # Create o replace packages, views, functions and procedures (All elements in files.objectsTypes())
         data = files.listAllObjsFiles()
         self.createReplaceObject(path=data)
         
         # If some objects are invalids, try to compile
-        invalids = self.getObjStatus(status='INVALID')
+        invalids = self.getObjects(status='INVALID')
         self.compileObj(invalids)
 
 
+    def getDBObjects(self):
+        ''' << TODO >> '''
+        db      = self.dbConnect(sysDBA=True)
+        cursor  = db.cursor()
+
+        # We need to get all object
+        objects = self.getObjects()
+        exit()
+
+        # Get views 
+        vSql = "SELECT view_name FROM dba_views WHERE owner = '%s'" % self.user
+        bdViews = self.getData(query=vSql, db=db)
+
+        oSql = "SELECT name, type, line, text FROM dba_source WHERE owner = '%s' and type IN ('%s')" % (self.user, types)
+        dbObj = self.getData(query=oSql, db=db)
+
+        # cursor.execute(sql)
+        print(dbObj)
+
+ 
     def compileObj(self, objList, db=None):
 
         localClose = False
@@ -84,7 +118,16 @@ class Database():
 
 
     def createReplaceObject(self, path=None, db=None):
-        ''' Create or Replace packges, views, procedures and functions '''
+        ''' 
+        Create or Replace packges, views, procedures and functions 
+
+        params: 
+        ------
+        path (array): path routes of the object on the file system
+        db (cx_Oracle.Connection): If you opened a db connection puth here please to avoid
+
+        return (list) with errors if some package were an error
+        '''
         data = []
 
         localClose = False
@@ -99,19 +142,25 @@ class Database():
             fname = fi['name']
             ftype = fi['ext']
 
+            # Only valid extencions sould be processed
+            if not '.' + ftype in  self.extentions:
+                continue
+
             opf = open(f, 'r')
             content = opf.read()
             opf.close()
             
-
             context = 'CREATE OR REPLACE '
             if ftype == 'vew':
                 context = 'CREATE OR REPLACE FORCE VIEW %s AS \n' % fname
             
-            print('Compiling %s.%s' % (fname, ftype))
             cursor.execute(context + content)
-            
+            print('Replaced %s.%s' % (fname, ftype))
+
+            # Check if the object has some errors
             data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
+            
+            return data
 
 
         if localClose:
@@ -129,7 +178,7 @@ class Database():
         return result
 
 
-    def getObjStatus(self, status=None, withPath=False):
+    def getObjects(self, status=None, withPath=False):
         # [] Se debe agregar a este metodo el porqué el objeto está invalido
         '''
         List invalid Packages, Functions and Procedures and Views
@@ -140,6 +189,8 @@ class Database():
         db (cx_Oracle) is an instance of cx_Oracle lib.
         '''
         
+
+        types = "', '".join(self.types)
         query = """
         SELECT     
             owner
@@ -149,16 +200,17 @@ class Database():
             ,status
             ,last_ddl_time
             ,created 
-        FROM all_objects WHERE object_type in ('PACKAGE','PACKAGE BODY','FUNCTION','PROCEDURE', 'VIEW') AND owner = '%s'""" % self.user
+        FROM dba_objects WHERE owner = '%s' AND object_type in ('%s')""" % (self.user, types)
 
         # If re.match(r'VALID|INVALID', status):
         if ('INVALID' == status) or 'VALID' == status:
-            query = query + " AND status = '%s'" % status
+            query += " AND status = '%s'" % status
+
         
         result = self.getData(query)
 
-        i = 0
-        if withPath: 
+        if len(result) and withPath: 
+            i = 0
             for obj in result:
                 p = files.findObjFileByType(objType=obj['object_type'], objectName=obj['object_name'])
                 result[i].update({'path': p[0]})

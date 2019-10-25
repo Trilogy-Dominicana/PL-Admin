@@ -8,32 +8,43 @@ class Files():
         self.repo = git.Repo(self.pl_path)
 
 
-    def objTypes(self):
+    def objectsTypes(self):
         ''' Do not change the order of items''' 
         data = {}
         data['PACKAGE']      = '.psk'
         data['VIEW']         = '.vew'
         data['FUNCTION']     = '.fnc'
-        data['PROCEDURE']    = '.prc'
+        data['PROCEDURES']   = '.prc'
         data['PACKAGE BODY'] = '.pbk'
 
         return data
 
 
     def localChanges(self):
-        ''' Just to list files changed on local repo (git diff .) ''' 
+        ''' Get files changes comparing actual branch with actual changes and the last commit ''' 
         repo = self.repo
-        for item in repo.index.diff(None):
-            print(item.a_path)
+        diff = repo.git.diff('--name-only', 'HEAD~1')
+        return diff.split('\n')
+
+
+    def remoteChanges(self):
+        data = []
+        repo = self.repo
+        diff = repo.index.diff('origin/master')
+
+        for item in diff:
+            data.append(item.a_path)
+
+        return data
 
 
     def listAllObjsFiles(self):
-        types = self.objTypes().values()
+        types = self.objectsTypes().values()
         objs = []
 
         for files in types:
             path = os.path.join(self.pl_path, '**/*' + files)
-            objs.extend(glob.glob(path, recursive=True))
+            objs.append(glob.glob(path, recursive=True))
 
         return objs
 
@@ -48,45 +59,12 @@ class Files():
 
         return (array) with the complete path of file '''
 
-        oType = self.objTypes()[objType]
+        oType = self.objectsTypes()[objType]
 
         path = os.path.join(self.pl_path, '**/' + objectName + oType)
         files = glob.glob(path)
 
         return files
-
-
-
-    def getFiles(self):
-        '''This method read and copy files from ftp
-            Rerturn: (List) with each donwloaded file name '''
-        downloadedFiles = []
-        sftp = self.ftpConnect(host=self.host, user=self.user, password=self.password)
-        if sftp:
-            sftp.cwd(self.ftp_path)
-        else:
-            return False
-
-        # List only necessaries files
-        regex = re.compile(r'CD.+DOMAC.+\.ascii\.gz')
-        ftpFiles = filter(regex.match, sftp.listdir())
-
-        for sfile in ftpFiles:
-            # Before download files from sFTP server check if exist in local dir
-            fexist = self.findFile(sfile, self.host_files_dir)
-            if fexist == True:
-                print(' The file ' + sfile + ' Already exist')
-                continue
-
-            # Download each compressed file
-            fname = sfile.split('.')
-            dloaded = os.path.join(self.host_files_dir, sfile)
-            sftp.get(sfile, dloaded)
-            downloadedFiles.append(sfile)
-            print('%s... downloaded' % sfile)
-
-        sftp.close()
-        return downloadedFiles
 
 
     def findFile(self, name, path):

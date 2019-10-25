@@ -2,6 +2,8 @@
 This tools has been created thinking on those apps that has to many logict into the database.
 PL/SQL Manage provide you an ease way to clone a main schema, compile pl/sql code on realtime, check database errors, check diferences between repo and database, etc.
 
+We rely on the git standard and assume that your master branch is the main branch, that means the all operations with respect to changes are evaluated starting from the master branch
+
 ### Requirements
 - Docker version ^19.03.1
 - Git ^2.22.0

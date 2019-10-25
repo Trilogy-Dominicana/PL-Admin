@@ -13,9 +13,18 @@ def _main():
     files = Files()
     db = Database()
 
-    # files.localChanges()
-    db.createSchema()
+    files.localChanges()
+    # files.remoteChanges()
+    
+    # db.createSchema()
+    update = db.updateSchema()
+    print(update)
+    # db.getDBObjects()
 
+    # updateSchema
+    # files.localChanges()
+
+    # print(files.getFileName('you/path/dir/to/file.pbk'))
 
 
 if __name__ == '__main__':

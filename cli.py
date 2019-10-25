@@ -30,8 +30,8 @@ def main(argv):
             
  
             # List invalid objects
-            # print(db.getObjStatus(status='INVALID')[0])
-            invalids = db.getObjStatus(status='INVALID')
+            # print(db.getObjects(status='INVALID')[0])
+            invalids = db.getObjects(status='INVALID')
             print(db.compileObj(invalids))
             
             # Get error, warnnings, info of a invalid package
@@ -44,7 +44,7 @@ def main(argv):
             # Compiple an object list
             # datos = files.listAllObjsFiles()
             # data = []
-            # invalids = db.getObjStatus(status='INVALID', withPath=True)
+            # invalids = db.getObjects(status='INVALID', withPath=True)
             # for v in invalids:
                 # data.insert(0,v['path'])
 
