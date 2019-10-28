@@ -1,4 +1,4 @@
-import os, re, shutil, glob, git
+import os, sys, re, shutil, glob, git
 
 class Files():
     pl_path = os.path.join('/plsql')
@@ -115,3 +115,24 @@ class Files():
         # Create dir to saved empties compressed files
         self.empty_gzbackup = os.path.join(self.uncompressed_file_dir, 'gzbackup_empty')
         os.makedirs(self.empty_gzbackup, exist_ok=True)
+
+
+    def progress(self, count, total, status=''):
+        ''' 
+        Progress bar generator
+
+        params:
+        ------
+        count (int) counter var 
+        total (int) max of counter
+        status (string) message to print out right of progres bar
+        '''
+
+        bar_len = 60
+        filled_len = int(round(bar_len * count / float(total)))
+        percents = round(100.0 * count / float(total), 1)
+        bar = '=' * filled_len + '-' * (bar_len - filled_len)
+        sys.stdout.write('[%s] %s%s \n %s \r' % (bar, percents, '%', status))
+        sys.stdout.flush()
+
+        return True

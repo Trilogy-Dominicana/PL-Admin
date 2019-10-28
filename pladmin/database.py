@@ -1,9 +1,7 @@
 import cx_Oracle, os, re, glob
-# from dotenv import load_dotenv
 from pladmin.files import Files as files
 
 files = files()
-# load_dotenv()
 
 class Database():
 
@@ -130,8 +128,8 @@ class Database():
 
         return (list) with errors if some package were an error
         '''
-        data = []
 
+        data = []
         localClose = False
         if not db:
             db = self.dbConnect()
@@ -161,7 +159,8 @@ class Database():
 
             # Check if the object has some errors
             data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
-            return data
+        
+        return data
             
 
         if localClose:
@@ -272,12 +271,18 @@ class Database():
 
         synonyms = self.getData(query=sql, db=db)
 
+        # Params to process bar
+        total = len(synonyms)
+        i = 0
 
         for synon in synonyms:
             sql = "CREATE SYNONYM %s.%s FOR %s.%s" % (detinationSchema, synon['object_name'], originSchema, synon['object_name'])
-            print(sql)
             cursor.execute(sql)
 
+            status = 'CREATE SYNONYM ' + detinationSchema + '.' + synon['object_name']
+            files.progress(i, total, status)
+            i += 1
+            
         cursor.close()
 
 

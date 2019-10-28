@@ -21,10 +21,15 @@ def main():
     args = parser.parse_args()
     action = args.action
     
+    # Update schema command
     if action == 'updateSchema':
         update = db.updateSchema()
         print(update)
 
+        #TODO List file removed and drop it from database
+
+
+    # Create schema command
     if action == 'createSchema':
         invalids = db.createSchema()
         
@@ -33,17 +38,21 @@ def main():
         else:
             print('Schema created successfully!')
 
+
+    if action == 'compileInvalids':
+        # Get invalid objects
+        invalids = db.getObjects(status='INVALID')
+
+        # Try to compile it 
+        db.compileObj(invalids)
+
+        result = db.getObjects(status='INVALID')
+        print(result)
+
     # print(args.action)
     # files.localChanges()
     # files.remoteChanges()
-    
-    # db.createSchema()
-    # db.getDBObjects()
 
-    # updateSchema
-    # files.localChanges()
-    
-    # print(files.getFileName('you/path/dir/to/file.pbk'))
 
 
 if __name__ == '__main__':
