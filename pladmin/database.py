@@ -41,11 +41,11 @@ class Database():
 
     def createSchema(self):
         # To create users, give permission, etc. We need to connect with admin user using param asAdmin
-        db      = self.dbConnect(sysDBA=True)
+        db = self.dbConnect(sysDBA=True)
 
         # Drop and create the user
         self.reCreateUser(db=db)
-        
+        exit()
         # Give grants to the user
         self.createGramtsTo(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
 
@@ -341,7 +341,7 @@ class Database():
             cursor.execute("DROP USER %s CASCADE" % self.user)
 
         # Create the user
-        files.progress(count = 2, total=progressTotal, status='CREATING USER %s' % self.user)
+        files.progress(count=2, total=progressTotal, status='CREATING USER %s' % self.user)
         sql = "CREATE USER %s IDENTIFIED BY %s DEFAULT TABLESPACE %s TEMPORARY TABLESPACE %s QUOTA UNLIMITED ON %s" % (
             self.user,
             self.password,
@@ -351,9 +351,8 @@ class Database():
         )
         cursor.execute(sql)
 
-        files.progress(count = 3, total=progressTotal, status='USER %s CREATED' % self.user)
-        if files.displayInfo:
-            print('\n')
+        files.progress(count = 3, total=progressTotal, status='USER %s CREATED' % self.user, end=True)
+
 
     def dbConnect(self, sysDBA=False):
         '''

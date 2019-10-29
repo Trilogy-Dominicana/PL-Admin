@@ -119,7 +119,7 @@ class Files():
         os.makedirs(self.empty_gzbackup, exist_ok=True)
 
 
-    def progress(self, count, total, status='', title=None):
+    def progress(self, count, total, status='', title=None, end=False):
         ''' 
         Progress bar generator
 
@@ -131,13 +131,17 @@ class Files():
         '''
         if self.displayInfo:
             if title:
-                print(title + '\n')
+                print(title + '\r')
 
             bar_len = 60
             filled_len = int(round(bar_len * count / float(total)))
             percents = round(100.0 * count / float(total), 1)
-            bar = '=' * filled_len + '-' * (bar_len - filled_len)
-            sys.stdout.write('[%s] %s%s: %s\r' % (bar, percents, '%', status))
+            bar = '█' * filled_len + '░' * (bar_len - filled_len)
+            sys.stdout.write('%s %s%s: %s\r' % (bar, percents, '%', status))
             sys.stdout.flush()
+
+            if end:
+                print('\n')
+
 
         return False
