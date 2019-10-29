@@ -2,10 +2,12 @@ import os, sys, re, shutil, glob, git
 
 class Files():
     pl_path = os.path.join('/plsql')
+    displayInfo = False
 
-    def __init__(self):
+    def __init__(self, displayInfo = False):
         # Initialize git repo
         self.repo = git.Repo(self.pl_path)
+        
 
 
     def objectsTypes(self):
@@ -117,7 +119,7 @@ class Files():
         os.makedirs(self.empty_gzbackup, exist_ok=True)
 
 
-    def progress(self, count, total, status=''):
+    def progress(self, count, total, status='', title=None):
         ''' 
         Progress bar generator
 
@@ -127,12 +129,15 @@ class Files():
         total (int) max of counter
         status (string) message to print out right of progres bar
         '''
+        if self.displayInfo:
+            if title:
+                print(title + '\n')
 
-        bar_len = 60
-        filled_len = int(round(bar_len * count / float(total)))
-        percents = round(100.0 * count / float(total), 1)
-        bar = '=' * filled_len + '-' * (bar_len - filled_len)
-        sys.stdout.write('[%s] %s%s \n %s \r' % (bar, percents, '%', status))
-        sys.stdout.flush()
+            bar_len = 60
+            filled_len = int(round(bar_len * count / float(total)))
+            percents = round(100.0 * count / float(total), 1)
+            bar = '=' * filled_len + '-' * (bar_len - filled_len)
+            sys.stdout.write('[%s] %s%s: %s\r' % (bar, percents, '%', status))
+            sys.stdout.flush()
 
-        return True
+        return False

@@ -16,9 +16,13 @@ class Database():
     host                   = os.getenv("DB_HOST")
     port                   = os.getenv("DB_PORT")
 
-    def __init__(self):
-        self.types = files.objectsTypes().keys()
+
+    def __init__(self, displayInfo = False):
+        self.types      = files.objectsTypes().keys()
         self.extentions = files.objectsTypes().values()
+        
+        self.displayInfo = displayInfo
+        files.displayInfo = displayInfo
 
 
     def updateSchema(self):
@@ -38,26 +42,9 @@ class Database():
     def createSchema(self):
         # To create users, give permission, etc. We need to connect with admin user using param asAdmin
         db      = self.dbConnect(sysDBA=True)
-        cursor  = db.cursor()
 
-        # Firts, we need to validate if the user exist
-        sql = "SELECT COUNT(1) AS v_count FROM dba_users WHERE username = :db_user"
-        cursor.execute(sql, {'db_user': self.user})
-        
-        # If user exist, drop it
-        if cursor.fetchone()[0] > 0:
-            print('DROP USER %s' % self.user)
-            cursor.execute("DROP USER %s CASCADE" % self.user)
-
-        # Create the user
-        sql = "CREATE USER %s IDENTIFIED BY %s DEFAULT TABLESPACE %s TEMPORARY TABLESPACE %s QUOTA UNLIMITED ON %s" % (
-            self.user,
-            self.password,
-            self.db_default_table_space,
-            self.db_temp_table_space,
-            self.db_default_table_space
-        )
-        cursor.execute(sql)
+        # Drop and create the user
+        self.reCreateUser(db=db)
         
         # Give grants to the user
         self.createGramtsTo(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
@@ -136,11 +123,20 @@ class Database():
             localClose = True
         
         cursor = db.cursor()
-        
+
+        progressTotal = len(path)
+        files.progress(1, progressTotal, status='LISTING PACKAGES...', title='CREATE OR REPLACE PACKAGES')
+        i = 2
         for f in path:
+
             fi = files.getFileName(f)
             fname = fi['name']
             ftype = fi['ext']
+
+            # Display progress bar
+            files.progress(i, progressTotal, 'CREATE OR REPLACE %s' % fname)
+            i += 1
+
 
             # Only valid extencions sould be processed
             if not '.' + ftype in  self.extentions:
@@ -159,6 +155,7 @@ class Database():
 
             # Check if the object has some errors
             data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
+
         
         return data
             
@@ -222,6 +219,7 @@ class Database():
 
     def createGramtsTo(self, originSchema, detinationSchema, db=None):
         
+
         cursor  = db.cursor()
         cursor.execute("GRANT CREATE PROCEDURE TO %s" % detinationSchema)
         cursor.execute("GRANT CREATE SEQUENCE TO %s" % detinationSchema)
@@ -254,6 +252,7 @@ class Database():
     def createSynonyms(self, originSchema, detinationSchema, db):
         """ Create synonyms types ('SEQUENCE', 'TABLE', 'TYPE') from originSchema to destinationSchema """
 
+
         cursor = db.cursor()
         sql = ''' SELECT oo.object_name, oo.object_type, oo.status
                 FROM sys.dba_objects oo
@@ -272,16 +271,18 @@ class Database():
         synonyms = self.getData(query=sql, db=db)
 
         # Params to process bar
-        total = len(synonyms)
-        i = 0
+        progressTotal = len(synonyms)
+        files.progress(1, progressTotal, 'LISTING TABLES', title='CREATE SYNONYM')
 
+        i = 2
         for synon in synonyms:
             sql = "CREATE SYNONYM %s.%s FOR %s.%s" % (detinationSchema, synon['object_name'], originSchema, synon['object_name'])
             cursor.execute(sql)
 
             status = 'CREATE SYNONYM ' + detinationSchema + '.' + synon['object_name']
-            files.progress(i, total, status)
-            i += 1
+            if self.displayInfo:
+                files.progress(i, progressTotal, status)
+                i += 1
             
         cursor.close()
 
@@ -322,6 +323,37 @@ class Database():
 
         return data
 
+
+    def reCreateUser(self, db):
+        
+        progressTotal = 3
+        files.progress(count = 1, total=progressTotal, status='VALIDATING...', title = 'CREATE NEW USER')
+
+        cursor = db.cursor()
+        # Firts, we need to validate if the user exist
+        sql = "SELECT COUNT(1) AS v_count FROM dba_users WHERE username = :db_user"
+        cursor.execute(sql, {'db_user': self.user})
+
+        
+        # If user exist, drop it
+        if cursor.fetchone()[0] > 0:
+            files.progress(count = 2, total=progressTotal, status='DROP USER %s' % self.user)
+            cursor.execute("DROP USER %s CASCADE" % self.user)
+
+        # Create the user
+        files.progress(count = 2, total=progressTotal, status='CREATING USER %s' % self.user)
+        sql = "CREATE USER %s IDENTIFIED BY %s DEFAULT TABLESPACE %s TEMPORARY TABLESPACE %s QUOTA UNLIMITED ON %s" % (
+            self.user,
+            self.password,
+            self.db_default_table_space,
+            self.db_temp_table_space,
+            self.db_default_table_space
+        )
+        cursor.execute(sql)
+
+        files.progress(count = 3, total=progressTotal, status='USER %s CREATED' % self.user)
+        if files.displayInfo:
+            print('\n')
 
     def dbConnect(self, sysDBA=False):
         '''

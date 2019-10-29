@@ -12,8 +12,8 @@ from pladmin.files import Files
 
 
 def main():
-    files = Files()
-    db = Database()
+    db = Database(displayInfo=True)
+    files = Files(displayInfo=True)
 
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('action', metavar='action', type=str, help='Push the method name')
