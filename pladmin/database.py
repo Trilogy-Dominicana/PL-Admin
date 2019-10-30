@@ -15,7 +15,7 @@ class Database():
     password               = os.getenv("DB_PASSWORD")
     host                   = os.getenv("DB_HOST")
     port                   = os.getenv("DB_PORT")
-
+    compileIntends         = 0
 
     def __init__(self, displayInfo = False):
         self.types      = files.objectsTypes().keys()
@@ -40,15 +40,15 @@ class Database():
 
 
     def createSchema(self):
-        # To create users, give permission, etc. We need to connect with admin user using param asAdmin
+        # To create users, give permission, etc. We need to connect with admin user using param sysDBA
         db = self.dbConnect(sysDBA=True)
 
         # Drop and create the user
         self.reCreateUser(db=db)
-        exit()
+
         # Give grants to the user
         self.createGramtsTo(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
-
+        
         # Create synonyms
         self.createSynonyms(originSchema=self.db_main_schema, detinationSchema=self.user, db=db)
 
@@ -57,9 +57,10 @@ class Database():
         self.createReplaceObject(path=data)
         
         # If some objects are invalids, try to compile
-        invalids = self.getObjects(status='INVALID')
-        self.compileObj(invalids)
+        self.compileObj()
         
+        
+        invalids = self.getObjects(status='INVALID')
         return invalids
 
 
@@ -82,8 +83,8 @@ class Database():
         # cursor.execute(sql)
 
  
-    def compileObj(self, objList, db=None):
-
+    def compileObj(self, db=None):
+        self.compileIntends += 1 
         localClose = False
         data = []
 
@@ -93,15 +94,19 @@ class Database():
         
         cursor = db.cursor()
         
-        for obj in objList:
+        invalids = self.getObjects(status='INVALID')
+        for obj in invalids:
             sql = 'ALTER %s %s.%s COMPILE'%(obj['object_type'], obj['owner'], obj['object_name'])
             cursor.execute(sql)
-            # data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
+        
+        # <TODO: Add validation sujected by Cid>
+        if len(invalids) and self.compileIntends < 6:
+            self.compileObj(db=db)
 
         if localClose:
             db.close()
 
-        return data
+        return invalids
 
 
     def createReplaceObject(self, path=None, db=None):
@@ -124,23 +129,23 @@ class Database():
         
         cursor = db.cursor()
 
+        # Prepare data for progress bar
         progressTotal = len(path)
-        files.progress(1, progressTotal, status='LISTING PACKAGES...', title='CREATE OR REPLACE PACKAGES')
-        i = 2
-        for f in path:
+        i = 0
+        files.progress(i, progressTotal, status='LISTING PACKAGES...', title='CREATE OR REPLACE PACKAGES')
 
+        for f in path:
             fi = files.getFileName(f)
             fname = fi['name']
             ftype = fi['ext']
 
-            # Display progress bar
-            files.progress(i, progressTotal, 'CREATE OR REPLACE %s' % fname)
-            i += 1
-
-
             # Only valid extencions sould be processed
             if not '.' + ftype in  self.extentions:
                 continue
+
+            # Display progress bar
+            files.progress(i, progressTotal, 'CREATE OR REPLACE %s' % fname)
+            i += 1
 
             opf = open(f, 'r')
             content = opf.read()
@@ -151,12 +156,13 @@ class Database():
                 context = 'CREATE OR REPLACE FORCE VIEW %s AS \n' % fname
             
             cursor.execute(context + content)
-            # print('INFO: Replaced %s.%s' % (fname, ftype))
 
             # Check if the object has some errors
-            data.extend(self.getObjErrors(owner=self.user, objName=fname, db=db))
+            errors = self.getObjErrors(owner=self.user, objName=fname, db=db)
+            if errors:
+                data.extend(errors)
 
-        
+        files.progress(i, progressTotal, status='OBJECTS HAS BEEN CREATED (ERRORS: %s)' % len(data), end=True)
         return data
             
 
@@ -169,7 +175,7 @@ class Database():
     def getObjErrors(self, owner, objName, db=None):
         ''' Get object errors on execution time '''
 
-        query = "SELECT * FROM all_errors WHERE owner = '%s' and NAME = '%s'" % (owner, objName)
+        query = "SELECT * FROM dba_errors WHERE owner = '%s' and NAME = '%s'" % (owner, objName)
         result = self.getData(query=query, db=db)
         
         return result
@@ -218,39 +224,55 @@ class Database():
 
 
     def createGramtsTo(self, originSchema, detinationSchema, db=None):
-        
-
         cursor  = db.cursor()
-        cursor.execute("GRANT CREATE PROCEDURE TO %s" % detinationSchema)
-        cursor.execute("GRANT CREATE SEQUENCE TO %s" % detinationSchema)
-        cursor.execute("GRANT CREATE TABLE TO %s" % detinationSchema)
-        cursor.execute("GRANT CREATE VIEW TO %s" % detinationSchema)
-        cursor.execute("GRANT CREATE TRIGGER TO %s" % detinationSchema)
-        cursor.execute("GRANT EXECUTE ANY PROCEDURE TO %s" % detinationSchema)
-        cursor.execute("GRANT SELECT ANY DICTIONARY TO %s" % detinationSchema)
-        cursor.execute("GRANT CREATE SESSION TO %s" % detinationSchema)
-        cursor.execute("GRANT SELECT ANY DICTIONARY TO %s" % detinationSchema)
-        cursor.execute("GRANT EXECUTE ANY PROCEDURE TO %s" % detinationSchema)
-        cursor.execute("GRANT EXECUTE ANY TYPE TO %s" % detinationSchema)
-        cursor.execute("GRANT ALTER ANY TABLE TO %s" % detinationSchema)
-        cursor.execute("GRANT ALTER ANY SEQUENCE TO %s" % detinationSchema)
-        cursor.execute("GRANT UPDATE ANY TABLE TO %s" % detinationSchema)
-        cursor.execute("GRANT DEBUG ANY PROCEDURE TO %s" % detinationSchema)
-        cursor.execute("GRANT DEBUG CONNECT ANY to %s" % detinationSchema)
-        cursor.execute("GRANT DELETE ANY TABLE TO %s" % detinationSchema)
-        cursor.execute("GRANT ALTER ANY INDEX TO %s" % detinationSchema)
-        cursor.execute("GRANT INSERT ANY TABLE TO %s" % detinationSchema)
-        cursor.execute("GRANT READ ANY TABLE TO %s" % detinationSchema)
-        cursor.execute("GRANT SELECT ANY TABLE TO %s" % detinationSchema)
-        cursor.execute("GRANT SELECT ANY SEQUENCE TO %s" % detinationSchema)
+        i = 0
+        permisions = [
+            'GRANT CREATE PROCEDURE TO',
+            'GRANT CREATE SEQUENCE TO',
+            'GRANT CREATE TABLE TO',
+            'GRANT CREATE VIEW TO',
+            'GRANT CREATE TRIGGER TO',
+            'GRANT EXECUTE ANY PROCEDURE TO',
+            'GRANT SELECT ANY DICTIONARY TO',
+            'GRANT CREATE SESSION TO',
+            'GRANT SELECT ANY DICTIONARY TO',
+            'GRANT EXECUTE ANY PROCEDURE TO',
+            'GRANT EXECUTE ANY TYPE TO',
+            'GRANT ALTER ANY TABLE TO',
+            'GRANT ALTER ANY SEQUENCE TO',
+            'GRANT UPDATE ANY TABLE TO',
+            'GRANT DEBUG ANY PROCEDURE TO',
+            'GRANT DEBUG CONNECT ANY to',
+            'GRANT DELETE ANY TABLE TO',
+            'GRANT ALTER ANY INDEX TO',
+            'GRANT INSERT ANY TABLE TO',
+            'GRANT READ ANY TABLE TO',
+            'GRANT SELECT ANY TABLE TO',
+            'GRANT SELECT ANY SEQUENCE TO',
+            'GRANT UPDATE ON SYS.SOURCE$ TO',
+            'GRANT EXECUTE ON SYS.DBMS_LOCK TO'
+        ]
 
-        cursor.execute("GRANT UPDATE ON SYS.SOURCE$ TO %s" % detinationSchema)
-        cursor.execute("GRANT EXECUTE ON SYS.DBMS_LOCK TO %s" % detinationSchema)
+        # Prepare bars to progress bar
+        progressTotal = len(permisions)
+        files.progress(i, progressTotal, status='LISTING PERMISSIONS %s' % detinationSchema, title='GIVE GRANTS')
+
+        for p in permisions:
+            # Write progress bar 
+            files.progress(i, progressTotal, status='GRANT TO %s ' % detinationSchema)
+
+            # Excute to db
+            cursor.execute(p + ' ' + detinationSchema)
+
+            i += 1
+
+        # This is a special permission
         cursor.execute("CREATE SYNONYM %s.FERIADOS FOR OMEGA.FERIADOS" % detinationSchema)
+        files.progress(i, progressTotal, status='GRANT TO %s ' % detinationSchema, end=True)
 
 
     def createSynonyms(self, originSchema, detinationSchema, db):
-        """ Create synonyms types ('SEQUENCE', 'TABLE', 'TYPE') from originSchema to destinationSchema """
+        ''' Create synonyms types ('SEQUENCE', 'TABLE', 'TYPE') from originSchema to destinationSchema '''
 
 
         cursor = db.cursor()
@@ -272,18 +294,19 @@ class Database():
 
         # Params to process bar
         progressTotal = len(synonyms)
-        files.progress(1, progressTotal, 'LISTING TABLES', title='CREATE SYNONYM')
+        i = 0
+        files.progress(i, progressTotal, 'LISTING TABLES', title='CREATE SYNONYMS')
 
-        i = 2
         for synon in synonyms:
+            # Write progress bar
+            files.progress(i, progressTotal, status='CREATE SYNONYM %s.%s' % (detinationSchema, synon['object_name']))
+
             sql = "CREATE SYNONYM %s.%s FOR %s.%s" % (detinationSchema, synon['object_name'], originSchema, synon['object_name'])
             cursor.execute(sql)
-
-            status = 'CREATE SYNONYM ' + detinationSchema + '.' + synon['object_name']
-            if self.displayInfo:
-                files.progress(i, progressTotal, status)
-                i += 1
             
+            i += 1
+
+        files.progress(i, progressTotal, status='SYNONYMS CREATED', end=True)
         cursor.close()
 
 

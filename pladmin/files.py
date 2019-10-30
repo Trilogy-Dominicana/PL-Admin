@@ -9,7 +9,6 @@ class Files():
         self.repo = git.Repo(self.pl_path)
         
 
-
     def objectsTypes(self):
         ''' Do not change the order of items''' 
         data = {}

@@ -1,62 +1,57 @@
-#!/usr/bin/python
-import sys, getopt, json
+#!/usr/local/bin/python
+from __future__ import absolute_import
+import sys, getopt, json, os, argparse
 
-# from dotenv import load_dotenv
-from vivapl.database import Database
-from vivapl.files import Files
+from pladmin.database import Database 
+from pladmin.files import Files
+
+# parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
+# parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
 
 
-def main(argv):
-    ''' Main function to execute command line '''
+def main():
+    db = Database(displayInfo=True)
+    files = Files(displayInfo=True)
 
-    emethod = ''
-    try:
-        opts, arg = getopt.getopt(argv, "hie:", ["emethod="])
-    except getopt.GetoptError:
-        # print('Something wrong with the args. type -h to see help ')
-        sys.exit(2)
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('action', metavar='action', type=str, help='Push the method name')
 
+    args = parser.parse_args()
+    action = args.action
     
+    # Update schema command
+    if action == 'updateSchema':
+        update = db.updateSchema()
+        print(update)
 
-    for opt, arg in opts:
-        if opt in ('-i'):
-            ''' List invalid packages on DB '''
-            files = Files()
-            db = Database()
-            # con = db.dbConnect(asAdmin=True)
-            
-            # Create schemas
-            # print(db.createSchema())
-            
- 
-            # List invalid objects
-            # print(db.getObjects(status='INVALID')[0])
-            invalids = db.getObjects(status='INVALID')
-            print(db.compileObj(invalids))
-            
-            # Get error, warnnings, info of a invalid package
-            # print(db.getObjErrors('EBRADMIN', 'TX_CL_ENCUESTA'))
-            
-            # Get object path by type of db and nada
-            # datos = files.findObjFileByType(objType='PACKAGE BODY', objectName='TX_CL_ENCUESTA')
-            # print(datos)
-            
-            # Compiple an object list
-            # datos = files.listAllObjsFiles()
-            # data = []
-            # invalids = db.getObjects(status='INVALID', withPath=True)
-            # for v in invalids:
-                # data.insert(0,v['path'])
+        #TODO List file removed and drop it from database
 
-            # print(invalids)
-            # print(db.createReplaceObject(data))
 
-            
-        elif opt in ("-e", "--emethod"):
-            emethod = arg
+    # Create schema command
+    if action == 'createSchema':
+        invalids = db.createSchema()
+        
+        if len(invalids):
+            print(invalids)
         else:
-            print('Available opcions -e <method_name>\n')
-            sys.exit('0')
+            print('Schema created successfully!')
 
-if __name__ == "__main__": 
-    main(sys.argv[1:])
+
+    if action == 'compileInvalids':
+        # Get invalid objects
+        invalids = db.getObjects(status='INVALID')
+
+        # Try to compile it 
+        db.compileObj(invalids)
+
+        result = db.getObjects(status='INVALID')
+        print(result)
+
+    # print(args.action)
+    # files.localChanges()
+    # files.remoteChanges()
+
+
+
+if __name__ == '__main__':
+    sys.exit(main())
