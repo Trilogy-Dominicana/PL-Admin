@@ -17,7 +17,7 @@ git@gitlab.viva.com.do:anaiboa/plsql-manager.git
 ```sh
 # Where going to be your PL/SQL source code? 
 export PLSQL_PATH=</var/www/omega/app/omegapl/your_pl_path>
-export GIT_USER=<You Name>
+export GIT_NAME=<Your Name>
 export GIT_EMAIL=<your@email.com>
 
 # Your schema name
