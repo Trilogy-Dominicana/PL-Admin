@@ -5,6 +5,9 @@ services:
     container_name: pl-admin
     build:
       context: './'
+      args:
+        - GIT_NAME=${GIT_NAME}
+        - GIT_EMAIL=${GIT_EMAIL}
     volumes:
       - ./:/app
       - ${PLSQL_PATH}:/plsql
@@ -12,18 +15,16 @@ services:
     networks:
       - backend
     environment:
-      - DEBUG=False
-      - TESTING=False
-      - DB_SERVICE_NAME=DIAOMEGA
-      - DB_HOST=maisi.om.do
-      - DB_USER=WDELACRUZ4
-      - DB_PASSWORD=temp
-      - DB_PORT=1521
-      - DB_ADMIN_USER=sys
-      - DB_ADMIN_PASSWORD=infinityqx35
-      - DB_DEFAULT_TABLE_SPACE=OMEGA_DATA
-      - DB_TEMP_TABLE_SPACE=TEMP_TBS
-      - DB_MAIN_SCHEMA=OMEGA
+      - DB_SERVICE_NAME=${DB_SERVICE_NAME}
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT=${DB_PORT}
+      - DB_ADMIN_USER=${DB_ADMIN_USER}
+      - DB_ADMIN_PASSWORD=${DB_ADMIN_PASSWORD}
+      - DB_DEFAULT_TABLE_SPACE=${DB_DEFAULT_TABLE_SPACE}
+      - DB_TEMP_TABLE_SPACE=${DB_TEMP_TABLE_SPACE}
+      - DB_MAIN_SCHEMA=${DB_MAIN_SCHEMA}
 networks:
   backend:
 volumes:
