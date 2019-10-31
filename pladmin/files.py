@@ -1,4 +1,4 @@
-import os, sys, re, shutil, glob, git
+import os, sys, re, shutil, glob, git, datetime
 
 class Files():
     pl_path = os.path.join('/plsql')
@@ -7,6 +7,7 @@ class Files():
     def __init__(self, displayInfo = False):
         # Initialize git repo
         self.repo = git.Repo(self.pl_path)
+        self.REFRESH_FREQUENCY = 1
         
 
     def objectsTypes(self):
@@ -28,6 +29,19 @@ class Files():
         return diff.split('\n')
 
 
+    def test(self):
+        ''' Get files changes comparing actual branch with actual changes and the last commit ''' 
+        data = []
+        repo = self.repo
+        # diff = repo.index.diff('HEAD')
+        diff = repo.untracked_files
+        
+        # for item in diff:
+        #     data.append(item)
+        
+        return diff
+
+
     def remoteChanges(self):
         data = []
         repo = self.repo
@@ -44,7 +58,7 @@ class Files():
         objs = []
 
         for files in types:
-            path = os.path.join(self.pl_path, '**/*' + files)
+            path = self.pl_path + '/**/*' + files
             objs.extend(glob.glob(path, recursive=True))
 
         return objs
@@ -136,7 +150,7 @@ class Files():
             filled_len = int(round(bar_len * count / float(total)))
             percents = round(100.0 * count / float(total), 1)
             bar = '█' * filled_len + '░' * (bar_len - filled_len)
-            sys.stdout.write('%s %s%s: %s\r' % (bar, percents, '%', status))
+            sys.stdout.write('\r%s %s%s: %s\r' % (bar, percents, '%', status))
             sys.stdout.flush()
 
             if end:
@@ -144,3 +158,14 @@ class Files():
 
 
         return False
+
+
+
+    def files_to_timestamp(self, path):
+        ''' Get for each file found in path get the last modified timestamp '''
+        files = self.listAllObjsFiles()
+        data = dict([(f, os.path.getmtime(f)) for f in files])
+
+        return data
+
+
