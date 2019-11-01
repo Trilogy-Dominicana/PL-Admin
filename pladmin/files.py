@@ -7,7 +7,6 @@ class Files():
     def __init__(self, displayInfo = False):
         # Initialize git repo
         self.repo = git.Repo(self.pl_path)
-        self.REFRESH_FREQUENCY = 1
         
 
     def objectsTypes(self):
@@ -29,12 +28,29 @@ class Files():
         return diff.split('\n')
 
 
+    def filesChangesByTime(self, minutes):
+        ''' This fuction return a list of files that changes in a range time '''
+        _cached_stamp = 0
+        filename = '/plsql/packages/ALG_CORRECCION_DIRECCIONES.pbk'
+        stamp = os.stat(filename).st_mtime
+        now = datetime.now()
+        dateTimeObj = now.timestamp() - stamp
+        print(dateTimeObj)
+
+        if stamp != _cached_stamp:
+            _cached_stamp = stamp
+            # File has changed, so do something...
+
+
+
     def test(self):
         ''' Get files changes comparing actual branch with actual changes and the last commit ''' 
         data = []
         repo = self.repo
         # diff = repo.index.diff('HEAD')
-        diff = repo.untracked_files
+        # diff = repo.untracked_files
+        repo.get_status()
+        
         
         # for item in diff:
         #     data.append(item)
@@ -158,7 +174,6 @@ class Files():
 
 
         return False
-
 
 
     def files_to_timestamp(self, path):
