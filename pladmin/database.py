@@ -25,19 +25,6 @@ class Database():
         files.displayInfo = displayInfo
 
 
-    def updateSchema(self):
-        result = {}
-        changes = files.localChanges()
-        data = [files.pl_path + '/' + x for x in changes]
-
-        invalids = self.createReplaceObject(path=data)
-        
-        # If some objects are invalids, try to compile again
-        # if len(invalids):
-            # self.compileObj(invalids)
-
-        return invalids
-
 
     def createSchema(self):
         # To create users, give permission, etc. We need to connect with admin user using param sysDBA
