@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 import sys, getopt, json, os, argparse, time
 
+from datetime import datetime
 from pladmin.database import Database 
 from pladmin.files import Files
 
@@ -49,9 +50,9 @@ def watch(path_to_watch):
 
         if removed: 
             print("Removed: ", removed)
-        
 
         before = after
+
 
 
 
@@ -64,14 +65,32 @@ def main():
     
     # Update schema command
     if action == 'updateSchema':
-        update = db.updateSchema()
-        print(update)
+        
+        # Get files has changed and are uncomited
+        localChanges = files.localChanges()
+        
+        # Get changes comparing local branch with remote master branch
+        remoteChanges = files.remoteChanges()
+        
+        # Remove duplicated key
+        changes = list(dict.fromkeys(localChanges + remoteChanges))
+
+        # Concat the path to each files
+        data = [files.pl_path + '/' + x for x in changes]
+
+        if data:
+            invalids = db.createReplaceObject(path=data)
+        
+        # If some objects are invalids, try to compile again
+        # if len(invalids):
+            # self.compileObj(invalids)
+
 
         # TODO List file removed and drop it from database
 
 
     # Create schema command
-    if action == 'createSchema':
+    if action == 'newSchema':
         invalids = db.createSchema()
         
         if len(invalids):
@@ -94,7 +113,16 @@ def main():
     if action == 'watch':
         watch(files.pl_path)
 
-    # files.localChanges()
+
+    if action == 'wc2db':
+        ''' Override complete schema '''
+        objs = files.listAllObjsFiles()
+        db.createReplaceObject(objs)
+
+
+    if action == 'test':
+        print(files.remoteChanges())
+
 
 
 
