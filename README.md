@@ -17,14 +17,10 @@ git@gitlab.viva.com.do:anaiboa/plsql-manager.git
 ```sh
 # Where going to be your PL/SQL source code? 
 export PLSQL_PATH=</var/www/omega/app/omegapl/your_pl_path>
-export GIT_NAME=<Your Name>
-export GIT_EMAIL=<your@email.com>
-
-# Your schema name
-export DB_USER=<user>
-
-# Your password
-export DB_PASSWORD=<password>
+export DB_USER=<user> #Your schema name
+export DB_PASSWORD=<password> #Your password
+export GIT_NAME=<Your name>
+export GIT_EMAIL=<your@email.com.do>
 
 # This information has to be provided by DBA Team
 export DB_SERVICE_NAME=<service_name>
@@ -34,10 +30,7 @@ export DB_ADMIN_USER=<sysDBA_user>
 export DB_ADMIN_PASSWORD=<sysDBA_password>
 export DB_DEFAULT_TABLE_SPACE=<default_table_spache>
 export DB_TEMP_TABLE_SPACE=<temp_table_space>
-
-# Main schema is the name from the system going take the data. In Viva Case the main schema is OMEGA
-export DB_MAIN_SCHEMA=<OMEGA>
-
+export DB_MAIN_SCHEMA=<MAIN_SCHEMA> #Schema where the data is. In our case is OMEGA
 ```
 
 ### Build the container
@@ -45,14 +38,51 @@ export DB_MAIN_SCHEMA=<OMEGA>
 docker-compose up -d --build
 ```
 
-### Commands available
+### Options Available
+
+`Create Schema`: Creating new schema. This option take the config and all you files in a current branch y create new schema
 ```sh
-# Create schema
+# Inside of container 
 pladmin newSchema
 
-# Check Database errors
-pladmin checkErrors
+# Outside of container
+docker -exec -ti pl-admin pladmin newSchema
+```
 
-# Update schema (You must excecute after avery git pull, merge o branch changed)
+
+`Update Schema`: This command compare the changes between master remote branch and current files chaange on your local working dir and replace it in you current schema
+```sh
+# Inside of container 
 pladmin updateSchema
+
+# Outside of container
+docker -exec -ti pl-admin pladmin updateSchema
+```
+
+`Wacher`: Take the changes to the database in real time.
+```sh
+# Inside of container 
+pladmin watch
+
+# Outside of container
+docker -exec -ti pl-admin pladmin watch
+```
+
+`Compile Invalids`: Look for invalid packages and try to compile it. 
+```sh
+# Inside of container 
+pladmin compileInvalids
+
+# Outside of container
+docker -exec -ti pl-admin pladmin compileInvalids
+```
+
+
+`Working copy to DB`: Take all objects that you have in you working copy and override it into database.
+```sh
+# Inside of container 
+pladmin wc2db
+
+# Outside of container
+docker -exec -ti pl-admin pladmin wc2db
 ```
