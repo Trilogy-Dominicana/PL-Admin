@@ -80,7 +80,7 @@ def main():
 
         if data:
             invalids = db.createReplaceObject(path=data)
-        
+            print(invalids)
         # If some objects are invalids, try to compile again
         # if len(invalids):
             # self.compileObj(invalids)
