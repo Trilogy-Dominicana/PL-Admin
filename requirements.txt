@@ -4,3 +4,6 @@ requests==2.20
 python-dotenv==0.10.3
 jsonify==0.5
 argparse==1.4.0
+
+# Pyhthon formatter
+black==19.10b0

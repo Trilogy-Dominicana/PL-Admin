@@ -1,4 +1,5 @@
-import os, sys, re, shutil, glob, git, datetime
+import os, sys, re, shutil, glob, git, time
+from datetime import datetime
 
 class Files():
     pl_path = os.path.join('/plsql')
@@ -28,21 +29,6 @@ class Files():
         return diff.split('\n')
 
 
-    def filesChangesByTime(self, minutes):
-        ''' This fuction return a list of files that changes in a range time '''
-        _cached_stamp = 0
-        filename = '/plsql/packages/ALG_CORRECCION_DIRECCIONES.pbk'
-        stamp = os.stat(filename).st_mtime
-        now = datetime.now()
-        dateTimeObj = now.timestamp() - stamp
-        print(dateTimeObj)
-
-        if stamp != _cached_stamp:
-            _cached_stamp = stamp
-            # File has changed, so do something...
-
-
-
     def test(self):
         ''' Get files changes comparing actual branch with actual changes and the last commit ''' 
         data = []
@@ -67,6 +53,43 @@ class Files():
             data.append(item.a_path)
 
         return data
+
+
+    def filesChangesByTime(self, minutes):
+        ''' This fuction return a list of files that changes in a range time '''
+        _cached_stamp = 0
+        filename = '/plsql/packages/ALG_CORRECCION_DIRECCIONES.pbk'
+        stamp = os.stat(filename).st_mtime
+        now = datetime.now()
+        dateTimeObj = now.timestamp() - stamp
+        print(dateTimeObj)
+
+        if stamp != _cached_stamp:
+            _cached_stamp = stamp
+            # File has changed, so do something...
+
+
+    def files_to_timestamp(self, path):
+        ''' For each file found in path get the last modified timestamp '''
+        files = self.listAllObjsFiles()
+        data = dict([(f, os.path.getmtime(f)) for f in files])
+
+        return data
+
+
+    def updateModificationFileDate(self, path=None):
+        filePath = self.findObjFileByType('PACKAGE', 'TX_WC_UTILS')
+
+        modTime = time.mktime(datetime.now().timetuple())
+        
+        # Modify mtime of a file
+        print(os.utime(filePath[0], (modTime, modTime)))
+
+        # Get date file modification
+        # mf = os.path.getmtime(filePath[0])
+        # print(datetime.fromtimestamp(mf).strftime('%Y-%m-%d %H:%M:%S'))
+        # print(datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
+        # print(mf)
 
 
     def listAllObjsFiles(self):
@@ -174,13 +197,4 @@ class Files():
 
 
         return False
-
-
-    def files_to_timestamp(self, path):
-        ''' Get for each file found in path get the last modified timestamp '''
-        files = self.listAllObjsFiles()
-        data = dict([(f, os.path.getmtime(f)) for f in files])
-
-        return data
-
 
