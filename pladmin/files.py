@@ -1,64 +1,59 @@
 import os, sys, re, shutil, glob, git, time
 from datetime import datetime
 
-class Files():
-    pl_path = os.path.join('/plsql')
+
+class Files:
+    pl_path = os.path.join("/plsql")
     displayInfo = False
 
-    def __init__(self, displayInfo = False):
+    def __init__(self, displayInfo=False):
         # Initialize git repo
         self.repo = git.Repo(self.pl_path)
-        
 
     def objectsTypes(self):
-        ''' Do not change the order of items''' 
+        """ Do not change the order of items"""
         data = {}
-        data['PACKAGE']      = '.psk'
-        data['VIEW']         = '.vew'
-        data['FUNCTION']     = '.fnc'
-        data['PROCEDURES']   = '.prc'
-        data['PACKAGE BODY'] = '.pbk'
+        data["PACKAGE"] = ".psk"
+        data["VIEW"] = ".vew"
+        data["FUNCTION"] = ".fnc"
+        data["PROCEDURES"] = ".prc"
+        data["PACKAGE BODY"] = ".pbk"
 
         return data
 
-
     def localChanges(self):
-        ''' Get files changes comparing actual branch with actual changes and the last commit ''' 
+        """ Get files changes comparing actual branch with actual changes and the last commit """
         repo = self.repo
-        diff = repo.git.diff('--name-only', 'HEAD~1')
-        return diff.split('\n')
-
+        diff = repo.git.diff("--name-only", "HEAD~1")
+        return diff.split("\n")
 
     def test(self):
-        ''' Get files changes comparing actual branch with actual changes and the last commit ''' 
+        """ Get files changes comparing actual branch with actual changes and the last commit """
         data = []
         repo = self.repo
         # diff = repo.index.diff('HEAD')
         # diff = repo.untracked_files
         repo.get_status()
-        
-        
+
         # for item in diff:
         #     data.append(item)
-        
-        return diff
 
+        return diff
 
     def remoteChanges(self):
         data = []
         repo = self.repo
-        diff = repo.index.diff('origin/master')
+        diff = repo.index.diff("origin/master")
 
         for item in diff:
             data.append(item.a_path)
 
         return data
 
-
     def filesChangesByTime(self, minutes):
-        ''' This fuction return a list of files that changes in a range time '''
+        """ This fuction return a list of files that changes in a range time """
         _cached_stamp = 0
-        filename = '/plsql/packages/ALG_CORRECCION_DIRECCIONES.pbk'
+        filename = "/plsql/packages/ALG_CORRECCION_DIRECCIONES.pbk"
         stamp = os.stat(filename).st_mtime
         now = datetime.now()
         dateTimeObj = now.timestamp() - stamp
@@ -68,28 +63,24 @@ class Files():
             _cached_stamp = stamp
             # File has changed, so do something...
 
-
     def files_to_timestamp(self, path):
-        ''' For each file found in path get the last modified timestamp '''
+        """ For each file found in path get the last modified timestamp """
         files = self.listAllObjsFiles()
         data = dict([(f, os.path.getmtime(f)) for f in files])
 
         return data
 
-
-    def updateModificationFileDate(self, path=None):
-        filePath = self.findObjFileByType('PACKAGE', 'TX_WC_UTILS')
+    def updateModificationFileDate(self, path):
 
         modTime = time.mktime(datetime.now().timetuple())
-        
-        # Modify mtime of a file
-        print(os.utime(filePath[0], (modTime, modTime)))
 
-        # Get date file modification
-        # mf = os.path.getmtime(filePath[0])
-        # print(datetime.fromtimestamp(mf).strftime('%Y-%m-%d %H:%M:%S'))
-        # print(datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
-        # print(mf)
+        # Modify mtime of a file
+        for p in path:
+            os.utime(p, (modTime, modTime))
+
+            # Get date file modification
+            mf = os.path.getmtime(p)
+            # print(p, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
 
 
     def listAllObjsFiles(self):
@@ -97,82 +88,84 @@ class Files():
         objs = []
 
         for files in types:
-            path = self.pl_path + '/**/*' + files
+            path = self.pl_path + "/**/*" + files
             objs.extend(glob.glob(path, recursive=True))
 
         return objs
 
-
-    def findObjFileByType(self, objType, objectName):
-        ''' Search file by objetct type on DB and return complete path
+    def findObjFileByType(self, objectType, objectName):
+        """ Search file by objetct type on DB and return complete path
         
         Params:
         ------
-        objType (string) Object Type on DB (PACKAGE, PACKAGE BODY, PROCEDURE, VIEW or FUNCTION)
+        objectType (string) Object Type on DB (PACKAGE, PACKAGE BODY, PROCEDURE, VIEW or FUNCTION)
         objectName (string) Object name on DB, the name has to be the same on DB and the repo (e.g MY_PACKAGE_EXAMPLE)
 
-        return (array) with the complete path of file '''
+        return (array) with the complete path of file """
 
-        oType = self.objectsTypes()[objType]
+        oType = self.objectsTypes()[objectType]
 
-        path = os.path.join(self.pl_path, '**/' + objectName + oType)
+        path = os.path.join(self.pl_path, "**/" + objectName + oType)
         files = glob.glob(path)
 
         return files
 
-
-    def findFile(self, name, path):
+    def validateIfFileExist(self, name, path):
         """ Determinate if a exist into a tree directory """
+
         for root, dirs, files in os.walk(path):
             if name in files:
                 return True
 
         return False
 
-
     def getFileName(self, path):
-        ''' Extract file name and file extention from a path
+        """ Extract file name and file extention from a path
         Params:
         ------
         path (string): String structured with / e.g: you/path/dir/to/file.pbk
-        '''
-        gzfname = path.split('/')
+        """
+        gzfname = path.split("/")
         fullfname = gzfname[-1]
-        fname = fullfname.split('.')
+        fname = fullfname.split(".")
 
-        return {'name': fname[0], 'ext': fname[1]}
-
+        return {"name": fname[0], "ext": fname[1]}
 
     def createDirs(self):
-        
-        dt = datetime.now().strftime('%Y%m%d%H%M%S')
+
+        dt = datetime.now().strftime("%Y%m%d%H%M%S")
 
         # Create dir to save ftp files if not exits
         os.makedirs(self.host_files_dir, exist_ok=True)
 
         # Create dir to save pending files to be parsed
-        self.pending_files = os.path.join(*[os.getcwd(), self.host_files_dir, 'pending'])
+        self.pending_files = os.path.join(
+            *[os.getcwd(), self.host_files_dir, "pending"]
+        )
         os.makedirs(self.pending_files, exist_ok=True)
 
         # Create dir to save corrupted files
-        self.corrupted_files = os.path.join(*[os.getcwd(), self.host_files_dir, 'pending_corrupted'])
+        self.corrupted_files = os.path.join(
+            *[os.getcwd(), self.host_files_dir, "pending_corrupted"]
+        )
         os.makedirs(self.corrupted_files, exist_ok=True)
 
         # Create directory structure to save the files e.g (./YYYY/MM/filename.par)
-        self.uncompressed_file_dir = os.path.join(*[os.getcwd(), self.host_files_dir, dt[0:4], dt[4:6], dt[6:8]])
+        self.uncompressed_file_dir = os.path.join(
+            *[os.getcwd(), self.host_files_dir, dt[0:4], dt[4:6], dt[6:8]]
+        )
         os.makedirs(self.uncompressed_file_dir, exist_ok=True)
 
         # Dir to save .gz files that have already been descompresed
-        self.gzbackup = os.path.join(self.uncompressed_file_dir, 'gzbackup')
+        self.gzbackup = os.path.join(self.uncompressed_file_dir, "gzbackup")
         os.makedirs(self.gzbackup, exist_ok=True)
 
         # Create dir to saved empties compressed files
-        self.empty_gzbackup = os.path.join(self.uncompressed_file_dir, 'gzbackup_empty')
+        self.empty_gzbackup = os.path.join(self.uncompressed_file_dir, "gzbackup_empty")
         os.makedirs(self.empty_gzbackup, exist_ok=True)
 
-
-    def progress(self, count, total, status='', title=None, end=False):
-        ''' 
+    def progress(self, count, total, status="", title=None, end=False):
+        """ 
         Progress bar generator
 
         params:
@@ -180,21 +173,21 @@ class Files():
         count (int) counter var 
         total (int) max of counter
         status (string) message to print out right of progres bar
-        '''
+        """
+
         if self.displayInfo:
             if title:
-                print(title + '\r')
+                print(title + "\r")
 
             bar_len = 60
             filled_len = int(round(bar_len * count / float(total)))
             percents = round(100.0 * count / float(total), 1)
-            bar = '█' * filled_len + '░' * (bar_len - filled_len)
-            sys.stdout.write('\r%s %s%s: %s\r' % (bar, percents, '%', status))
+            bar = "█" * filled_len + "░" * (bar_len - filled_len)
+            sys.stdout.write("\r%s %s%s: %s\r" % (bar, percents, "%", status))
             sys.stdout.flush()
 
             if end:
-                print('\n')
-
+                print("\n")
 
         return False
 

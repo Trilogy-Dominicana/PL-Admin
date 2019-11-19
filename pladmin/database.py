@@ -16,7 +16,7 @@ class Database:
     password = os.getenv("DB_PASSWORD")
     host = os.getenv("DB_HOST")
     port = os.getenv("DB_PORT")
-    compileIntends = 0
+    lastIntends = 0
 
     def __init__(self, displayInfo=False):
         self.types = files.objectsTypes().keys()
@@ -47,9 +47,8 @@ class Database:
         self.createReplaceObject(path=data)
 
         # If some objects are invalids, try to compile
-        self.compileObj()
+        invalids = self.compileObj()
 
-        invalids = self.getObjects(status="INVALID")
         return invalids
 
     def getDBObjects(self):
@@ -96,7 +95,6 @@ class Database:
         return cursor.execute(sql)
 
     def compileObj(self, db=None):
-        self.compileIntends += 1
         localClose = False
         data = []
 
@@ -107,16 +105,33 @@ class Database:
         cursor = db.cursor()
 
         invalids = self.getObjects(status="INVALID")
+        objLen = len(invalids)
+
         for obj in invalids:
             sql = "ALTER %s %s.%s COMPILE" % (
                 obj["object_type"],
                 obj["owner"],
                 obj["object_name"],
             )
+
+            # If package type is body, the sentence has to change
+            if obj["object_type"] == "PACKAGE BODY":
+                sql = "ALTER PACKAGE  %s.%s COMPILE BODY" % (
+                    obj["owner"],
+                    obj["object_name"],
+                )
+
             cursor.execute(sql)
 
-        # <TODO: Add validation sujected by Cid that refer to compare the las items compilesd with the new one>
-        if len(invalids) and self.compileIntends < 6:
+            # Update modification on the repository
+            path = files.findObjFileByType(
+                objectType=obj["object_type"], objectName=obj["object_name"]
+            )
+
+            files.updateModificationFileDate(path)
+
+        if objLen != self.lastIntends:
+            self.lastIntends = objLen
             self.compileObj(db=db)
 
         if localClose:
@@ -125,7 +140,7 @@ class Database:
         return invalids
 
     def createReplaceObject(self, path=None, db=None):
-        """ 
+        """
         Create or Replace packges, views, procedures and functions 
 
         params: 
@@ -176,6 +191,11 @@ class Database:
                 context = "CREATE OR REPLACE FORCE VIEW %s AS \n" % fname
 
             cursor.execute(context + content)
+
+            # Update mofication date of file
+            # print(f + '\n')
+            # exit()
+            files.updateModificationFileDate([f])
 
             # Check if the object has some errors
             errors = self.getObjErrors(owner=self.user, objName=fname, db=db)
@@ -245,7 +265,7 @@ class Database:
             i = 0
             for obj in result:
                 p = files.findObjFileByType(
-                    objType=obj["object_type"], objectName=obj["object_name"]
+                    objectType=obj["object_type"], objectName=obj["object_name"]
                 )
                 result[i].update({"path": p[0]})
                 i += 1

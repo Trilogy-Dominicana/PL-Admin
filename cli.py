@@ -90,19 +90,17 @@ def main():
         invalids = db.createSchema()
 
         if len(invalids):
+            print("Some packages seems to be invalids")
             print(invalids)
         else:
             print("Schema created successfully!")
 
     if action == "compileInvalids":
-        # Get invalid objects
-        invalids = db.getObjects(status="INVALID")
+        # Try to compile invalid objects
+        result = db.compileObj()
 
-        # Try to compile it
-        db.compileObj(invalids)
-
-        result = db.getObjects(status="INVALID")
         print(result)
+
 
     if action == "watch":
         watch(files.pl_path)
