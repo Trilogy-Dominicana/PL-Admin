@@ -124,11 +124,22 @@ class Database:
             cursor.execute(sql)
 
             # Update modification on the repository
-            path = files.findObjFileByType(
-                objectType=obj["object_type"], objectName=obj["object_name"]
+            # path = files.findObjFileByType(
+            #     objectType=obj["object_type"], objectName=obj["object_name"]
+            # )
+
+            # Update mofication date of file
+            updateData = self.getObjects(
+                objectTypes=obj["object_type"],
+                objectName=obj["object_name"],
+                withPath=True,
+            )
+            files.updateModificationFileDate(
+                updateData[0]["path"], updateData[0]["last_ddl_time"]
             )
 
-            files.updateModificationFileDate(path)
+            # print(obj['object_type'], ' - ', obj['object_name'])
+            print(updateData[0]["path"])
 
         if objLen != self.lastIntends:
             self.lastIntends = objLen
@@ -179,7 +190,7 @@ class Database:
                 continue
 
             # Display progress bar
-            files.progress(i, progressTotal, "CREATE OR REPLACE %s" % fname)
+            files.progress(i, progressTotal, "CRATEING %s" % fname)
             i += 1
 
             opf = open(f, "r")
@@ -192,10 +203,12 @@ class Database:
 
             cursor.execute(context + content)
 
+            # Getting up object type, if it's package, package body, view, procedure, etc.
+            objType = files.objectsTypes(inverted=True)["." + ftype]
+            obj = self.getObjects(objectTypes=objType, objectName=fname)
+
             # Update mofication date of file
-            # print(f + '\n')
-            # exit()
-            files.updateModificationFileDate([f])
+            files.updateModificationFileDate(f, obj[0]["last_ddl_time"])
 
             # Check if the object has some errors
             errors = self.getObjErrors(owner=self.user, objName=fname, db=db)
@@ -208,7 +221,6 @@ class Database:
             status="OBJECTS HAS BEEN CREATED (ERRORS: %s)" % len(data),
             end=True,
         )
-        return data
 
         if localClose:
             db.close()
@@ -226,7 +238,9 @@ class Database:
 
         return result
 
-    def getObjects(self, status=None, withPath=False):
+    def getObjects(
+        self, objectTypes=None, objectName=None, status=None, withPath=False
+    ):
         # [] Se debe agregar a este metodo el porqué el objeto está invalido
         """
         List invalid Packages, Functions and Procedures and Views
@@ -240,6 +254,9 @@ class Database:
         """
 
         types = "', '".join(self.types)
+        if objectTypes:
+            types = "', '".join([objectTypes])
+
         query = """
         SELECT     
             owner
@@ -254,9 +271,11 @@ class Database:
             types,
         )
 
-        # If re.match(r'VALID|INVALID', status):
-        if ("INVALID" == status) or "VALID" == status:
+        if (status == "INVALID") or status == "VALID":
             query += " AND status = '%s'" % status
+
+        if objectName:
+            query += " AND object_name = '%s'" % objectName
 
         # Return a dic with the data
         result = self.getData(query)
@@ -421,7 +440,7 @@ class Database:
             count=1,
             total=progressTotal,
             status="VALIDATING...",
-            title="CREATE NEW USER",
+            title="CREATING " + self.user,
         )
 
         cursor = db.cursor()

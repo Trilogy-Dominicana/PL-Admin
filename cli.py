@@ -99,8 +99,7 @@ def main():
         # Try to compile invalid objects
         result = db.compileObj()
 
-        print(result)
-
+        # print(result)
 
     if action == "watch":
         watch(files.pl_path)
@@ -110,9 +109,13 @@ def main():
         objs = files.listAllObjsFiles()
         db.createReplaceObject(objs)
 
+
+
     if action == "db2wc":
         """ TODO: """
-        files.updateModificationFileDate()
+        # files.updateModificationFileDate()
+        obj = db.getObjects(objectType=['PACKAGE BODY'], objectName='TX_CNF_CATALOGO')
+        print(obj[0]['last_ddl_time'])
 
 
 if __name__ == "__main__":

@@ -10,14 +10,17 @@ class Files:
         # Initialize git repo
         self.repo = git.Repo(self.pl_path)
 
-    def objectsTypes(self):
-        """ Do not change the order of items"""
+    def objectsTypes(self, inverted=False):
+        """ Do not change the order of items """
         data = {}
         data["PACKAGE"] = ".psk"
         data["VIEW"] = ".vew"
         data["FUNCTION"] = ".fnc"
         data["PROCEDURES"] = ".prc"
         data["PACKAGE BODY"] = ".pbk"
+
+        if inverted: 
+            return dict(map(reversed, data.items()))
 
         return data
 
@@ -70,18 +73,18 @@ class Files:
 
         return data
 
-    def updateModificationFileDate(self, path):
+    def updateModificationFileDate(self, path, date):
 
-        modTime = time.mktime(datetime.now().timetuple())
+        modTime = time.mktime(date.timetuple())
 
         # Modify mtime of a file
-        for p in path:
-            os.utime(p, (modTime, modTime))
+        # for p in path:
+        os.utime(path, (modTime, modTime))
 
             # Get date file modification
-            mf = os.path.getmtime(p)
-            # print(p, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
-
+            # mf = os.path.getmtime(p)
+        # print(path, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
+        
 
     def listAllObjsFiles(self):
         types = self.objectsTypes().values()
@@ -109,6 +112,7 @@ class Files:
         files = glob.glob(path)
 
         return files
+
 
     def validateIfFileExist(self, name, path):
         """ Determinate if a exist into a tree directory """
