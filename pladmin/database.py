@@ -123,23 +123,16 @@ class Database:
 
             cursor.execute(sql)
 
-            # Update modification on the repository
-            # path = files.findObjFileByType(
-            #     objectType=obj["object_type"], objectName=obj["object_name"]
-            # )
-
             # Update mofication date of file
             updateData = self.getObjects(
                 objectTypes=obj["object_type"],
                 objectName=obj["object_name"],
                 withPath=True,
             )
+
             files.updateModificationFileDate(
                 updateData[0]["path"], updateData[0]["last_ddl_time"]
             )
-
-            # print(obj['object_type'], ' - ', obj['object_name'])
-            print(updateData[0]["path"])
 
         if objLen != self.lastIntends:
             self.lastIntends = objLen

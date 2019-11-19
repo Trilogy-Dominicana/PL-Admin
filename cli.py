@@ -78,10 +78,10 @@ def main():
 
         if data:
             invalids = db.createReplaceObject(path=data)
-            print(invalids)
+            # print(invalids)
         # If some objects are invalids, try to compile again
         # if len(invalids):
-        # self.compileObj(invalids)
+        db.compileObj()
 
         # TODO List file removed and drop it from database
 

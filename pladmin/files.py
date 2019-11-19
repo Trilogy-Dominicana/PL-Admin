@@ -16,7 +16,7 @@ class Files:
         data["PACKAGE"] = ".psk"
         data["VIEW"] = ".vew"
         data["FUNCTION"] = ".fnc"
-        data["PROCEDURES"] = ".prc"
+        data["PROCEDURE"] = ".prc"
         data["PACKAGE BODY"] = ".pbk"
 
         if inverted: 
