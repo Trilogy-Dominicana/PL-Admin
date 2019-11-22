@@ -66,7 +66,7 @@ class Files:
             _cached_stamp = stamp
             # File has changed, so do something...
 
-    def files_to_timestamp(self, path):
+    def files_to_timestamp(self, path=None):
         """ For each file found in path get the last modified timestamp """
         files = self.listAllObjsFiles()
         data = dict([(f, os.path.getmtime(f)) for f in files])
@@ -78,12 +78,8 @@ class Files:
         modTime = time.mktime(date.timetuple())
 
         # Modify mtime of a file
-        # for p in path:
         os.utime(path, (modTime, modTime))
 
-            # Get date file modification
-            # mf = os.path.getmtime(p)
-        # print(path, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
         
 
     def listAllObjsFiles(self):
