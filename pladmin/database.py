@@ -30,7 +30,7 @@ class Database:
         db = self.dbConnect(sysDBA=True)
 
         # Drop and create the user
-        self.reCreateUser(db=db)
+        self.newUser(db=db)
 
         # Give grants to the user
         self.createGramtsTo(
@@ -426,7 +426,7 @@ class Database:
 
         return data
 
-    def reCreateUser(self, db):
+    def newUser(self, db):
 
         progressTotal = 3
         files.progress(
@@ -501,3 +501,30 @@ class Database:
             return dict(zip(columnNames, args))
 
         return createRow
+
+    def getObjSource(self, object_name, object_type):
+
+        # Open db connection as a sysadmin
+        db = self.dbConnect(sysDBA=True)
+
+        sql = """ SELECT * FROM DBA_SOURCE
+            WHERE OWNER = '%s' AND NAME = '%s' AND type = '%s' """ % (
+            self.user,
+            object_name,
+            object_type,
+        )
+
+        if object_type == "VIEW":
+            sql = """ SELECT * FROM DBA_VIEWS
+            WHERE OWNER = '%s' AND VIEW_NAME = '%s' """ % (
+                self.user,
+                object_name,
+            )
+
+        result = self.getData(sql, db=db)
+        text = ''
+
+        for res in result:
+            text += res['text']
+
+        return text
