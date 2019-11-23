@@ -110,47 +110,49 @@ def main():
         db.createReplaceObject(objs)
 
     if action == "db2wc":
-        """ Check obcjet that has been changed in the database and export it to working copy (local git repository)"""
-        """ <TODO>
-        Comprobar cuando hay un objecto nuevo y cuando fue eliminado """
-        # List all objects. getObject filter the objects by owner and types by default 
-        dbObj = db.getObjects()
+        """ Check objects that has been changed in the database and export it to working copy (local git repository)"""
+        """ <TODO> Comprobar cuando hay un objecto nuevo y cuando fue eliminado """
         
+        # List all objects. getObject filter the objects by owner and types by default
+        dbObj = db.getObjects()
+
         for obj in dbObj:
 
-            # Get object path
-            path = files.findObjFileByType(obj['object_type'], obj['object_name'])[0]
-
-            # Get date file modification
-            mf = os.path.getmtime(path)
-
+            # Get object path or check if file exist
+            path = files.findObjFileByType(obj["object_type"], obj["object_name"])[0]
+            
             # Get date object modification into db
-            mb = obj['last_ddl_time'].timestamp()
-
-            if mf == mb: 
-                continue
-                # print('Object has no changes')
+            mb = obj["last_ddl_time"].timestamp()
             
-            if mf > mb:
-                continue
-                # print('Object has changed in local repo')
+            # If path exist, get modification date and validate that the date is less than database object
+            if path:
+                # Get file date modification
+                mf = os.path.getmtime(path)
+
+                if mf == mb or mf > mb:
+                    continue
+            else: 
+                path = files.createObject(obj["object_type"], obj["object_name"])
+                print("%s object files has beed created", obj["object_name"])
             
-            if mb > mf: 
-                print('%s object changed on the DB', obj['object_name'])
-                data = db.getObjSource(obj['object_name'], obj['object_type'])
-                with open(path, 'w') as f:
-                    f.truncate(0)
-                    f.write(data)
-                    f.write('\n')
+            
+            # print("%s object changed on the DB", obj["object_name"])
+            data = db.getObjSource(obj["object_name"], obj["object_type"])
 
-                lastObj = db.getObjects(objectTypes=obj['object_type'], objectName=obj['object_name'])
+            with open(path, "wt") as f:
+                f.truncate(0)
+                f.write(data)
+                f.write("\n")
 
-                # Update mofication date of file
-                files.updateModificationFileDate(path, lastObj[0]["last_ddl_time"])
+            lastObj = db.getObjects(
+                objectTypes=obj["object_type"], objectName=obj["object_name"]
+            )
+
+            # Update mofication date of file
+            files.updateModificationFileDate(path, lastObj[0]["last_ddl_time"])
 
             # print(path, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
-            
-        # files.updateModificationFileDate()
+
         # print(obj)
 
     if action == "test":

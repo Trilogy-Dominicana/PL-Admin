@@ -10,7 +10,13 @@ class Files:
         # Initialize git repo
         self.repo = git.Repo(self.pl_path)
 
-    def objectsTypes(self, inverted=False):
+        # Create dir and initialize dir types
+        self.createDirs()
+
+        self.types = self.objectsTypes().keys()
+        self.extentions = self.objectsTypes().values()
+
+    def objectsTypes(self, inverted=False, objKey=None):
         """ Do not change the order of items """
         data = {}
         data["PACKAGE"] = ".psk"
@@ -19,8 +25,11 @@ class Files:
         data["PROCEDURE"] = ".prc"
         data["PACKAGE BODY"] = ".pbk"
 
-        if inverted: 
-            return dict(map(reversed, data.items()))
+        if inverted:
+            data = dict(map(reversed, data.items()))
+        
+        if objKey:
+            return data[objKey]
 
         return data
 
@@ -80,8 +89,6 @@ class Files:
         # Modify mtime of a file
         os.utime(path, (modTime, modTime))
 
-        
-
     def listAllObjsFiles(self):
         types = self.objectsTypes().values()
         objs = []
@@ -109,7 +116,6 @@ class Files:
 
         return files
 
-
     def validateIfFileExist(self, name, path):
         """ Determinate if a exist into a tree directory """
 
@@ -136,33 +142,61 @@ class Files:
         dt = datetime.now().strftime("%Y%m%d%H%M%S")
 
         # Create dir to save ftp files if not exits
-        os.makedirs(self.host_files_dir, exist_ok=True)
+        os.makedirs(self.pl_path, exist_ok=True)
 
-        # Create dir to save pending files to be parsed
-        self.pending_files = os.path.join(
-            *[os.getcwd(), self.host_files_dir, "pending"]
-        )
-        os.makedirs(self.pending_files, exist_ok=True)
+        # Create packages ir of not exits
+        self.packages_dir = os.path.join(self.pl_path, "packages")
+        os.makedirs(self.packages_dir, exist_ok=True)
 
-        # Create dir to save corrupted files
-        self.corrupted_files = os.path.join(
-            *[os.getcwd(), self.host_files_dir, "pending_corrupted"]
-        )
-        os.makedirs(self.corrupted_files, exist_ok=True)
+        # views dir
+        self.views_dir = os.path.join(self.pl_path, "views")
+        os.makedirs(self.views_dir, exist_ok=True)
+
+        # Views dir
+        self.procedures_dir = os.path.join(self.pl_path, "procedures")
+        os.makedirs(self.procedures_dir, exist_ok=True)
+
+        # Views dir
+        self.functions_dir = os.path.join(self.pl_path, "functions")
+        os.makedirs(self.functions_dir, exist_ok=True)
 
         # Create directory structure to save the files e.g (./YYYY/MM/filename.par)
-        self.uncompressed_file_dir = os.path.join(
-            *[os.getcwd(), self.host_files_dir, dt[0:4], dt[4:6], dt[6:8]]
-        )
-        os.makedirs(self.uncompressed_file_dir, exist_ok=True)
+        # self.uncompressed_file_dir = os.path.join(
+        #     *[os.getcwd(), self.host_files_dir, dt[0:4], dt[4:6], dt[6:8]]
+        # )
+        # os.makedirs(self.uncompressed_file_dir, exist_ok=True)
 
-        # Dir to save .gz files that have already been descompresed
-        self.gzbackup = os.path.join(self.uncompressed_file_dir, "gzbackup")
-        os.makedirs(self.gzbackup, exist_ok=True)
+    def createObject(self, objectType, objectName, contend):
+        """ Create object on correcponding dir """
 
-        # Create dir to saved empties compressed files
-        self.empty_gzbackup = os.path.join(self.uncompressed_file_dir, "gzbackup_empty")
-        os.makedirs(self.empty_gzbackup, exist_ok=True)
+        # Validate if the object type is permited
+        if not objectType in self.types:
+            return EOFError
+
+        # Getting object extension
+        ext = self.objectsTypes(objKey=objectType)
+
+        if objectType == "PACKAGE" or objectType == "PACKAGE BODY":
+            d = self.packages_dir
+
+        if objectType == "VIEW":
+            d = self.views_dir
+
+        if objectType == "FUNCTION":
+            d = self.functions_dir
+
+        if objectType == "PROCEDURE":
+            d = self.procedures_dir
+
+        path = os.path.join(d, objectName+ext)
+
+        with open(path, "wt+") as f:
+            f.truncate(0)
+            f.write(contend)
+            f.write("\n")
+
+        return path
+        
 
     def progress(self, count, total, status="", title=None, end=False):
         """ 
