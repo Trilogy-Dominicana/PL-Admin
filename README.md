@@ -1,5 +1,5 @@
 # PL/SQL Manager
-This tools has been created thinking on those apps that has to many logict into the database.
+This tools has been created thinking on those apps that has to many logic into the database.
 PL/SQL Manage provide you an ease way to clone a main schema, compile pl/sql code on realtime, check database errors, check diferences between repo and database, etc.
 
 We rely on the git standard and assume that your master branch is the main branch, that means the all operations with respect to changes are evaluated starting from the master branch
@@ -44,13 +44,13 @@ docker-compose up -d --build
 ```sh
 # Inside of container 
 pladmin newSchema
-
-# Outside of container
+    
+#  Outside of container
 docker -exec -ti pl-admin pladmin newSchema
 ```
 
 
-`Update Schema`: This command compare the changes between master remote branch and current files chaange on your local working dir and replace it in you current schema
+`Update Schema`: This command compare the changes between master remote branch and current files chaange on your local working directory and replace it in you current schema
 ```sh
 # Inside of container 
 pladmin updateSchema
@@ -59,7 +59,8 @@ pladmin updateSchema
 docker -exec -ti pl-admin pladmin updateSchema
 ```
 
-`Wacher`: Take the changes to the database in real time.
+
+`Watcher`: Take the changes to the database in real time.
 ```sh
 # Inside of container 
 pladmin watch
@@ -67,6 +68,7 @@ pladmin watch
 # Outside of container
 docker -exec -ti pl-admin pladmin watch
 ```
+
 
 `Compile Invalids`: Look for invalid packages and try to compile it. 
 ```sh
@@ -85,4 +87,13 @@ pladmin wc2db
 
 # Outside of container
 docker -exec -ti pl-admin pladmin wc2db
+```
+
+`DB to Working copy`: Takes changes objects that you have in you working copy and override it into database.
+```sh
+# Inside of container 
+pladmin db2wc
+
+# Outside of container
+docker -exec -ti pl-admin pladmin db2wc
 ```

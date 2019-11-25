@@ -133,11 +133,12 @@ def main():
                     continue
             else: 
                 path = files.createObject(obj["object_type"], obj["object_name"])
-                print("%s object files has beed created", obj["object_name"])
+                print("Exporting %s to Working copy" % obj["object_name"])
             
             
             # print("%s object changed on the DB", obj["object_name"])
             data = db.getObjSource(obj["object_name"], obj["object_type"])
+            print(" has been changed into db", obj["object_name"])
 
             with open(path, "wt") as f:
                 f.truncate(0)
