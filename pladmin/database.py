@@ -1,5 +1,6 @@
 import cx_Oracle, os, re, glob
 from pladmin.files import Files as files
+from datetime import datetime
 
 files = files()
 
@@ -30,17 +31,20 @@ class Database:
         db = self.dbConnect(sysDBA=True)
 
         # Drop and create the user
-        self.newUser(db=db)
+        # self.newUser(db=db)
 
         # Give grants to the user
-        self.createGramtsTo(
-            originSchema=self.db_main_schema, detinationSchema=self.user, db=db
-        )
+        # self.createGramtsTo(
+        #     originSchema=self.db_main_schema, detinationSchema=self.user, db=db
+        # )
 
         # Create synonyms
-        self.createSynonyms(
-            originSchema=self.db_main_schema, detinationSchema=self.user, db=db,
-        )
+        # self.createSynonyms(
+        #     originSchema=self.db_main_schema, detinationSchema=self.user, db=db,
+        # )
+
+        # Create meta table
+        # self.createMetaTable()
 
         # Create o replace packages, views, functions and procedures (All elements in files.objectsTypes())
         data = files.listAllObjsFiles()
@@ -71,7 +75,7 @@ class Database:
         dbObj = self.getData(query=oSql, db=db)
         # cursor.execute(sql)
 
-    def createMetadaTable(self, db=None):
+    def createMetaTable(self, db=None):
         """
         Create metadata to manage meta information
         """
@@ -85,14 +89,59 @@ class Database:
             """CREATE TABLE %s.PLADMIN_METADATA(
                     object_name varchar2(30) not null,
                     object_type varchar2(18) not null,
-                    last_commit number not null,
+                    last_commit varchar2(255) not null,
                     sync_date date not null,
+                    last_ddl_time date not null,
                     primary key (object_name, object_type)
                 )"""
             % self.user
         )
 
-        return cursor.execute(sql)
+        data = cursor.execute(sql)
+
+        if localClose:
+            db.close()
+
+        return data
+
+    def crateOrUpdateMetadata(
+        self, objectName, objectType, lastDdlTime, lastCommit, db=None
+    ):
+        """ Create or update data on metadata table """
+        localClose = False
+
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+
+        cursor = db.cursor()
+
+        sql = (
+            "SELECT count(1) FROM %s.PLADMIN_METADATA WHERE OBJECT_NAME = '%s' AND OBJECT_TYPE = '%s'"
+            % (objectName, objectType)
+        )
+        data = cursor.execute(sql)
+        obj = data.fetchone()
+
+        if obj:
+            sql = (
+                "UPDATE %s.PLADMIN_METADATA SET LAST_COMMIT='%s', LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), SYNC_DATE=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS')"
+                % (self.user, lastCommit, lastDdlTime, lastDdlTime)
+            )
+        else:
+            sql = (
+                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'))"
+                % (self.user, objectName, objectType, lastCommit, lastDdlTime, lastDdlTime)
+            )
+
+        cursor.execute(sql)
+
+        if localClose:
+            db.commit()
+            cursor.close()
+            db.close()
+
+        return obj
 
     def compileObj(self, db=None):
         localClose = False
@@ -149,7 +198,7 @@ class Database:
 
         params: 
         ------
-        path (array): path routes of the object on the file system
+        path (list): path routes of the object on the file system
         db (cx_Oracle.Connection): If you opened a db connection puth here please to avoid
 
         return (list) with errors if some package were an error
@@ -198,10 +247,18 @@ class Database:
 
             # Getting up object type, if it's package, package body, view, procedure, etc.
             objType = files.objectsTypes(inverted=True)["." + ftype]
-            obj = self.getObjects(objectTypes=objType, objectName=fname)
+            obj = self.getObjects(objectTypes=objType, objectName=fname)[0]
 
-            # Update mofication date of file
-            files.updateModificationFileDate(f, obj[0]["last_ddl_time"])
+            updated = self.crateOrUpdateMetadata(
+                objectName=obj["object_name"],
+                objectType=obj["object_type"],
+                lastDdlTime=obj["last_ddl_time"],
+                lastCommit=files.repo.head.commit,
+                db=db,
+            )
+
+            print(updated)
+            exit()
 
             # Check if the object has some errors
             errors = self.getObjErrors(owner=self.user, objName=fname, db=db)
@@ -522,9 +579,9 @@ class Database:
             )
 
         result = self.getData(sql, db=db)
-        text = ''
+        text = ""
 
         for res in result:
-            text += res['text']
+            text += res["text"]
 
         return text
