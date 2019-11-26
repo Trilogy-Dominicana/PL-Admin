@@ -31,20 +31,20 @@ class Database:
         db = self.dbConnect(sysDBA=True)
 
         # Drop and create the user
-        # self.newUser(db=db)
+        self.newUser(db=db)
 
         # Give grants to the user
-        # self.createGramtsTo(
-        #     originSchema=self.db_main_schema, detinationSchema=self.user, db=db
-        # )
+        self.createGramtsTo(
+            originSchema=self.db_main_schema, detinationSchema=self.user, db=db
+        )
 
         # Create synonyms
-        # self.createSynonyms(
-        #     originSchema=self.db_main_schema, detinationSchema=self.user, db=db,
-        # )
+        self.createSynonyms(
+            originSchema=self.db_main_schema, detinationSchema=self.user, db=db,
+        )
 
         # Create meta table
-        # self.createMetaTable()
+        self.createMetaTable()
 
         # Create o replace packages, views, functions and procedures (All elements in files.objectsTypes())
         data = files.listAllObjsFiles()
@@ -52,7 +52,7 @@ class Database:
 
         # If some objects are invalids, try to compile
         invalids = self.compileObj()
-
+        db.close()
         return invalids
 
     def getDBObjects(self):
@@ -89,6 +89,7 @@ class Database:
             """CREATE TABLE %s.PLADMIN_METADATA(
                     object_name varchar2(30) not null,
                     object_type varchar2(18) not null,
+                    object_path varchar2(255) not null,
                     last_commit varchar2(255) not null,
                     sync_date date not null,
                     last_ddl_time date not null,
@@ -105,7 +106,7 @@ class Database:
         return data
 
     def crateOrUpdateMetadata(
-        self, objectName, objectType, lastDdlTime, lastCommit, db=None
+        self, objectName, objectType, objectPath, lastDdlTime, lastCommit, db=None
     ):
         """ Create or update data on metadata table """
         localClose = False
@@ -118,20 +119,34 @@ class Database:
 
         sql = (
             "SELECT count(1) FROM %s.PLADMIN_METADATA WHERE OBJECT_NAME = '%s' AND OBJECT_TYPE = '%s'"
-            % (objectName, objectType)
+            % (self.user, objectName, objectType)
         )
         data = cursor.execute(sql)
         obj = data.fetchone()
 
         if obj:
-            sql = (
-                "UPDATE %s.PLADMIN_METADATA SET LAST_COMMIT='%s', LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), SYNC_DATE=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS')"
-                % (self.user, lastCommit, lastDdlTime, lastDdlTime)
+            sql = """ UPDATE %s.PLADMIN_METADATA SET OBJECT_PATH = '%s', LAST_COMMIT='%s', SYNC_DATE=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
+                WHERE object_name = '%s' and object_type = '%s' """ % (
+                self.user,
+                objectPath,
+                lastCommit,
+                lastDdlTime,
+                lastDdlTime,
+                objectName,
+                objectType,
             )
         else:
             sql = (
-                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'))"
-                % (self.user, objectName, objectType, lastCommit, lastDdlTime, lastDdlTime)
+                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'))"
+                % (
+                    self.user,
+                    objectName,
+                    objectType,
+                    objectPath,
+                    lastCommit,
+                    lastDdlTime,
+                    lastDdlTime,
+                )
             )
 
         cursor.execute(sql)
@@ -141,7 +156,7 @@ class Database:
             cursor.close()
             db.close()
 
-        return obj
+        return len(obj)
 
     def compileObj(self, db=None):
         localClose = False
@@ -196,7 +211,7 @@ class Database:
         """
         Create or Replace packges, views, procedures and functions 
 
-        params: 
+        params:
         ------
         path (list): path routes of the object on the file system
         db (cx_Oracle.Connection): If you opened a db connection puth here please to avoid
@@ -243,6 +258,7 @@ class Database:
             if ftype == "vew":
                 context = "CREATE OR REPLACE FORCE VIEW %s AS \n" % fname
 
+            # Execute create or replace package
             cursor.execute(context + content)
 
             # Getting up object type, if it's package, package body, view, procedure, etc.
@@ -252,13 +268,11 @@ class Database:
             updated = self.crateOrUpdateMetadata(
                 objectName=obj["object_name"],
                 objectType=obj["object_type"],
-                lastDdlTime=obj["last_ddl_time"],
+                objectPath=f,
                 lastCommit=files.repo.head.commit,
+                lastDdlTime=obj["last_ddl_time"],
                 db=db,
             )
-
-            print(updated)
-            exit()
 
             # Check if the object has some errors
             errors = self.getObjErrors(owner=self.user, objName=fname, db=db)
@@ -273,6 +287,7 @@ class Database:
         )
 
         if localClose:
+            db.commit()
             db.close()
 
         return data
