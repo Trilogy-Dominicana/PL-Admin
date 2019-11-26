@@ -112,18 +112,17 @@ def main():
     if action == "db2wc":
         """ Check objects that has been changed in the database and export it to working copy (local git repository)"""
         """ <TODO> Comprobar cuando hay un objecto nuevo y cuando fue eliminado """
-        
-        # List all objects. getObject filter the objects by owner and types by default
-        dbObj = db.getObjects()
+
+        # List all object with diferences
+        dbObj = db.getObjectsDb2wc()
 
         for obj in dbObj:
-
             # Get object path or check if file exist
             path = files.findObjFileByType(obj["object_type"], obj["object_name"])[0]
-            
+
             # Get date object modification into db
             mb = obj["last_ddl_time"].timestamp()
-            
+
             # If path exist, get modification date and validate that the date is less than database object
             if path:
                 # Get file date modification
@@ -131,11 +130,10 @@ def main():
 
                 if mf == mb or mf > mb:
                     continue
-            else: 
+            else:
                 path = files.createObject(obj["object_type"], obj["object_name"])
                 print("Exporting %s to Working copy" % obj["object_name"])
-            
-            
+
             # print("%s object changed on the DB", obj["object_name"])
             data = db.getObjSource(obj["object_name"], obj["object_type"])
             print(" has been changed into db", obj["object_name"])
@@ -149,9 +147,16 @@ def main():
                 objectTypes=obj["object_type"], objectName=obj["object_name"]
             )
 
-            # Update mofication date of file
-            files.updateModificationFileDate(path, lastObj[0]["last_ddl_time"])
+            # Update metadata table
+            updated = self.crateOrUpdateMetadata(
+                objectName=obj["object_name"],
+                objectType=obj["object_type"],
+                objectPath=path,
+                lastCommit=files.repo.head.commit,
+                lastDdlTime=obj["last_ddl_time"]
+            )
 
+            # files.updateModificationFileDate(path, lastObj[0]["last_ddl_time"])
             # print(path, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
 
         # print(obj)

@@ -137,7 +137,7 @@ class Database:
             )
         else:
             sql = (
-                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'))"
+                " INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), TO_DATE('%s','RRRR/MM/DD HH24:MI:SS')) "
                 % (
                     self.user,
                     objectName,
@@ -322,18 +322,9 @@ class Database:
         if objectTypes:
             types = "', '".join([objectTypes])
 
-        query = """
-        SELECT     
-            owner
-            ,object_id
-            ,object_name
-            ,object_type
-            ,status
-            ,last_ddl_time
-            ,created 
-        FROM dba_objects WHERE owner = '%s' AND object_type in ('%s')""" % (
-            self.user,
-            types,
+        query = (
+            """SELECT owner, object_id, object_name, object_type, status, last_ddl_time, created FROM dba_objects WHERE owner = '%s' AND object_type in ('%s')"""
+            % (self.user, types)
         )
 
         if (status == "INVALID") or status == "VALID":
@@ -353,6 +344,27 @@ class Database:
                 )
                 result[i].update({"path": p[0]})
                 i += 1
+
+        return result
+
+    def getObjectsDb2wc(self):
+        """ Get objects """
+        types = "', '".join(self.types)
+
+        sql = """SELECT
+                dbs.object_id
+                ,dbs.object_name
+                ,dbs.object_type
+                ,dbs.status
+                ,dbs.last_ddl_time
+            FROM dba_objects dbs
+            JOIN PLADMIN_METADATA mt on dbs.last_ddl_time <>  mt.last_ddl_time
+            WHERE owner = '%s' AND dbs.object_type in ('%s') """ % (
+            self.user,
+            types,
+        )
+
+        result = self.getData(sql)
 
         return result
 
