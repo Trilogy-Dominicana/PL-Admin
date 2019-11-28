@@ -48,10 +48,16 @@ class Database:
 
         # Create o replace packages, views, functions and procedures (All elements in files.objectsTypes())
         data = files.listAllObjsFiles()
-        self.createReplaceObject(path=data)
+        self.createReplaceObject(path=data[:10])
 
         # If some objects are invalids, try to compile
-        invalids = self.compileObj()
+        invalids = self.compileObjects()
+
+        
+        # Getting up object type, if it's package, package body, view, procedure, etc.
+        data = self.getObjects(withPath=True)
+        self.metadataInsert(data)
+
         db.close()
         return invalids
 
@@ -105,12 +111,9 @@ class Database:
 
         return data
 
-    def crateOrUpdateMetadata(
-        self, objectName, objectType, objectPath, lastDdlTime, lastCommit, db=None
-    ):
-        """ Create or update data on metadata table """
-        localClose = False
+    def metadataValidate(self, objectName, objectType, db=None):
 
+        localClose = False
         if not db:
             db = self.dbConnect()
             localClose = True
@@ -118,47 +121,109 @@ class Database:
         cursor = db.cursor()
 
         sql = (
-            "SELECT count(1) FROM %s.PLADMIN_METADATA WHERE OBJECT_NAME = '%s' AND OBJECT_TYPE = '%s'"
+            "SELECT object_name FROM %s.PLADMIN_METADATA WHERE OBJECT_NAME = '%s' AND OBJECT_TYPE = '%s'"
             % (self.user, objectName, objectType)
         )
         data = cursor.execute(sql)
         obj = data.fetchone()
 
-        if obj:
-            sql = """ UPDATE %s.PLADMIN_METADATA SET OBJECT_PATH = '%s', LAST_COMMIT='%s', SYNC_DATE=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
-                WHERE object_name = '%s' and object_type = '%s' """ % (
-                self.user,
-                objectPath,
-                lastCommit,
-                lastDdlTime,
-                lastDdlTime,
-                objectName,
-                objectType,
-            )
-        else:
+        cursor.close()
+        if localClose:
+            db.close()
+
+        return obj
+
+    def metadataInsert(self, data, db=None):
+        """ Insert data into metadata table.
+        
+        Params: 
+        data: list that contain and dict with the following keys: object_name, object_type, object_path, last_commit, last_ddl_time
+        """
+
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
+
+        for obj in data:
             sql = (
-                " INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), TO_DATE('%s','RRRR/MM/DD HH24:MI:SS')) "
+                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS')) "
                 % (
                     self.user,
-                    objectName,
-                    objectType,
-                    objectPath,
-                    lastCommit,
-                    lastDdlTime,
-                    lastDdlTime,
+                    obj['object_name'],
+                    obj['object_type'],
+                    obj['object_path'],
+                    obj['last_commit'],
+                    obj['last_ddl_time'],
                 )
             )
+            cursor.execute(sql)
 
-        cursor.execute(sql)
+        cursor.close()
 
         if localClose:
             db.commit()
-            cursor.close()
             db.close()
 
-        return len(obj)
+    def metadataUpdate(self, data, db=None):
 
-    def compileObj(self, db=None):
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
+
+        for obj in data:
+            if len(objectPath):
+                objectPath = "OBJECT_PATH= '%s', " % objectPath
+
+            sql = """UPDATE %s.PLADMIN_METADATA SET %s LAST_COMMIT='%s', SYNC_DATE=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
+                WHERE object_name = '%s' and object_type like '%s%' """ % (
+                self.user,
+                obj.object_path,
+                obj.last_commit,
+                obj.last_ddl_time,
+                obj.last_sync,
+                obj.object_name,
+                obj.object_type,
+            )
+
+        cursor.execute(sql)
+        cursor.close()
+
+        if localClose:
+            db.close()
+
+    def crateOrUpdateMetadata(
+        self, objectName, objectType, lastDdlTime, lastCommit, objectPath="", db=None
+    ):
+        """ Create or update data on metadata table """
+        localClose = False
+
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
+
+        # Validate if the object exist on metadata table
+        obj = self.metadataValidate(objectName, objectType, db)
+
+        # If the object exist, update it
+        if obj:
+            self.metadataUpdate(
+                lastDdlTime, lastCommit, objectName, objectType, objectPath, db
+            )
+        else:
+            self.metadataInsert([data], db)
+
+        if localClose:
+            db.commit()
+            db.close()
+
+        return obj
+
+    def compileObjects(self, db=None):
         localClose = False
         data = []
 
@@ -180,29 +245,34 @@ class Database:
 
             # If package type is body, the sentence has to change
             if obj["object_type"] == "PACKAGE BODY":
-                sql = "ALTER PACKAGE  %s.%s COMPILE BODY" % (
+                sql = "ALTER PACKAGE %s.%s COMPILE BODY" % (
                     obj["owner"],
                     obj["object_name"],
                 )
 
             cursor.execute(sql)
 
-            # Update mofication date of file
-            updateData = self.getObjects(
+            objNew = self.getObjects(
                 objectTypes=obj["object_type"],
                 objectName=obj["object_name"],
-                withPath=True,
+                fetchOne=True,
             )
 
-            files.updateModificationFileDate(
-                updateData[0]["path"], updateData[0]["last_ddl_time"]
+            updated = self.crateOrUpdateMetadata(
+                objectName=objNew["object_name"],
+                objectType=objNew["object_type"],
+                lastCommit=files.head_commit,
+                lastDdlTime=objNew["last_ddl_time"],
+                db=db,
             )
 
         if objLen != self.lastIntends:
             self.lastIntends = objLen
-            self.compileObj(db=db)
+            self.compileObjects(db=db)
 
         if localClose:
+            db.commit()
+            print("Commit on compile invalids")
             db.close()
 
         return invalids
@@ -238,9 +308,7 @@ class Database:
         )
 
         for f in path:
-            fi = files.getFileName(f)
-            fname = fi["name"]
-            ftype = fi["ext"]
+            fname, ftype = files.getFileName(f)
 
             # Only valid extencions sould be processed
             if not "." + ftype in self.extentions:
@@ -261,23 +329,20 @@ class Database:
             # Execute create or replace package
             cursor.execute(context + content)
 
-            # Getting up object type, if it's package, package body, view, procedure, etc.
-            objType = files.objectsTypes(inverted=True)["." + ftype]
-            obj = self.getObjects(objectTypes=objType, objectName=fname)[0]
-
-            updated = self.crateOrUpdateMetadata(
-                objectName=obj["object_name"],
-                objectType=obj["object_type"],
-                objectPath=f,
-                lastCommit=files.repo.head.commit,
-                lastDdlTime=obj["last_ddl_time"],
-                db=db,
-            )
+            # # Update metadata table
+            # updated = self.crateOrUpdateMetadata(
+            #     objectName=obj["object_name"],
+            #     objectType=obj["object_type"],
+            #     objectPath=f,
+            #     lastCommit=files.head_commit,
+            #     lastDdlTime=obj["last_ddl_time"],
+            #     db=db,
+            # )
 
             # Check if the object has some errors
-            errors = self.getObjErrors(owner=self.user, objName=fname, db=db)
-            if errors:
-                data.extend(errors)
+            # errors = self.getObjErrors(owner=self.user, objName=fname, db=db)
+            # if errors:
+            #     data.extend(errors)
 
         files.progress(
             i,
@@ -287,7 +352,6 @@ class Database:
         )
 
         if localClose:
-            db.commit()
             db.close()
 
         return data
@@ -304,7 +368,12 @@ class Database:
         return result
 
     def getObjects(
-        self, objectTypes=None, objectName=None, status=None, withPath=False
+        self,
+        objectTypes=None,
+        objectName=None,
+        status=None,
+        withPath=False,
+        fetchOne=None,
     ):
         # [] Se debe agregar a este metodo el porqué el objeto está invalido
         """
@@ -334,7 +403,7 @@ class Database:
             query += " AND object_name = '%s'" % objectName
 
         # Return a dic with the data
-        result = self.getData(query)
+        result = self.getData(query=query, fetchOne=fetchOne)
 
         if len(result) and withPath:
             i = 0
@@ -342,12 +411,14 @@ class Database:
                 p = files.findObjFileByType(
                     objectType=obj["object_type"], objectName=obj["object_name"]
                 )
-                result[i].update({"path": p[0]})
+
+                result[i].update({"object_path": p[0]})
+                result[i].update({"last_commit": files.head_commit})
                 i += 1
 
         return result
 
-    def getObjectsDb2wc(self):
+    def getObjectsDb2Wc(self):
         """ Get objects """
         types = "', '".join(self.types)
 
@@ -357,9 +428,14 @@ class Database:
                 ,dbs.object_type
                 ,dbs.status
                 ,dbs.last_ddl_time
+                ,mt.last_ddl_time as mlast_ddl_time
+                ,mt.object_path
             FROM dba_objects dbs
-            JOIN PLADMIN_METADATA mt on dbs.last_ddl_time <>  mt.last_ddl_time
-            WHERE owner = '%s' AND dbs.object_type in ('%s') """ % (
+            INNER JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
+            WHERE owner = '%s' 
+            AND dbs.LAST_DDL_TIME <> mt.LAST_DDL_TIME
+            AND dbs.object_type in ('%s') """ % (
+            self.user,
             self.user,
             types,
         )
@@ -474,7 +550,7 @@ class Database:
         files.progress(i, progressTotal, status="SYNONYMS CREATED", end=True)
         cursor.close()
 
-    def getData(self, query, params=None, db=None):
+    def getData(self, query, params=None, fetchOne=None, db=None):
         """ 
         List invalid Packages, Functions and Procedures and Views
         
@@ -499,7 +575,10 @@ class Database:
         result.rowfactory = self.makeDictFactory(result)
 
         # Fetching data from DB
-        data = result.fetchall()
+        if fetchOne:
+            data = result.fetchone()
+        else:
+            data = result.fetchall()
 
         # Close DB connection
         cursor.close()
