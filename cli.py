@@ -81,7 +81,7 @@ def main():
             # print(invalids)
         # If some objects are invalids, try to compile again
         # if len(invalids):
-        db.compileObj()
+        db.compileObjects()
 
         # TODO List file removed and drop it from database
 
@@ -90,14 +90,15 @@ def main():
         invalids = db.createSchema()
 
         if len(invalids):
-            print("Some packages seems to be invalids")
-            print(invalids)
+            print("\nThis objects are invalids:")
+            for inv in invalids:
+                print(inv['object_name'], inv['object_type'])
         else:
             print("Schema created successfully!")
 
     if action == "compileInvalids":
         # Try to compile invalid objects
-        result = db.compileObj()
+        result = db.compileObjects()
 
         print(result)
 
@@ -115,6 +116,9 @@ def main():
 
         # List all object with diferences
         dbObj = db.getObjectsDb2wc()
+
+        print(dbObj)
+        exit()
 
         for obj in dbObj:
             # Get object path or check if file exist
