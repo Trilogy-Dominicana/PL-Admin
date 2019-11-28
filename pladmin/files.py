@@ -7,14 +7,18 @@ class Files:
     displayInfo = False
 
     def __init__(self, displayInfo=False):
+
         # Initialize git repo
         self.repo = git.Repo(self.pl_path)
+        self.head_commit = str(self.repo.head.commit)[:8]
 
         # Create dir and initialize dir types
         self.createDirs()
 
         self.types = self.objectsTypes().keys()
         self.extentions = self.objectsTypes().values()
+        self.progress_len = 0
+
 
     def objectsTypes(self, inverted=False, objKey=None):
         """ Do not change the order of items """
@@ -135,7 +139,7 @@ class Files:
         fullfname = gzfname[-1]
         fname = fullfname.split(".")
 
-        return {"name": fname[0], "ext": fname[1]}
+        return fname[0], fname[1]
 
     def createDirs(self):
 
@@ -217,9 +221,16 @@ class Files:
             filled_len = int(round(bar_len * count / float(total)))
             percents = round(100.0 * count / float(total), 1)
             bar = "█" * filled_len + "░" * (bar_len - filled_len)
-            sys.stdout.write("\r%s %s%s: %s     \r" % (bar, percents, "%", status))
+                        
+            msg = "\r%s %s%s: %s" % (bar, percents, "%", status)
+            
+            # Fill out string with spaces
+            string = msg.ljust(self.progress_len)
+
+            sys.stdout.write(string)
             sys.stdout.flush()
 
+            self.progress_len = len(string)
             if end:
                 print("\n")
 
