@@ -115,10 +115,20 @@ def main():
         """ <TODO> Comprobar cuando hay un objecto nuevo y cuando fue eliminado """
 
         # List all object with diferences
-        dbObj = db.getObjectsDb2wc()
+        objs = db.getObjectsDb2Wc()
 
-        print(dbObj)
-        exit()
+        # Firts, we need to validate that no changes uncomited <TODO>
+        # La forma en la que veré si el archivo cambió realmente es ejecutando un  git diff <hash del commit en metadata> --name-only
+
+        for obj in objs:
+            objContend= db.getObjSource(obj['object_name'], obj['object_type'])
+            files.createObject(obj['object_name'], obj['object_type'], objContend)
+            break
+        
+
+        # Validate that 
+        print(obj)
+        exit(0)
 
         for obj in dbObj:
             # Get object path or check if file exist
@@ -165,8 +175,12 @@ def main():
 
         # print(obj)
 
-    if action == "test":
-        print(files.files_to_timestamp())
+    if action == "createMetadata":
+        # print(files.files_to_timestamp())
+        # Getting up object type, if it's package, package body, view, procedure, etc.
+        db.createMetaTable()
+        data = db.getObjects(withPath=True)
+        db.metadataInsert(data)
 
 
 if __name__ == "__main__":
