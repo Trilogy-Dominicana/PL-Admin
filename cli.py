@@ -117,7 +117,7 @@ def main():
         # List all object with diferences
         objs = db.getObjectsDb2Wc()
 
-        # Firts, we need to validate that no changes uncomited <TODO>
+        # Primero, validar que no hayan cambios sin comitear
         # La forma en la que veré si el archivo cambió realmente es ejecutando un  git diff <hash del commit en metadata> --name-only
 
         for obj in objs:

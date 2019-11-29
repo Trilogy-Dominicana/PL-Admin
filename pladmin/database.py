@@ -387,7 +387,7 @@ class Database:
         return result
 
     def getObjectsDb2Wc(self):
-        """ Get objects """
+        """ Get objects that has been changed after the last syncronization"""
         types = "', '".join(self.types)
 
         sql = """SELECT
@@ -401,14 +401,20 @@ class Database:
             FROM dba_objects dbs
             INNER JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
             WHERE owner = '%s' 
-            AND dbs.LAST_DDL_TIME <> mt.LAST_DDL_TIME
-            AND dbs.object_type in ('%s') """ % (
+                AND dbs.LAST_DDL_TIME <> mt.LAST_DDL_TIME
+                AND dbs.object_type in ('%s') """ % (
             self.user,
             self.user,
             types,
         )
 
         result = self.getData(sql)
+
+        # Check if object really has deferences on local repo
+        # for r in result:
+        #     files = files.diffByHash(r'last_commit')
+            # if 
+
 
         return result
 

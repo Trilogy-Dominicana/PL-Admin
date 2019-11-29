@@ -43,6 +43,12 @@ class Files:
         diff = repo.git.diff("--name-only", "HEAD~1")
         return diff.split("\n")
 
+    def diffByHash(self, objHash):
+        # """ Get files changes comparing actual branch with actual changes and the last commit """
+        repo = self.repo
+        diff = repo.git.diff("--name-only", objHash)
+        return diff.split("\n")
+
     def test(self):
         """ Get files changes comparing actual branch with actual changes and the last commit """
         data = []
