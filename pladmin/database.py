@@ -48,38 +48,17 @@ class Database:
 
         # Create o replace packages, views, functions and procedures (All elements in files.objectsTypes())
         data = files.listAllObjsFiles()
-        self.createReplaceObject(path=data[:10])
+        self.createReplaceObject(path=data)
 
         # If some objects are invalids, try to compile
         invalids = self.compileObjects()
 
-        
         # Getting up object type, if it's package, package body, view, procedure, etc.
         data = self.getObjects(withPath=True)
         self.metadataInsert(data)
 
         db.close()
         return invalids
-
-    def getDBObjects(self):
-        """ << TODO >> """
-        db = self.dbConnect(sysDBA=True)
-        cursor = db.cursor()
-
-        # We need to get all object
-        objects = self.getObjects()
-        exit()
-
-        # Get views
-        vSql = "SELECT view_name FROM dba_views WHERE owner = '%s'" % self.user
-        bdViews = self.getData(query=vSql, db=db)
-
-        oSql = (
-            "SELECT name, type, line, text FROM dba_source WHERE owner = '%s' and type IN ('%s')"
-            % (self.user, types)
-        )
-        dbObj = self.getData(query=oSql, db=db)
-        # cursor.execute(sql)
 
     def createMetaTable(self, db=None):
         """
@@ -90,6 +69,9 @@ class Database:
             localClose = True
 
         cursor = db.cursor()
+
+        # Drop 
+        data = cursor.execute('DROP TABLE %s.PLADMIN_METADATA' % self.user)
 
         sql = (
             """CREATE TABLE %s.PLADMIN_METADATA(
@@ -251,20 +233,6 @@ class Database:
                 )
 
             cursor.execute(sql)
-
-            objNew = self.getObjects(
-                objectTypes=obj["object_type"],
-                objectName=obj["object_name"],
-                fetchOne=True,
-            )
-
-            updated = self.crateOrUpdateMetadata(
-                objectName=objNew["object_name"],
-                objectType=objNew["object_type"],
-                lastCommit=files.head_commit,
-                lastDdlTime=objNew["last_ddl_time"],
-                db=db,
-            )
 
         if objLen != self.lastIntends:
             self.lastIntends = objLen
