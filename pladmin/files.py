@@ -170,7 +170,7 @@ class Files:
         # )
         # os.makedirs(self.uncompressed_file_dir, exist_ok=True)
 
-    def createObject(self, objectType, objectName, contend):
+    def createObject(self, objectName, objectType, contend):
         """ Create object on correcponding dir """
 
         # Validate if the object type is permited
