@@ -155,20 +155,21 @@ class Database:
             db = self.dbConnect()
             localClose = True
         cursor = db.cursor()
+        
 
         for obj in data:
-            if len(objectPath):
-                objectPath = "OBJECT_PATH= '%s', " % objectPath
 
-            sql = """UPDATE %s.PLADMIN_METADATA SET %s LAST_COMMIT='%s', SYNC_DATE=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
-                WHERE object_name = '%s' and object_type like '%s%' """ % (
+            if len(obj['object_path']):
+                objectPath = "OBJECT_PATH= '%s', " % obj['object_path']
+
+            sql = """UPDATE %s.PLADMIN_METADATA SET %s LAST_COMMIT='%s', SYNC_DATE=SYSDATE, LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
+                WHERE object_name = '%s' and object_type = '%s' """ % (
                 self.user,
-                obj.object_path,
-                obj.last_commit,
-                obj.last_ddl_time,
-                obj.last_sync,
-                obj.object_name,
-                obj.object_type,
+                objectPath,
+                obj['last_commit'],
+                obj['last_ddl_time'],
+                obj['object_name'],
+                obj['object_type']
             )
 
         cursor.execute(sql)
@@ -177,9 +178,7 @@ class Database:
         if localClose:
             db.close()
 
-    def crateOrUpdateMetadata(
-        self, objectName, objectType, lastDdlTime, lastCommit, objectPath="", db=None
-    ):
+    def crateOrUpdateMetadata(self, data, db=None):
         """ Create or update data on metadata table """
         localClose = False
 
@@ -189,13 +188,11 @@ class Database:
         cursor = db.cursor()
 
         # Validate if the object exist on metadata table
-        obj = self.metadataValidate(objectName, objectType, db)
+        obj = self.metadataValidate(data['object_name'], data['object_type'], db)
 
         # If the object exist, update it
         if obj:
-            self.metadataUpdate(
-                lastDdlTime, lastCommit, objectName, objectType, objectPath, db
-            )
+            self.metadataUpdate([data], db)
         else:
             self.metadataInsert([data], db)
 
@@ -391,13 +388,13 @@ class Database:
         types = "', '".join(self.types)
 
         sql = """SELECT
-                dbs.object_id
-                ,dbs.object_name
+                dbs.object_name
                 ,dbs.object_type
                 ,dbs.status
                 ,dbs.last_ddl_time
-                ,mt.last_ddl_time as mlast_ddl_time
+                ,mt.last_ddl_time as meta_last_ddl_time
                 ,mt.object_path
+                ,mt.last_commit
             FROM dba_objects dbs
             INNER JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
             WHERE owner = '%s' 
@@ -409,12 +406,6 @@ class Database:
         )
 
         result = self.getData(sql)
-
-        # Check if object really has deferences on local repo
-        # for r in result:
-        #     files = files.diffByHash(r'last_commit')
-            # if 
-
 
         return result
 

@@ -40,14 +40,25 @@ class Files:
     def localChanges(self):
         """ Get files changes comparing actual branch with actual changes and the last commit """
         repo = self.repo
-        diff = repo.git.diff("--name-only", "HEAD~1")
+        # diff = repo.git.diff("--name-only", "HEAD~1")
+        diff = repo.git.diff("--name-only")
+        if not len(diff):
+            return False
+
         return diff.split("\n")
 
-    def diffByHash(self, objHash):
+    def diffByHash(self, objHash, absolutePath=False):
         # """ Get files changes comparing actual branch with actual changes and the last commit """
         repo = self.repo
         diff = repo.git.diff("--name-only", objHash)
-        return diff.split("\n")
+        
+        data = diff.split("\n")
+
+        # Absolute path
+        if absolutePath:
+            data = [os.path.join(self.pl_path, s) for s in data]
+
+        return data
 
     def test(self):
         """ Get files changes comparing actual branch with actual changes and the last commit """
