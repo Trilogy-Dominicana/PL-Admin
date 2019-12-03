@@ -5,6 +5,7 @@ import sys, getopt, json, os, argparse, time
 from datetime import datetime
 from pladmin.database import Database
 from pladmin.files import Files
+from pladmin.migrations import Migrations
 
 # parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
 # parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
@@ -58,12 +59,14 @@ def main():
         "action", metavar="action", type=str, help="Push the method name"
     )
 
+
     args = parser.parse_args()
-    action = args.action
+    action =  args.action
+
 
     # Update schema command
     if action == "updateSchema":
-
+       
         # Get files has changed and are uncomited
         localChanges = files.localChanges()
 
@@ -72,7 +75,7 @@ def main():
 
         # Remove duplicated key
         changes = list(dict.fromkeys(localChanges + remoteChanges))
-
+    
         # Concat the path to each files
         data = [files.pl_path + "/" + x for x in changes]
 
@@ -165,8 +168,17 @@ def main():
 
         # print(obj)
 
-    if action == "test":
+    if action == "test":  
         print(files.files_to_timestamp())
+        
+        
+    if action == "ddl":
+        migrations = Migrations()
+        migrations.create_ddl()
+    
+    if action == "dml":
+        migrations = Migrations()
+        migrations.create_dml()
 
 
 if __name__ == "__main__":
