@@ -59,10 +59,13 @@ def main():
         "action", metavar="action", type=str, help="Push the method name"
     )
 
-    subparsers = parser.add_subparsers(dest="make")
-    parser_dll = subparsers.add_parser('ddl')
-    parser_dml = subparsers.add_parser('dml')
+    migration = parser.add_subparsers(dest="make")
+    
+    parser_dll = migration.add_parser('ddl')
+    parser_dml = migration.add_parser('dml')
+
     parser_dll.add_argument('-d', type=int, default=1)
+    parser_dll.add_argument('-t', type=bool, default=False)
     parser_dml.add_argument('-d', type=int, default=1)
 
     args = parser.parse_args()
@@ -178,7 +181,7 @@ def main():
         
     if action == "migration" and args.make == 'ddl':
         migrations = Migrations()
-        migrations.create_ddl(quantity=args.d)
+        migrations.create_ddl(quantity=args.d, basic_pl=args.t)
     
     if action == "migration" and args.make == 'dml':
         migrations = Migrations()

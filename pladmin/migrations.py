@@ -3,9 +3,10 @@ from datetime import datetime
 
 class Migrations:
 
-    _sripct_path = os.path.join('/scripts')
+    _sripct_path  = os.path.join('/scripts')
     _ddl_path     = os.path.join('/scripts/ddls')
     _dml_path     = os.path.join('/scripts/dmls')
+    _basic_pl_path = os.path.join('/plsqltest/basic.sql')
 
     def __init__(self):
         
@@ -13,37 +14,39 @@ class Migrations:
             os.makedirs(self._sripct_path)
 
     
-    def create_ddl(self, quantity=1):
-        date = datetime.now()
-        today = date.strftime("%m%d%Y%H%M%S")
-
-        for i in range(1, quantity):
-            name_file = 'ddl_%s_%s.sql'%(today, i)
-            self.createFile(name=name_file, path=self._dml_path)
-
+    def create_ddl(self, quantity=1, basic_pl=False):
+        name_file = 'ddl'
+        self.createFile(name=name_file, path=self._ddl_path, quantity=quantity, basic_pl=basic_pl)
 
     def create_dml(self, quantity=1):
-        date = datetime.now()
-        today = date.strftime("%m%d%Y%H%M%S%f")
-
-        for i in range(1, quantity):
-            name_file = 'dml_%s_%s.sql'%(today, i)
-            self.createFile(name=name_file, path=self._dml_path)
+        name_file = 'dml'
+        self.createFile(name=name_file, path=self._dml_path, quantity=quantity)
     
-    
-    def createFile(self, name, path):
+    def createFile(self, name, path, quantity=1, basic_pl=False):
          
         if not os.path.exists(path):
             os.makedirs(path)
      
         try:
-            dml_file = "%s/%s" % (path, name)
-            os.mknod(dml_file)
-            print('file create %s'%name)
+            for i in range(0, quantity):
+                
+                date  = datetime.now()
+                today = date.strftime("%m%d%Y%H%M%S")
+                file_name = name + "_%s_%s.sql"%(today,i+1)
+                files = "%s/%s" % (path, file_name)
+                os.mknod(files)
+                print(basic_pl)
+                if basic_pl:
+                    self.copyContentFile(files, self._basic_pl_path)
+
+
+                print('file create %s'%file_name)
+          
         except FileExistsError as e:
             print('file %s exist'%name)
-
-        
-
-
-
+    
+    def copyContentFile(self, name_file_to_write, name_file_to_copy):
+        with open(name_file_to_copy) as f:
+            with open(name_file_to_write, "w") as f1:
+                for line in f:
+                    f1.write(line)
