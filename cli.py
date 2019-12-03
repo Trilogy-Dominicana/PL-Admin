@@ -53,13 +53,21 @@ def watch(path_to_watch):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Process some integers.")
-    parser.add_argument(
-        "action", metavar="action", type=str, help="Push the method name"
+    parser = argparse.ArgumentParser(
+        prog="PL-Admin",
+        usage="%(prog)s [action] options",
+        description="Process some integers.",
     )
+
+    parser.add_argument("action", action="store", help="Push the method name")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--force", action="store_true")
 
     args = parser.parse_args()
     action = args.action
+    dry_run = args.dry_run
+    force = args.force
+    # print(vars(args))
 
     # Update schema command
     if action == "updateSchema":
@@ -92,7 +100,7 @@ def main():
         if len(invalids):
             print("\nThis objects are invalids:")
             for inv in invalids:
-                print(inv['object_name'], inv['object_type'])
+                print(inv["object_name"], inv["object_type"])
         else:
             print("Schema created successfully!")
 
@@ -113,65 +121,53 @@ def main():
     if action == "db2wc":
         """ Check objects that has been changed in the database and export it to working copy (local git repository)"""
         """ <TODO> Comprobar cuando hay un objecto nuevo y cuando fue eliminado """
+        if dry_run:
+            print(
+                """
+                 _____  _______     __     _____  _    _ _   _ 
+                |  __ \|  __ \ \   / /    |  __ \| |  | | \ | |
+                | |  | | |__) \ \_/ /_____| |__) | |  | |  \| |
+                | |  | |  _  / \   /______|  _  /| |  | | . ` |
+                | |__| | | \ \  | |       | | \ \| |__| | |\  |
+                |_____/|_|  \_\ |_|       |_|  \_\\_____/|_| \_| \n """ )
+
+        uncommitedChanges = files.localChanges()
+        if uncommitedChanges:
+            print(
+                "WARNING! You have uncommited changes, commit it to avoid losing information"
+            )
+            # exit()
 
         # List all object with diferences
-        objs = db.getObjectsDb2Wc()
+        dbObject = db.getObjectsDb2Wc()
 
-        # Primero, validar que no hayan cambios sin comitear
-        # La forma en la que veré si el archivo cambió realmente es ejecutando un  git diff <hash del commit en metadata> --name-only
+        # Check if object has change after commit store on the db
+        for obj in dbObject:
+            lastCommit = obj["last_commit"]
+            objectPath = obj["object_path"]
+            objectName = obj["object_name"]
+            objectType = obj["object_type"]
+            objectTime = obj["last_ddl_time"]
 
-        for obj in objs:
-            objContend= db.getObjSource(obj['object_name'], obj['object_type'])
-            files.createObject(obj['object_name'], obj['object_type'], objContend)
-            break
-        
+            fi = files.diffByHash(lastCommit, True)
 
-        # Validate that 
-        print(obj)
-        exit(0)
+            # If the object has changes, do not export it
+            if any(objectPath in s for s in fi) and not force:
+                print( "%s has local changed, fail!" % objectPath)
+                continue
 
-        for obj in dbObj:
-            # Get object path or check if file exist
-            path = files.findObjFileByType(obj["object_type"], obj["object_name"])[0]
+            if not dry_run:
+                objContend = db.getObjSource(objectName, objectType)
+                files.createObject(objectName, objectType, objContend)
 
-            # Get date object modification into db
-            mb = obj["last_ddl_time"].timestamp()
+                # Update metadata table
+                obj.update(last_commit=files.head_commit)
+                updated = db.crateOrUpdateMetadata(obj)
 
-            # If path exist, get modification date and validate that the date is less than database object
-            if path:
-                # Get file date modification
-                mf = os.path.getmtime(path)
+            print("%s exported successfully!" % objectPath)
 
-                if mf == mb or mf > mb:
-                    continue
-            else:
-                path = files.createObject(obj["object_type"], obj["object_name"])
-                print("Exporting %s to Working copy" % obj["object_name"])
-
-            # print("%s object changed on the DB", obj["object_name"])
-            data = db.getObjSource(obj["object_name"], obj["object_type"])
-            print(" has been changed into db", obj["object_name"])
-
-            with open(path, "wt") as f:
-                f.truncate(0)
-                f.write(data)
-                f.write("\n")
-
-            lastObj = db.getObjects(
-                objectTypes=obj["object_type"], objectName=obj["object_name"]
-            )
-
-            # Update metadata table
-            updated = self.crateOrUpdateMetadata(
-                objectName=obj["object_name"],
-                objectType=obj["object_type"],
-                objectPath=path,
-                lastCommit=files.repo.head.commit,
-                lastDdlTime=obj["last_ddl_time"]
-            )
-
-            # files.updateModificationFileDate(path, lastObj[0]["last_ddl_time"])
-            # print(path, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
+        # files.updateModificationFileDate(path, lastObj[0]["last_ddl_time"])
+        # print(path, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
 
         # print(obj)
 
