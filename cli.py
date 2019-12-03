@@ -59,6 +59,11 @@ def main():
         "action", metavar="action", type=str, help="Push the method name"
     )
 
+    subparsers = parser.add_subparsers(dest="make")
+    parser_dll = subparsers.add_parser('ddl')
+    parser_dml = subparsers.add_parser('dml')
+    parser_dll.add_argument('-d', type=int, default=1)
+    parser_dml.add_argument('-d', type=int, default=1)
 
     args = parser.parse_args()
     action =  args.action
@@ -171,14 +176,13 @@ def main():
     if action == "test":  
         print(files.files_to_timestamp())
         
-        
-    if action == "ddl":
+    if action == "migration" and args.make == 'ddl':
         migrations = Migrations()
-        migrations.create_ddl()
+        migrations.create_ddl(quantity=args.d)
     
-    if action == "dml":
+    if action == "migration" and args.make == 'dml':
         migrations = Migrations()
-        migrations.create_dml()
+        migrations.create_dml(quantity=args.d)
 
 
 if __name__ == "__main__":

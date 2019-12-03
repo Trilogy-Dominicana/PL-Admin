@@ -13,19 +13,22 @@ class Migrations:
             os.makedirs(self._sripct_path)
 
     
-    def create_ddl(self):
+    def create_ddl(self, quantity=1):
         date = datetime.now()
         today = date.strftime("%m%d%Y%H%M%S")
-        name_file = 'ddl_%s.sql'%today
-        self.createFile(name=name_file,path=self._ddl_path)
+
+        for i in range(1, quantity):
+            name_file = 'ddl_%s_%s.sql'%(today, i)
+            self.createFile(name=name_file, path=self._dml_path)
 
 
-    def create_dml(self):
+    def create_dml(self, quantity=1):
         date = datetime.now()
-        today = date.strftime("%m%d%Y%H%M%S")
-        name_file = 'dml_%s.sql'%today
+        today = date.strftime("%m%d%Y%H%M%S%f")
 
-        self.createFile(name=name_file, path=self._dml_path)
+        for i in range(1, quantity):
+            name_file = 'dml_%s_%s.sql'%(today, i)
+            self.createFile(name=name_file, path=self._dml_path)
     
     
     def createFile(self, name, path):
