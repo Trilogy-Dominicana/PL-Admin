@@ -409,6 +409,32 @@ class Database:
 
         return result
 
+    def getNewObjects(self):
+        """ Get Objects that exist on dba_object and does't exist on metadata table"""
+        types = "', '".join(self.types)
+
+        sql = """SELECT
+                dbs.object_name
+                ,dbs.object_type
+                ,dbs.status
+                ,dbs.last_ddl_time
+                ,mt.last_ddl_time as meta_last_ddl_time
+                ,mt.object_path
+                ,mt.last_commit
+            FROM dba_objects dbs
+            LEFT JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
+            WHERE owner = '%s' 
+                AND mt.object_name IS NULL
+                AND dbs.object_type in ('%s') """ % (
+            self.user,
+            self.user,
+            types,
+        )
+
+        result = self.getData(sql)
+
+        return result
+
     def createGramtsTo(self, originSchema, detinationSchema, db=None):
         cursor = db.cursor()
         i = 0
