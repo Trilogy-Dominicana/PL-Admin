@@ -124,52 +124,58 @@ def main():
         if dry_run:
             print(
                 """
-                 _____  _______     __     _____  _    _ _   _ 
-                |  __ \|  __ \ \   / /    |  __ \| |  | | \ | |
-                | |  | | |__) \ \_/ /_____| |__) | |  | |  \| |
-                | |  | |  _  / \   /______|  _  /| |  | | . ` |
-                | |__| | | \ \  | |       | | \ \| |__| | |\  |
-                |_____/|_|  \_\ |_|       |_|  \_\\_____/|_| \_| \n """ )
+ _____  _______     __     _____  _    _ _   _ 
+|  __ \|  __ \ \   / /    |  __ \| |  | | \ | |
+| |  | | |__) \ \_/ /_____| |__) | |  | |  \| |
+| |  | |  _  / \   /______|  _  /| |  | | . ` |
+| |__| | | \ \  | |       | | \ \| |__| | |\  |
+|_____/|_|  \_\ |_|       |_|  \_\\_____/|_| \_| ---> No change will take effect.\n """
+            )
 
         uncommitedChanges = files.localChanges()
         if uncommitedChanges:
             print(
-                "WARNING! You have uncommited changes, commit it to avoid losing information"
+                "WARNING! You have uncommitted changes, commit it to avoid loss information"
             )
             # exit()
 
         # List all object with diferences
         dbObject = db.getObjectsDb2Wc()
 
+        # List new objects
+        newObjects = db.getNewObjects()
+
         # Check if object has change after commit store on the db
-        for obj in dbObject:
+        for obj in newObjects + dbObject:
             lastCommit = obj["last_commit"]
             objectPath = obj["object_path"]
             objectName = obj["object_name"]
             objectType = obj["object_type"]
             objectTime = obj["last_ddl_time"]
 
-            fi = files.diffByHash(lastCommit, True)
+            # Check if exist a hash commit before. This becouse new objects does not has commit hash
+            if lastCommit:
+                fi = files.diffByHash(lastCommit, True)
 
-            # If the object has changes, do not export it
-            if any(objectPath in s for s in fi) and not force:
-                print( "%s has local changed, fail!" % objectPath)
-                continue
+                # If the object has chadnges, do not export it
+                # <TODO:> Agregar a option para poder hacer merge del archivo
+                if any(objectPath in s for s in fi) and not force:
+                    print("%s has local changed, fail!" % objectPath)
+                    continue
 
             if not dry_run:
                 objContend = db.getObjSource(objectName, objectType)
-                files.createObject(objectName, objectType, objContend)
+                fileObject = files.createObject(objectName, objectType, objContend)
 
                 # Update metadata table
-                obj.update(last_commit=files.head_commit)
+                obj.update(last_commit=files.head_commit, object_path=fileObject)
                 updated = db.crateOrUpdateMetadata(obj)
 
-            print("%s exported successfully!" % objectPath)
-
-        # files.updateModificationFileDate(path, lastObj[0]["last_ddl_time"])
-        # print(path, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
-
-        # print(obj)
+            # This validation if to know if the object is new o not
+            if not lastCommit and not objectPath:
+                print("%s %s Added" % (objectType, objectName))
+            else:
+                print("%s exported successfully!" % objectPath)
 
     if action == "createMetadata":
         # print(files.files_to_timestamp())
