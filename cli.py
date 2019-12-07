@@ -171,13 +171,14 @@ def main():
                 obj.update(last_commit=files.head_commit, object_path=fileObject)
                 updated = db.crateOrUpdateMetadata(obj)
 
-            # This validation if to know if the object is new o not
+            # This validation is to know if the object is new o not
             if not lastCommit and not objectPath:
                 print("%s %s Added" % (objectType, objectName))
             else:
                 print("%s exported successfully!" % objectPath)
 
     if action == "createMetadata":
+
         # print(files.files_to_timestamp())
         # Getting up object type, if it's package, package body, view, procedure, etc.
         db.createMetaTable()
