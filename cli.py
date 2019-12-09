@@ -129,7 +129,10 @@ def main():
 | |  | | |__) \ \_/ /_____| |__) | |  | |  \| |
 | |  | |  _  / \   /______|  _  /| |  | | . ` |
 | |__| | | \ \  | |       | | \ \| |__| | |\  |
-|_____/|_|  \_\ |_|       |_|  \_\\_____/|_| \_| ---> No change will take effect.\n """
+|_____/|_|  \_\ |_|       |_|  \_\\_____/|_| \_| 
+-----------------------------------------------
+         No change will take effect.
+-----------------------------------------------\n """
             )
 
         uncommitedChanges = files.localChanges()
@@ -138,6 +141,7 @@ def main():
                 "WARNING! You have uncommitted changes, commit it to avoid loss information"
             )
             # exit()
+        deletedObjs = db.getDeletedObjects()
 
         # List all object with diferences
         dbObject = db.getObjectsDb2Wc()
@@ -176,6 +180,21 @@ def main():
                 print("%s %s Added" % (objectType, objectName))
             else:
                 print("%s exported successfully!" % objectPath)
+
+        # Remove deleted objects
+        for dObj in deletedObjs:
+            objPath = dObj["object_path"]
+
+            if not dry_run and os.path.exists(objPath):
+                os.remove(objPath)
+
+            print("%s Removed!" % objPath)
+
+        # Now, remove objects from metadata
+        if not dry_run:
+            db.metadataDelete(deletedObjs)
+        
+
 
     if action == "createMetadata":
 
