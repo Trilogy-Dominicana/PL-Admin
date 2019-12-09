@@ -5,6 +5,7 @@ import sys, getopt, json, os, argparse, time
 from datetime import datetime
 from pladmin.database import Database
 from pladmin.files import Files
+from pladmin.utils import utils
 
 # parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
 # parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
@@ -122,18 +123,7 @@ def main():
         """ Check objects that has been changed in the database and export it to working copy (local git repository)"""
         """ <TODO> Comprobar cuando hay un objecto nuevo y cuando fue eliminado """
         if dry_run:
-            print(
-                """
- _____  _______     __     _____  _    _ _   _ 
-|  __ \|  __ \ \   / /    |  __ \| |  | | \ | |
-| |  | | |__) \ \_/ /_____| |__) | |  | |  \| |
-| |  | |  _  / \   /______|  _  /| |  | | . ` |
-| |__| | | \ \  | |       | | \ \| |__| | |\  |
-|_____/|_|  \_\ |_|       |_|  \_\\_____/|_| \_| 
------------------------------------------------
-         No change will take effect.
------------------------------------------------\n """
-            )
+            utils.dryRun()
 
         uncommitedChanges = files.localChanges()
         if uncommitedChanges:
@@ -187,13 +177,12 @@ def main():
 
             if not dry_run and os.path.exists(objPath):
                 os.remove(objPath)
+                
+                # If the file has been removed, drop it in the medatada table
+                if not os.path.exists(objPath):
+                    db.metadataDelete([dObj])
 
             print("%s Removed!" % objPath)
-
-        # Now, remove objects from metadata
-        if not dry_run:
-            db.metadataDelete(deletedObjs)
-        
 
 
     if action == "createMetadata":
