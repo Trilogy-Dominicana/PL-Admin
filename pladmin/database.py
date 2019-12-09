@@ -70,8 +70,8 @@ class Database:
 
         cursor = db.cursor()
 
-        # Drop 
-        data = cursor.execute('DROP TABLE %s.PLADMIN_METADATA' % self.user)
+        # Drop
+        data = cursor.execute("DROP TABLE %s.PLADMIN_METADATA" % self.user)
 
         sql = (
             """CREATE TABLE %s.PLADMIN_METADATA(
@@ -133,11 +133,11 @@ class Database:
                 "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS')) "
                 % (
                     self.user,
-                    obj['object_name'],
-                    obj['object_type'],
-                    obj['object_path'],
-                    obj['last_commit'],
-                    obj['last_ddl_time'],
+                    obj["object_name"],
+                    obj["object_type"],
+                    obj["object_path"],
+                    obj["last_commit"],
+                    obj["last_ddl_time"],
                 )
             )
             cursor.execute(sql)
@@ -155,27 +155,48 @@ class Database:
             db = self.dbConnect()
             localClose = True
         cursor = db.cursor()
-        
 
         for obj in data:
 
-            if len(obj['object_path']):
-                objectPath = "OBJECT_PATH= '%s', " % obj['object_path']
+            if len(obj["object_path"]):
+                objectPath = "OBJECT_PATH= '%s', " % obj["object_path"]
 
             sql = """UPDATE %s.PLADMIN_METADATA SET %s LAST_COMMIT='%s', SYNC_DATE=SYSDATE, LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
                 WHERE object_name = '%s' and object_type = '%s' """ % (
                 self.user,
                 objectPath,
-                obj['last_commit'],
-                obj['last_ddl_time'],
-                obj['object_name'],
-                obj['object_type']
+                obj["last_commit"],
+                obj["last_ddl_time"],
+                obj["object_name"],
+                obj["object_type"],
             )
+            cursor.execute(sql)
 
-        cursor.execute(sql)
+
+        cursor.close()
+        if localClose:
+            db.commit()
+            db.close()
+
+    def metadataDelete(self, data, db=None):
+
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
+
+        for obj in data:
+            sql = (
+                """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' and object_type = '%s' """
+                % (self.user, obj["object_name"], obj["object_type"])
+            )
+            cursor.execute(sql)
+
         cursor.close()
 
         if localClose:
+            db.commit()
             db.close()
 
     def crateOrUpdateMetadata(self, data, db=None):
@@ -188,7 +209,7 @@ class Database:
         cursor = db.cursor()
 
         # Validate if the object exist on metadata table
-        obj = self.metadataValidate(data['object_name'], data['object_type'], db)
+        obj = self.metadataValidate(data["object_name"], data["object_type"], db)
 
         # If the object exist, update it
         if obj:
@@ -426,6 +447,23 @@ class Database:
             WHERE owner = '%s' 
                 AND mt.object_name IS NULL
                 AND dbs.object_type in ('%s') """ % (
+            self.user,
+            self.user,
+            types,
+        )
+
+        result = self.getData(sql)
+
+        return result
+
+    def getDeletedObjects(self):
+        """ Get Objects that exist on pladmin_metadata table and does't exist on metadata dba_objects"""
+        types = "', '".join(self.types)
+
+        sql = """ SELECT a.*
+        FROM %s.PLADMIN_METADATA a
+        WHERE NOT EXISTS (SELECT 1 FROM dba_objects b WHERE b.object_name = a.object_name AND b.object_type = a.object_type AND b.owner='%s')
+        AND a.object_type in ('%s') """ % (
             self.user,
             self.user,
             types,
