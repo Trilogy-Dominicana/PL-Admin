@@ -172,7 +172,6 @@ class Database:
             )
             cursor.execute(sql)
 
-
         cursor.close()
         if localClose:
             db.commit()
@@ -464,6 +463,23 @@ class Database:
         FROM %s.PLADMIN_METADATA a
         WHERE NOT EXISTS (SELECT 1 FROM dba_objects b WHERE b.object_name = a.object_name AND b.object_type = a.object_type AND b.owner='%s')
         AND a.object_type in ('%s') """ % (
+            self.user,
+            self.user,
+            types,
+        )
+
+        sql = """SELECT 
+                    mt.object_name 
+                    ,mt.object_type
+                    ,dbs.status
+                    ,mt.last_ddl_time
+                    ,mt.last_ddl_time as meta_last_ddl_time
+                    ,mt.object_path
+                    ,mt.last_commit 
+                    FROM %s.PLADMIN_METADATA mt LEFT JOIN
+                    dba_objects dbs ON dbs.object_name = mt.object_name AND dbs.object_type = mt.object_type AND dbs.owner ='%s'
+                    AND dbs.object_type IN ('%s')
+                    WHERE  dbs.object_name IS NULL""" % (
             self.user,
             self.user,
             types,
