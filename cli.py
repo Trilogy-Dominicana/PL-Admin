@@ -19,7 +19,7 @@ TODO:
 """
 db = Database(displayInfo=True)
 files = Files(displayInfo=True)
-
+# utils = Utils()
 
 def watch(path_to_watch):
     """ Watch the provided path for changes in any of it's subdirectories """
@@ -70,30 +70,6 @@ def main():
     force = args.force
     # print(vars(args))
 
-    # Update schema command
-    if action == "updateSchema":
-
-        # Get files has changed and are uncomited
-        localChanges = files.localChanges()
-
-        # Get changes comparing local branch with remote master branch
-        remoteChanges = files.remoteChanges()
-
-        # Remove duplicated key
-        changes = list(dict.fromkeys(localChanges + remoteChanges))
-
-        # Concat the path to each files
-        data = [files.pl_path + "/" + x for x in changes]
-
-        if data:
-            invalids = db.createReplaceObject(path=data)
-            # print(invalids)
-        # If some objects are invalids, try to compile again
-        # if len(invalids):
-        db.compileObjects()
-
-        # TODO List file removed and drop it from database
-
     # Create schema command
     if action == "newSchema":
         invalids = db.createSchema()
@@ -114,14 +90,13 @@ def main():
     if action == "watch":
         watch(files.pl_path)
 
-    if action == "wc2db":
+    if action == "updateSchema":
         """ Override complete schema """
         objs = files.listAllObjsFiles()
         db.createReplaceObject(objs)
 
     if action == "db2wc":
         """ Check objects that has been changed in the database and export it to working copy (local git repository)"""
-        """ <TODO> Comprobar cuando hay un objecto nuevo y cuando fue eliminado """
         if dry_run:
             utils.dryRun()
 
@@ -184,6 +159,76 @@ def main():
 
             print("%s Removed!" % objPath)
 
+        # Update schema command
+    
+    if action == "wc2db":
+        
+        # first, we need to add new files that comming from pull or added directly
+        
+
+        # second, remove deleted files
+
+        # and then, validate 
+        
+
+        # Listing all objects on local repository
+        local = files.listAllObjectFullData()
+        # List all objects into database
+        inDB = db.getObjects()
+    
+        for lc in local:
+            print(lc)
+            objectName = lc['object_name']
+            objectType = lc['object_type']
+            objectDdl = datetime.fromtimestamp(lc['last_ddl_time'])
+
+            dbobj = utils.getObjectDict(objects=inDB, name=objectName, type=objectType)
+            
+
+            if not len(dbobj):
+                print('Objecto nuevo de cajeta')
+                continue
+
+            dbTime = dbobj[0]['last_ddl_time']
+            # dbHash = dbobj[0]['last_commit']
+            
+            # "CUANDO SE CREA EL ESQUEMA SE DEBE ACTUALIZAR LA FECHA DE MODIFICACION DEL ARCHIVO QUE SE INSERTA EN METADA PARA PODER VALIDAR LOS ARCHIVOS QUE CAMBIAR EN LA COPIA DE TRABAJO"
+            if dbTime > objectDdl:
+                print("El objecto tiene cambios en la base de datos, usar --force")
+
+            if objectDdl > dbTime:
+                print("REPLACE EXCUTED")
+                # print(dbHash)
+
+                # print(dbTime)
+                # print('\n')
+                # print(objectDdl)
+            
+                
+                
+            exit()
+
+
+        # Get files has changed and are uncomited
+        localChanges = files.localChanges()
+
+        # Get changes comparing local branch with remote master branch
+        remoteChanges = files.remoteChanges()
+
+        # Remove duplicated key
+        changes = list(dict.fromkeys(localChanges + remoteChanges))
+
+        # Concat the path to each files
+        data = [files.pl_path + "/" + x for x in changes]
+
+        if data:
+            invalids = db.createReplaceObject(path=data)
+            # print(invalids)
+        # If some objects are invalids, try to compile again
+        # if len(invalids):
+        db.compileObjects()
+
+        # TODO List file removed and drop it from database
 
     if action == "createMetadata":
 
