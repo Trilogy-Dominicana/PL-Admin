@@ -48,38 +48,17 @@ class Database:
 
         # Create o replace packages, views, functions and procedures (All elements in files.objectsTypes())
         data = files.listAllObjsFiles()
-        self.createReplaceObject(path=data[:10])
+        self.createReplaceObject(path=data)
 
         # If some objects are invalids, try to compile
         invalids = self.compileObjects()
 
-        
         # Getting up object type, if it's package, package body, view, procedure, etc.
         data = self.getObjects(withPath=True)
         self.metadataInsert(data)
 
         db.close()
         return invalids
-
-    def getDBObjects(self):
-        """ << TODO >> """
-        db = self.dbConnect(sysDBA=True)
-        cursor = db.cursor()
-
-        # We need to get all object
-        objects = self.getObjects()
-        exit()
-
-        # Get views
-        vSql = "SELECT view_name FROM dba_views WHERE owner = '%s'" % self.user
-        bdViews = self.getData(query=vSql, db=db)
-
-        oSql = (
-            "SELECT name, type, line, text FROM dba_source WHERE owner = '%s' and type IN ('%s')"
-            % (self.user, types)
-        )
-        dbObj = self.getData(query=oSql, db=db)
-        # cursor.execute(sql)
 
     def createMetaTable(self, db=None):
         """
@@ -90,6 +69,9 @@ class Database:
             localClose = True
 
         cursor = db.cursor()
+
+        # Drop
+        data = cursor.execute("DROP TABLE %s.PLADMIN_METADATA" % self.user)
 
         sql = (
             """CREATE TABLE %s.PLADMIN_METADATA(
@@ -151,11 +133,11 @@ class Database:
                 "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS')) "
                 % (
                     self.user,
-                    obj['object_name'],
-                    obj['object_type'],
-                    obj['object_path'],
-                    obj['last_commit'],
-                    obj['last_ddl_time'],
+                    obj["object_name"],
+                    obj["object_type"],
+                    obj["object_path"],
+                    obj["last_commit"],
+                    obj["last_ddl_time"],
                 )
             )
             cursor.execute(sql)
@@ -175,29 +157,48 @@ class Database:
         cursor = db.cursor()
 
         for obj in data:
-            if len(objectPath):
-                objectPath = "OBJECT_PATH= '%s', " % objectPath
 
-            sql = """UPDATE %s.PLADMIN_METADATA SET %s LAST_COMMIT='%s', SYNC_DATE=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
-                WHERE object_name = '%s' and object_type like '%s%' """ % (
+            if len(obj["object_path"]):
+                objectPath = "OBJECT_PATH= '%s', " % obj["object_path"]
+
+            sql = """UPDATE %s.PLADMIN_METADATA SET %s LAST_COMMIT='%s', SYNC_DATE=SYSDATE, LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
+                WHERE object_name = '%s' and object_type = '%s' """ % (
                 self.user,
-                obj.object_path,
-                obj.last_commit,
-                obj.last_ddl_time,
-                obj.last_sync,
-                obj.object_name,
-                obj.object_type,
+                objectPath,
+                obj["last_commit"],
+                obj["last_ddl_time"],
+                obj["object_name"],
+                obj["object_type"],
             )
+            cursor.execute(sql)
 
-        cursor.execute(sql)
+        cursor.close()
+        if localClose:
+            db.commit()
+            db.close()
+
+    def metadataDelete(self, data, db=None):
+
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
+
+        for obj in data:
+            sql = (
+                """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' and object_type = '%s' """
+                % (self.user, obj["object_name"], obj["object_type"])
+            )
+            cursor.execute(sql)
+
         cursor.close()
 
         if localClose:
+            db.commit()
             db.close()
 
-    def crateOrUpdateMetadata(
-        self, objectName, objectType, lastDdlTime, lastCommit, objectPath="", db=None
-    ):
+    def crateOrUpdateMetadata(self, data, db=None):
         """ Create or update data on metadata table """
         localClose = False
 
@@ -207,13 +208,11 @@ class Database:
         cursor = db.cursor()
 
         # Validate if the object exist on metadata table
-        obj = self.metadataValidate(objectName, objectType, db)
+        obj = self.metadataValidate(data["object_name"], data["object_type"], db)
 
         # If the object exist, update it
         if obj:
-            self.metadataUpdate(
-                lastDdlTime, lastCommit, objectName, objectType, objectPath, db
-            )
+            self.metadataUpdate([data], db)
         else:
             self.metadataInsert([data], db)
 
@@ -251,20 +250,6 @@ class Database:
                 )
 
             cursor.execute(sql)
-
-            objNew = self.getObjects(
-                objectTypes=obj["object_type"],
-                objectName=obj["object_name"],
-                fetchOne=True,
-            )
-
-            updated = self.crateOrUpdateMetadata(
-                objectName=objNew["object_name"],
-                objectType=objNew["object_type"],
-                lastCommit=files.head_commit,
-                lastDdlTime=objNew["last_ddl_time"],
-                db=db,
-            )
 
         if objLen != self.lastIntends:
             self.lastIntends = objLen
@@ -419,22 +404,82 @@ class Database:
         return result
 
     def getObjectsDb2Wc(self):
-        """ Get objects """
+        """ Get objects that has been changed after the last syncronization"""
         types = "', '".join(self.types)
 
         sql = """SELECT
-                dbs.object_id
-                ,dbs.object_name
+                dbs.object_name
                 ,dbs.object_type
                 ,dbs.status
                 ,dbs.last_ddl_time
-                ,mt.last_ddl_time as mlast_ddl_time
+                ,mt.last_ddl_time as meta_last_ddl_time
                 ,mt.object_path
+                ,mt.last_commit
             FROM dba_objects dbs
             INNER JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
             WHERE owner = '%s' 
-            AND dbs.LAST_DDL_TIME <> mt.LAST_DDL_TIME
-            AND dbs.object_type in ('%s') """ % (
+                AND dbs.LAST_DDL_TIME <> mt.LAST_DDL_TIME
+                AND dbs.object_type in ('%s') """ % (
+            self.user,
+            self.user,
+            types,
+        )
+
+        result = self.getData(sql)
+
+        return result
+
+    def getNewObjects(self):
+        """ Get Objects that exist on dba_object and does't exist on metadata table"""
+        types = "', '".join(self.types)
+
+        sql = """SELECT
+                dbs.object_name
+                ,dbs.object_type
+                ,dbs.status
+                ,dbs.last_ddl_time
+                ,mt.last_ddl_time as meta_last_ddl_time
+                ,mt.object_path
+                ,mt.last_commit
+            FROM dba_objects dbs
+            LEFT JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
+            WHERE owner = '%s' 
+                AND mt.object_name IS NULL
+                AND dbs.object_type in ('%s') """ % (
+            self.user,
+            self.user,
+            types,
+        )
+
+        result = self.getData(sql)
+
+        return result
+
+    def getDeletedObjects(self):
+        """ Get Objects that exist on pladmin_metadata table and does't exist on metadata dba_objects"""
+        types = "', '".join(self.types)
+
+        sql = """ SELECT a.*
+        FROM %s.PLADMIN_METADATA a
+        WHERE NOT EXISTS (SELECT 1 FROM dba_objects b WHERE b.object_name = a.object_name AND b.object_type = a.object_type AND b.owner='%s')
+        AND a.object_type in ('%s') """ % (
+            self.user,
+            self.user,
+            types,
+        )
+
+        sql = """SELECT 
+                    mt.object_name 
+                    ,mt.object_type
+                    ,dbs.status
+                    ,mt.last_ddl_time
+                    ,mt.last_ddl_time as meta_last_ddl_time
+                    ,mt.object_path
+                    ,mt.last_commit 
+                    FROM %s.PLADMIN_METADATA mt LEFT JOIN
+                    dba_objects dbs ON dbs.object_name = mt.object_name AND dbs.object_type = mt.object_type AND dbs.owner ='%s'
+                    AND dbs.object_type IN ('%s')
+                    WHERE  dbs.object_name IS NULL""" % (
             self.user,
             self.user,
             types,

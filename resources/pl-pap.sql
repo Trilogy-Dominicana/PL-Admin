@@ -1,6 +1,6 @@
 SELECT
     owner
-     , OBJECT_ID
+    , OBJECT_ID
     , object_name
     , object_type
     , status
@@ -45,4 +45,34 @@ select * from dba_users;
 ALTER PACKAGE BODY WDELACRUZ3.TX_PTO_ENTREGAPUNTO COMPILE
 
 
+--datetime.now().strftime("%Y%m%d%H%M%S")
+
+SELECT
+    object_id
+    ,object_name
+    ,object_type
+    ,status
+    ,last_ddl_time
+FROM dba_objects 
+where owner = 'WDELACRUZ1'
+and object_name = 'TX_PRT_PROCESO';
+
+ALTER PACKAGE WDELACRUZ3.TX_PRT_PROCESO COMPILE;
+
+
+SELECT 
+--     count(1) as total
+    dbs.owner
+    ,dbs.object_name
+    ,dbs.object_type
+    ,dbs.status
+    ,dbs.last_ddl_time
+    ,mt.last_ddl_time as mlast_ddl_time
+    ,mt.object_path
+    ,mt.last_commit
+FROM dba_objects dbs
+INNER JOIN WDELACRUZ1.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
+WHERE dbs.owner = 'WDELACRUZ1'
+AND dbs.LAST_DDL_TIME <> mt.LAST_DDL_TIME
+AND dbs.object_type in ('PACKAGE', 'VIEW', 'FUNCTION', 'PR OCEDURE', 'PACKAGE BODY');
 
