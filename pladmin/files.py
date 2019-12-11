@@ -19,7 +19,6 @@ class Files:
         self.extentions = self.objectsTypes().values()
         self.progress_len = 0
 
-
     def objectsTypes(self, inverted=False, objKey=None):
         """ Do not change the order of items """
         data = {}
@@ -31,7 +30,7 @@ class Files:
 
         if inverted:
             data = dict(map(reversed, data.items()))
-        
+
         if objKey:
             return data[objKey]
 
@@ -40,8 +39,25 @@ class Files:
     def localChanges(self):
         """ Get files changes comparing actual branch with actual changes and the last commit """
         repo = self.repo
-        diff = repo.git.diff("--name-only", "HEAD~1")
+        # diff = repo.git.diff("--name-only", "HEAD~1")
+        diff = repo.git.diff("--name-only")
+        if not len(diff):
+            return False
+
         return diff.split("\n")
+
+    def diffByHash(self, objHash, absolutePath=False):
+        # """ Get files changes comparing actual branch with actual changes and the last commit """
+        repo = self.repo
+        diff = repo.git.diff("--name-only", objHash)
+
+        data = diff.split("\n")
+
+        # Absolute path
+        if absolutePath:
+            data = [os.path.join(self.pl_path, s) for s in data]
+
+        return data
 
     def test(self):
         """ Get files changes comparing actual branch with actual changes and the last commit """
@@ -83,6 +99,23 @@ class Files:
         """ For each file found in path get the last modified timestamp """
         files = self.listAllObjsFiles()
         data = dict([(f, os.path.getmtime(f)) for f in files])
+
+        return data
+
+    def listAllObjectFullData(self, path=None):
+        """ For each file found in path get the last modified timestamp """
+        files = self.listAllObjsFiles()
+        data = []
+
+        for f in files:
+            obj = {}
+            name, ext = self.getFileName(f)
+
+            obj["object_name"] = name
+            obj["object_type"] = self.objectsTypes(inverted=True, objKey="." + ext)
+            obj["object_path"] = f
+            obj["last_ddl_time"] = os.path.getmtime(f)
+            data.append(obj)
 
         return data
 
@@ -134,12 +167,15 @@ class Files:
         Params:
         ------
         path (string): String structured with / e.g: you/path/dir/to/file.pbk
+        return name, extention
         """
         gzfname = path.split("/")
         fullfname = gzfname[-1]
         fname = fullfname.split(".")
+        name = fname[0]
+        extention = fname[1]
 
-        return fname[0], fname[1]
+        return name, extention
 
     def createDirs(self):
 
@@ -170,7 +206,7 @@ class Files:
         # )
         # os.makedirs(self.uncompressed_file_dir, exist_ok=True)
 
-    def createObject(self, objectType, objectName, contend):
+    def createObject(self, objectName, objectType, contend):
         """ Create object on correcponding dir """
 
         # Validate if the object type is permited
@@ -192,7 +228,7 @@ class Files:
         if objectType == "PROCEDURE":
             d = self.procedures_dir
 
-        path = os.path.join(d, objectName+ext)
+        path = os.path.join(d, objectName + ext)
 
         with open(path, "wt+") as f:
             f.truncate(0)
@@ -200,7 +236,6 @@ class Files:
             f.write("\n")
 
         return path
-        
 
     def progress(self, count, total, status="", title=None, end=False):
         """ 
@@ -221,9 +256,9 @@ class Files:
             filled_len = int(round(bar_len * count / float(total)))
             percents = round(100.0 * count / float(total), 1)
             bar = "█" * filled_len + "░" * (bar_len - filled_len)
-                        
+
             msg = "\r%s %s%s: %s" % (bar, percents, "%", status)
-            
+
             # Fill out string with spaces
             string = msg.ljust(self.progress_len)
 
@@ -235,4 +270,3 @@ class Files:
                 print("\n")
 
         return False
-

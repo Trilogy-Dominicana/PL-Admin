@@ -5,7 +5,11 @@ import sys, getopt, json, os, argparse, time
 from datetime import datetime
 from pladmin.database import Database
 from pladmin.files import Files
+<<<<<<< HEAD
 from pladmin.migrations import Migrations
+=======
+from pladmin.utils import utils
+>>>>>>> master
 
 # parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
 # parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
@@ -19,7 +23,7 @@ TODO:
 """
 db = Database(displayInfo=True)
 files = Files(displayInfo=True)
-
+# utils = Utils()
 
 def watch(path_to_watch):
     """ Watch the provided path for changes in any of it's subdirectories """
@@ -54,47 +58,25 @@ def watch(path_to_watch):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Process some integers.")
-    parser.add_argument(
-        "action", metavar="action", type=str, help="Push the method name"
+    parser = argparse.ArgumentParser(
+        prog="PL-Admin",
+        usage="%(prog)s [action] options",
+        description="Process some integers.",
     )
 
-    migration = parser.add_subparsers(dest="make")
-    
-    parser_dll = migration.add_parser('ddl')
-    parser_dml = migration.add_parser('dml')
+    parser.add_argument("action", action="store", help="Push the method name")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--ddl", action="store_true")
+    parser.add_argument("--dml", action="store_true")
 
-    parser_dll.add_argument('-d', type=int, default=1)
-    parser_dll.add_argument('-t', type=bool, default=False)
-    parser_dml.add_argument('-d', type=int, default=1)
-
-    args = parser.parse_args()
-    action =  args.action
-
-
-    # Update schema command
-    if action == "updateSchema":
-       
-        # Get files has changed and are uncomited
-        localChanges = files.localChanges()
-
-        # Get changes comparing local branch with remote master branch
-        remoteChanges = files.remoteChanges()
-
-        # Remove duplicated key
-        changes = list(dict.fromkeys(localChanges + remoteChanges))
-    
-        # Concat the path to each files
-        data = [files.pl_path + "/" + x for x in changes]
-
-        if data:
-            invalids = db.createReplaceObject(path=data)
-            # print(invalids)
-        # If some objects are invalids, try to compile again
-        # if len(invalids):
-        db.compileObjects()
-
-        # TODO List file removed and drop it from database
+    args    = parser.parse_args()
+    action  = args.action
+    dry_run = args.dry_run
+    force   = args.force
+    ddl     =  args.ddl
+    dml     =  args.dml
+    # print(vars(args))
 
     # Create schema command
     if action == "newSchema":
@@ -103,7 +85,7 @@ def main():
         if len(invalids):
             print("\nThis objects are invalids:")
             for inv in invalids:
-                print(inv['object_name'], inv['object_type'])
+                print(inv["object_name"], inv["object_type"])
         else:
             print("Schema created successfully!")
 
@@ -116,76 +98,158 @@ def main():
     if action == "watch":
         watch(files.pl_path)
 
-    if action == "wc2db":
+    if action == "updateSchema":
         """ Override complete schema """
         objs = files.listAllObjsFiles()
         db.createReplaceObject(objs)
 
     if action == "db2wc":
         """ Check objects that has been changed in the database and export it to working copy (local git repository)"""
-        """ <TODO> Comprobar cuando hay un objecto nuevo y cuando fue eliminado """
+        if dry_run:
+            utils.dryRun()
+
+        uncommitedChanges = files.localChanges()
+        if uncommitedChanges:
+            print(
+                "WARNING! You have uncommitted changes, commit it to avoid loss information"
+            )
+            # exit()
+        deletedObjs = db.getDeletedObjects()
 
         # List all object with diferences
-        dbObj = db.getObjectsDb2wc()
+        dbObject = db.getObjectsDb2Wc()
 
-        print(dbObj)
-        exit()
+        # List new objects
+        newObjects = db.getNewObjects()
 
-        for obj in dbObj:
-            # Get object path or check if file exist
-            path = files.findObjFileByType(obj["object_type"], obj["object_name"])[0]
+        # Check if object has change after commit store on the db
+        for obj in newObjects + dbObject:
+            lastCommit = obj["last_commit"]
+            objectPath = obj["object_path"]
+            objectName = obj["object_name"]
+            objectType = obj["object_type"]
+            objectTime = obj["last_ddl_time"]
 
-            # Get date object modification into db
-            mb = obj["last_ddl_time"].timestamp()
+            # Check if exist a hash commit before. This becouse new objects does not has commit hash
+            if lastCommit:
+                fi = files.diffByHash(lastCommit, True)
 
-            # If path exist, get modification date and validate that the date is less than database object
-            if path:
-                # Get file date modification
-                mf = os.path.getmtime(path)
-
-                if mf == mb or mf > mb:
+                # If the object has chadnges, do not export it
+                # <TODO:> Agregar a option para poder hacer merge del archivo
+                if any(objectPath in s for s in fi) and not force:
+                    print("%s has local changed, fail!" % objectPath)
                     continue
+
+            if not dry_run:
+                objContend = db.getObjSource(objectName, objectType)
+                fileObject = files.createObject(objectName, objectType, objContend)
+
+                # Update metadata table
+                obj.update(last_commit=files.head_commit, object_path=fileObject)
+                updated = db.crateOrUpdateMetadata(obj)
+
+            # This validation is to know if the object is new o not
+            if not lastCommit and not objectPath:
+                print("%s %s Added" % (objectType, objectName))
             else:
-                path = files.createObject(obj["object_type"], obj["object_name"])
-                print("Exporting %s to Working copy" % obj["object_name"])
+                print("%s exported successfully!" % objectPath)
 
-            # print("%s object changed on the DB", obj["object_name"])
-            data = db.getObjSource(obj["object_name"], obj["object_type"])
-            print(" has been changed into db", obj["object_name"])
+        # Remove deleted objects
+        for dObj in deletedObjs:
+            objPath = dObj["object_path"]
 
-            with open(path, "wt") as f:
-                f.truncate(0)
-                f.write(data)
-                f.write("\n")
+            if not dry_run and os.path.exists(objPath):
+                os.remove(objPath)
+                
+                # If the file has been removed, drop it in the medatada table
+                if not os.path.exists(objPath):
+                    db.metadataDelete([dObj])
 
-            lastObj = db.getObjects(
-                objectTypes=obj["object_type"], objectName=obj["object_name"]
-            )
+            print("%s Removed!" % objPath)
 
-            # Update metadata table
-            updated = self.crateOrUpdateMetadata(
-                objectName=obj["object_name"],
-                objectType=obj["object_type"],
-                objectPath=path,
-                lastCommit=files.repo.head.commit,
-                lastDdlTime=obj["last_ddl_time"]
-            )
-
-            # files.updateModificationFileDate(path, lastObj[0]["last_ddl_time"])
-            # print(path, datetime.fromtimestamp(mf).strftime('%Y-%m-%d %I:%M %p'))
-
-        # print(obj)
-
-    if action == "test":  
-        print(files.files_to_timestamp())
-        
-    if action == "migration" and args.make == 'ddl':
-        migrations = Migrations()
-        migrations.create_ddl(quantity=args.d, basic_pl=args.t)
+        # Update schema command
     
-    if action == "migration" and args.make == 'dml':
-        migrations = Migrations()
-        migrations.create_dml(quantity=args.d)
+    if action == "wc2db":
+        
+        # first, we need to add new files that comming from pull or added directly
+        
+
+        # second, remove deleted files
+
+        # and then, validate 
+        
+
+        # Listing all objects on local repository
+        local = files.listAllObjectFullData()
+        # List all objects into database
+        inDB = db.getObjects()
+    
+        for lc in local:
+            print(lc)
+            objectName = lc['object_name']
+            objectType = lc['object_type']
+            objectDdl = datetime.fromtimestamp(lc['last_ddl_time'])
+
+            dbobj = utils.getObjectDict(objects=inDB, name=objectName, type=objectType)
+            
+
+            if not len(dbobj):
+                print('Objecto nuevo de cajeta')
+                continue
+
+            dbTime = dbobj[0]['last_ddl_time']
+            # dbHash = dbobj[0]['last_commit']
+            
+            # "CUANDO SE CREA EL ESQUEMA SE DEBE ACTUALIZAR LA FECHA DE MODIFICACION DEL ARCHIVO QUE SE INSERTA EN METADA PARA PODER VALIDAR LOS ARCHIVOS QUE CAMBIAR EN LA COPIA DE TRABAJO"
+            if dbTime > objectDdl:
+                print("El objecto tiene cambios en la base de datos, usar --force")
+
+            if objectDdl > dbTime:
+                print("REPLACE EXCUTED")
+                # print(dbHash)
+
+                # print(dbTime)
+                # print('\n')
+                # print(objectDdl)
+            
+                
+                
+            exit()
+
+
+        # Get files has changed and are uncomited
+        localChanges = files.localChanges()
+
+        # Get changes comparing local branch with remote master branch
+        remoteChanges = files.remoteChanges()
+
+        # Remove duplicated key
+        changes = list(dict.fromkeys(localChanges + remoteChanges))
+
+        # Concat the path to each files
+        data = [files.pl_path + "/" + x for x in changes]
+
+        if data:
+            invalids = db.createReplaceObject(path=data)
+            # print(invalids)
+        # If some objects are invalids, try to compile again
+        # if len(invalids):
+        db.compileObjects()
+
+        # TODO List file removed and drop it from database
+
+    if action == "createMetadata":
+
+        # print(files.files_to_timestamp())
+        # Getting up object type, if it's package, package body, view, procedure, etc.
+        db.createMetaTable()
+        data = db.getObjects(withPath=True)
+        db.metadataInsert(data)
+        
+    if action == "make":
+        if ddl:
+            print('ddl')
+        
 
 
 if __name__ == "__main__":
