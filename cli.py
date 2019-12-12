@@ -5,11 +5,8 @@ import sys, getopt, json, os, argparse, time
 from datetime import datetime
 from pladmin.database import Database
 from pladmin.files import Files
-<<<<<<< HEAD
-from pladmin.migrations import Migrations
-=======
 from pladmin.utils import utils
->>>>>>> master
+from pladmin.migrations import Migrations
 
 # parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
 # parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
@@ -69,15 +66,18 @@ def main():
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--ddl", action="store_true")
     parser.add_argument("--dml", action="store_true")
+    parser.add_argument("--q", default=1, type=int)
+    parser.add_argument("--pl", default='n', type=str)
 
-    args    = parser.parse_args()
-    action  = args.action
-    dry_run = args.dry_run
-    force   = args.force
-    ddl     =  args.ddl
-    dml     =  args.dml
-    # print(vars(args))
-
+    args     =  parser.parse_args()
+    action   =  args.action
+    dry_run  =  args.dry_run
+    force    =  args.force
+    ddl      =  args.ddl
+    dml      =  args.dml
+    quantity =  args.q
+    basicPL  =  args.pl
+   
     # Create schema command
     if action == "newSchema":
         invalids = db.createSchema()
@@ -247,9 +247,24 @@ def main():
         db.metadataInsert(data)
         
     if action == "make":
+        migration = Migrations()
+       
         if ddl:
-            print('ddl')
+            migration.createScript(file_type='ddl', quantity=quantity, basic_pl=basicPL)
         
+        elif dml:
+             migration.createScript(file_type='dml', quantity=quantity, basic_pl=basicPL)
+
+        else:
+            print('comand not found')      
+
+    if action == "migrate":
+        migration = Migrations()
+
+        if dml:
+            migration.migrate('dml')
+
+
 
 
 if __name__ == "__main__":
