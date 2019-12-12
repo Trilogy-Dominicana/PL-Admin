@@ -52,6 +52,71 @@ def watch(path_to_watch):
 
         before = after
 
+def db2wc(dry_run, force):
+    """ Check objects that has been changed in the database and export it to working copy (local git repository)"""
+    if dry_run:
+        utils.dryRun()
+
+    uncommitedChanges = files.localChanges()
+    if uncommitedChanges:
+        print(
+            "WARNING! You have uncommitted changes, commit it to avoid loss information"
+        )
+        # exit()
+    deletedObjs = db.getDeletedObjects()
+
+    # List all object with diferences
+    dbObject = db.getObjectsDb2Wc()
+
+    # List new objects
+    newObjects = db.getNewObjects()
+
+    # Check if object has change after commit store on the db
+    for obj in newObjects + dbObject:
+        lastCommit = obj["last_commit"]
+        objectPath = obj["object_path"]
+        objectName = obj["object_name"]
+        objectType = obj["object_type"]
+        objectTime = obj["last_ddl_time"]
+
+        # Check if exist a hash commit before. This becouse new objects does not has commit hash
+        if lastCommit:
+            fi = files.diffByHash(lastCommit, True)
+
+            # If the object has chadnges, do not export it
+            # <TODO:> Agregar a option para poder hacer merge del archivo
+            if any(objectPath in s for s in fi) and not force:
+                print("%s has local changes, fail!" % objectPath)
+
+                continue
+
+        if not dry_run:
+            objContend = db.getObjSource(objectName, objectType)
+            fileObject = files.createObject(objectName, objectType, objContend)
+
+            # Update metadata table
+            obj.update(last_commit=files.head_commit, object_path=fileObject)
+            updated = db.crateOrUpdateMetadata(obj)
+
+        # This validation is to know if the object is new o not
+        if not lastCommit and not objectPath:
+            print("%s %s Added" % (objectType, objectName))
+        else:
+            print("%s exported successfully!" % objectPath)
+
+    # Remove deleted objects
+    for dObj in deletedObjs:
+        objPath = dObj["object_path"]
+
+        if not dry_run and os.path.exists(objPath):
+            os.remove(objPath)
+            
+            # If the file has been removed, drop it in the medatada table
+            if not os.path.exists(objPath):
+                db.metadataDelete([dObj])
+
+        print("%s Removed!" % objPath)
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -96,83 +161,22 @@ def main():
         db.createReplaceObject(objs)
 
     if action == "db2wc":
-        """ Check objects that has been changed in the database and export it to working copy (local git repository)"""
-        if dry_run:
-            utils.dryRun()
-
-        uncommitedChanges = files.localChanges()
-        if uncommitedChanges:
-            print(
-                "WARNING! You have uncommitted changes, commit it to avoid loss information"
-            )
-            # exit()
-        deletedObjs = db.getDeletedObjects()
-
-        # List all object with diferences
-        dbObject = db.getObjectsDb2Wc()
-
-        # List new objects
-        newObjects = db.getNewObjects()
-
-        # Check if object has change after commit store on the db
-        for obj in newObjects + dbObject:
-            lastCommit = obj["last_commit"]
-            objectPath = obj["object_path"]
-            objectName = obj["object_name"]
-            objectType = obj["object_type"]
-            objectTime = obj["last_ddl_time"]
-
-            # Check if exist a hash commit before. This becouse new objects does not has commit hash
-            if lastCommit:
-                fi = files.diffByHash(lastCommit, True)
-
-                # If the object has chadnges, do not export it
-                # <TODO:> Agregar a option para poder hacer merge del archivo
-                if any(objectPath in s for s in fi) and not force:
-                    print("%s has local changed, fail!" % objectPath)
-                    continue
-
-            if not dry_run:
-                objContend = db.getObjSource(objectName, objectType)
-                fileObject = files.createObject(objectName, objectType, objContend)
-
-                # Update metadata table
-                obj.update(last_commit=files.head_commit, object_path=fileObject)
-                updated = db.crateOrUpdateMetadata(obj)
-
-            # This validation is to know if the object is new o not
-            if not lastCommit and not objectPath:
-                print("%s %s Added" % (objectType, objectName))
-            else:
-                print("%s exported successfully!" % objectPath)
-
-        # Remove deleted objects
-        for dObj in deletedObjs:
-            objPath = dObj["object_path"]
-
-            if not dry_run and os.path.exists(objPath):
-                os.remove(objPath)
-                
-                # If the file has been removed, drop it in the medatada table
-                if not os.path.exists(objPath):
-                    db.metadataDelete([dObj])
-
-            print("%s Removed!" % objPath)
-
-        # Update schema command
+        db2wc(dry_run, force)
     
+    # Push changes from local repository to db
     if action == "wc2db":
-        
+        print("Getting updating schema with database chagnes")
+        db2wc(dry_run, force)
+
         # first, we need to add new files that comming from pull or added directly
         
-
         # second, remove deleted files
 
         # and then, validate 
         
-
         # Listing all objects on local repository
         local = files.listAllObjectFullData()
+
         # List all objects into database
         inDB = db.getObjects()
     
@@ -203,8 +207,6 @@ def main():
                 # print(dbTime)
                 # print('\n')
                 # print(objectDdl)
-            
-                
                 
             exit()
 
