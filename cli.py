@@ -20,6 +20,9 @@ TODO:
 """
 db = Database(displayInfo=True)
 files = Files(displayInfo=True)
+migration = Migrations()
+
+
 # utils = Utils()
 
 def watch(path_to_watch):
@@ -64,22 +67,20 @@ def main():
     parser.add_argument("action", action="store", help="Push the method name")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument("--ddl", action="store_true")
-    parser.add_argument("--dml", action="store_true")
     parser.add_argument("--q", default=1, type=int)
     parser.add_argument("--pl", default='n', type=str)
-    parser.add_argument("--e", action="store_true")
+    parser.add_argument("--script", "-s", type=str, choices=('dml', 'ddl'))
+    parser.add_argument("--e", default=datetime.now().strftime("/%Y/%m/%d"), type=str)
 
     args = parser.parse_args()
     action = args.action
     dry_run = args.dry_run
     force = args.force
-    ddl = args.ddl
-    dml = args.dml
+    script = args.script
     quantity = args.q
     basic_pl = args.pl
     errors = args.e
-   
+
     # Create schema command
     if action == "newSchema":
         invalids = db.createSchema()
@@ -162,7 +163,7 @@ def main():
 
             if not dry_run and os.path.exists(objPath):
                 os.remove(objPath)
-                
+
                 # If the file has been removed, drop it in the medatada table
                 if not os.path.exists(objPath):
                     db.metadataDelete([dObj])
@@ -170,22 +171,20 @@ def main():
             print("%s Removed!" % objPath)
 
         # Update schema command
-    
+
     if action == "wc2db":
-        
+
         # first, we need to add new files that comming from pull or added directly
-        
 
         # second, remove deleted files
 
         # and then, validate 
-        
 
         # Listing all objects on local repository
         local = files.listAllObjectFullData()
         # List all objects into database
         inDB = db.getObjects()
-    
+
         for lc in local:
             print(lc)
             objectName = lc['object_name']
@@ -193,7 +192,6 @@ def main():
             objectDdl = datetime.fromtimestamp(lc['last_ddl_time'])
 
             dbobj = utils.getObjectDict(objects=inDB, name=objectName, type=objectType)
-            
 
             if not len(dbobj):
                 print('Objecto nuevo de cajeta')
@@ -201,7 +199,7 @@ def main():
 
             dbTime = dbobj[0]['last_ddl_time']
             # dbHash = dbobj[0]['last_commit']
-            
+
             # "CUANDO SE CREA EL ESQUEMA SE DEBE ACTUALIZAR LA FECHA DE MODIFICACION DEL ARCHIVO QUE SE INSERTA EN METADA PARA PODER VALIDAR LOS ARCHIVOS QUE CAMBIAR EN LA COPIA DE TRABAJO"
             if dbTime > objectDdl:
                 print("El objecto tiene cambios en la base de datos, usar --force")
@@ -213,11 +211,8 @@ def main():
                 # print(dbTime)
                 # print('\n')
                 # print(objectDdl)
-            
-                
-                
-            exit()
 
+            exit()
 
         # Get files has changed and are uncomited
         localChanges = files.localChanges()
@@ -241,32 +236,23 @@ def main():
         # TODO List file removed and drop it from database
 
     if action == "createMetadata":
-
         # print(files.files_to_timestamp())
         # Getting up object type, if it's package, package body, view, procedure, etc.
         db.createMetaTable()
         data = db.getObjects(withPath=True)
         db.metadataInsert(data)
-        
-    if action == "make":
-        migration = Migrations()
-       
-        if ddl:
-            migration.create_script(file_type='ddl', quantity=quantity, basic_pl=basic_pl)
-        
-        elif dml:
-            migration.create_script(file_type='dml', quantity=quantity, basic_pl=basic_pl)
 
-        else:
-            print('command not found')
+    if action == "make":
+        migration.create_script(file_type=script, quantity=quantity, basic_pl=basic_pl)
 
     if action == "migrate":
-        migration = Migrations()
 
-        if dml:
-            migration.migrate('dml')
+        if script:
+            migration.migrate(script)
+
         elif errors:
-            print(migration.scripts_with_error())
+            print(Migrations.scripts_with_error('/%s' % errors))
+
 
 if __name__ == "__main__":
     sys.exit(main())
