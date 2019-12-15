@@ -10,8 +10,12 @@ class Migrations(Database, Files):
     __dml_path = os.path.join('/scripts/dmls%s' % datetime.now().strftime("/%Y/%m/%d"))
     __errors_scripts_path = os.path.join('/scripts/errors%s' % datetime.now().strftime("/%Y/%m/%d"))
     __basic_pl_path = os.path.join('/plsqltest/basic.sql')
+    __branch = None
 
     def __init__(self):
+        self.repo = git.Repo(self.pl_path)
+        self.__branch = self.repo.active_branch
+
         if not os.path.exists(self.__ddl_path):
             os.makedirs(self.__ddl_path)
 
@@ -39,8 +43,12 @@ class Migrations(Database, Files):
                 date = datetime.now()
                 today = date.strftime("%m%d%Y%H%M%S")
 
-                file_name = "%s_%s_%s.sql" % (file_type, today, i + 1)
+                """ counting the scripts in the directory to get next sequences """
+                quantity_scripts_dir = len(os.listdir(path)) + 1
+
+                file_name = "%s_%s_%s_%s.sql" % (self.__branch, file_type, today, quantity_scripts_dir)
                 files = "%s/%s" % (path, file_name)
+
                 os.mknod(files)
                 files_creating.append(file_name)
 
@@ -95,7 +103,7 @@ class Migrations(Database, Files):
                         print (status_var.getvalue())
 
                 except cx_Oracle.DatabaseError as error:
-                    """ move script with errors to folder /scripts/errors/ """
+                    """ move script with errors to folder /scripts/errors/year/month/day """
                     script_errors = os.path.join(self.__errors_scripts_path, script)
                     os.rename(open_file, script_errors)
                     print('error %s' % error)
@@ -104,7 +112,12 @@ class Migrations(Database, Files):
         cursor.close()
 
     """ get scripts with errors, find in directories by date """
-    def scripts_with_error(self, date=datetime.now().strftime("/%Y/%m/%d")):
-        dir_find_errors = os.path.join('/scripts/errors%s' % date)
-        scripts_with_errors = [errors for errors in os.listdir(dir_find_errors)]
-        return 'scripts con errores %s' % len(scripts_with_errors)
+    @staticmethod
+    def scripts_with_error(date=datetime.now().strftime("/%Y/%m/%d")):
+        try:
+            dir_find_errors = os.path.join('/scripts/errors%s' % date)
+            scripts_with_errors = [errors for errors in os.listdir(dir_find_errors)]
+            return 'scripts con errores %s' % len(scripts_with_errors)
+        except FileNotFoundError as e:
+            return 'los errores con la fecha indicada no existen'
+
