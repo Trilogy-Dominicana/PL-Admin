@@ -68,15 +68,17 @@ def main():
     parser.add_argument("--dml", action="store_true")
     parser.add_argument("--q", default=1, type=int)
     parser.add_argument("--pl", default='n', type=str)
+    parser.add_argument("--e", action="store_true")
 
-    args     =  parser.parse_args()
-    action   =  args.action
-    dry_run  =  args.dry_run
-    force    =  args.force
-    ddl      =  args.ddl
-    dml      =  args.dml
-    quantity =  args.q
-    basicPL  =  args.pl
+    args = parser.parse_args()
+    action = args.action
+    dry_run = args.dry_run
+    force = args.force
+    ddl = args.ddl
+    dml = args.dml
+    quantity = args.q
+    basic_pl = args.pl
+    errors = args.e
    
     # Create schema command
     if action == "newSchema":
@@ -250,22 +252,21 @@ def main():
         migration = Migrations()
        
         if ddl:
-            migration.createScript(file_type='ddl', quantity=quantity, basic_pl=basicPL)
+            migration.create_script(file_type='ddl', quantity=quantity, basic_pl=basic_pl)
         
         elif dml:
-             migration.createScript(file_type='dml', quantity=quantity, basic_pl=basicPL)
+            migration.create_script(file_type='dml', quantity=quantity, basic_pl=basic_pl)
 
         else:
-            print('comand not found')      
+            print('command not found')
 
     if action == "migrate":
         migration = Migrations()
 
         if dml:
             migration.migrate('dml')
-
-
-
+        elif errors:
+            print(migration.scripts_with_error())
 
 if __name__ == "__main__":
     sys.exit(main())
