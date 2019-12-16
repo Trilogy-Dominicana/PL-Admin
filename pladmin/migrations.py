@@ -6,9 +6,9 @@ from pladmin.files import Files
 
 class Migrations(Database, Files):
     __scripts_path = os.path.join('/scripts')
-    __ddl_path = os.path.join('/scripts/ddls%s' % datetime.now().strftime("/%Y/%m/%d"))
-    __dml_path = os.path.join('/scripts/dmls%s' % datetime.now().strftime("/%Y/%m/%d"))
-    __errors_scripts_path = os.path.join('/scripts/errors%s' % datetime.now().strftime("/%Y/%m/%d"))
+    __ddl_path = os.path.join('/scripts/ddl%s' % datetime.now().strftime("/%Y/%m/%d"))
+    __dml_path = os.path.join('/scripts/dml%s' % datetime.now().strftime("/%Y/%m/%d"))
+    __errors_scripts_path = os.path.join('/scripts/error%s' % datetime.now().strftime("/%Y/%m/%d"))
     __basic_pl_path = os.path.join('/plsqltest/basic.sql')
     __branch = None
 
@@ -25,7 +25,7 @@ class Migrations(Database, Files):
         if not os.path.exists(self.__errors_scripts_path):
             os.makedirs(self.__errors_scripts_path)
 
-    """ this function create files dmls and ddls """
+    """ this function create files dml and ddl """
     def create_script(self, file_type, quantity=1, basic_pl=False):
 
         path = self.__dml_path
