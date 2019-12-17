@@ -248,7 +248,7 @@ def main():
     if action == "migrate":
 
         if script:
-            migration.migrate(script)
+            print(migration.migrate(script))
 
         elif errors:
             print(Migrations.scripts_with_error('/%s' % errors))

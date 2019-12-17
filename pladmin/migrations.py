@@ -5,7 +5,6 @@ from pladmin.files import Files
 
 
 class Migrations(Database, Files):
-    __scripts_path = os.path.join('/scripts')
     __ddl_path = os.path.join('/scripts/ddl%s' % datetime.now().strftime("/%Y/%m/%d"))
     __dml_path = os.path.join('/scripts/dml%s' % datetime.now().strftime("/%Y/%m/%d"))
     __errors_scripts_path = os.path.join('/scripts/error%s' % datetime.now().strftime("/%Y/%m/%d"))
@@ -26,6 +25,7 @@ class Migrations(Database, Files):
             os.makedirs(self.__errors_scripts_path)
 
     """ this function create files dml and ddl """
+
     def create_script(self, file_type, quantity=1, basic_pl=False):
 
         path = self.__dml_path
@@ -55,12 +55,13 @@ class Migrations(Database, Files):
                 if basic_pl.upper() == 'Y':
                     self.__copy_content_file(files, self.__basic_pl_path)
 
-            print(files_creating)
+                print(file_name)
 
         except FileExistsError as e:
             print('file %s exist' % file_name)
 
     """ this function copy file content and paste in other file """
+
     @staticmethod
     def __copy_content_file(name_file_to_write, name_file_to_copy):
         try:
@@ -72,52 +73,87 @@ class Migrations(Database, Files):
             raise
 
     """ this function execute indicate scripts """
-    def migrate(self, type_files=None):
-        db = self.dbConnect()
-        cursor = db.cursor()
 
-        path_scripts = self.__dml_path
+    def migrate(self, type_files=None):
+    
+        path = self.__dml_path
 
         if type_files == 'ddl':
-            path_scripts = self.__ddl_path
+            path = self.__ddl_path
+            
+        if len (os.listdir(path)) == 0:
+            return 'No script to migrate'
+        
 
-        """ enable output to oracle scripts """
-        cursor.callproc("dbms_output.enable")
+        # print('test')
+        # print(len (os.listdir(path)))
+        # exit()
+        
+        for script in os.listdir(path):
+     
+            migration = os.path.join(path, script)
+            dataMigration = self.getScriptByName(script)
 
-        text_var = cursor.var(str)
-        status_var = cursor.var(int)
+            response = self.executeMigrateStatement(migrationFullPath=migration, 
+            migrationName=script,infoMigration=dataMigration,typeScript=type_files)
 
-        for script in os.listdir(path_scripts):
-            open_file = os.path.join(path_scripts, script)
+            print(response)
 
-            with open(open_file, 'r') as file:
-                """ read file and convert in string for run like script by cx_oracle """
-                data = file.read().replace('\n', ' ')
-                try:
-                    if data:
-                        cursor.execute(data)
+    def executeMigrateStatement(self, migrationFullPath, infoMigration, migrationName, typeScript):
+
+        try:
+            if not infoMigration or (infoMigration and infoMigration['status'] == 'ERR'):
+                db = self.dbConnect()
+                cursor = db.cursor()
+                
+                with open(migrationFullPath, 'r') as script_file:
+
+                    """ read file and convert in string for run like script by cx_oracle """
+                    execute_statement = script_file.read().replace('\n', ' ')
+
+                    cursor.callproc("dbms_output.enable")
+                    text_var = cursor.var(str)
+                    status_var = cursor.var(int)
+
+                    if execute_statement:
+                        cursor.execute(execute_statement)
                         """ get output in oracle script """
                         cursor.callproc("dbms_output.get_line", (text_var, status_var))
-                        if status_var.getvalue() != 0:
-                            break
-                        print (status_var.getvalue())
 
-                except cx_Oracle.DatabaseError as error:
-                    """ move script with errors to folder /scripts/errors/year/month/day """
-                    script_errors = os.path.join(self.__errors_scripts_path, script)
-                    os.rename(open_file, script_errors)
-                    print('error %s' % error)
+                        output = text_var.getvalue()
+                       
+                        if infoMigration and infoMigration['status'] == 'ERR':
+                            self.updateMigration(status='OK', output=output, scriptName=migrationName)
+                           
+                        elif not infoMigration:
+                            self.createMigration(scriptName=migrationName, status='OK',
+                                                 fullPath=migrationFullPath, typeScript=typeScript, output=output)
+                            
+                        return output
+        
+        
+            return 'Nothing to migrate'
 
-        self.scripts_with_error()
-        cursor.close()
+        except FileNotFoundError as error:
+            pass
 
-    """ get scripts with errors, find in directories by date """
+        except cx_Oracle.DatabaseError as error:
+
+            if infoMigration and infoMigration['status'] == 'ERR':
+                self.updateMigration(status='ERR', output=error, scriptName=migrationName)
+
+            elif not infoMigration:
+                self.createMigration(scriptName=migrationName, status='ERR',
+                                     fullPath=migrationFullPath, typeScript=typeScript, output=error)
+
+            return 'error %s in script %s'%(error, migrationName)
+
     @staticmethod
     def scripts_with_error(date=datetime.now().strftime("/%Y/%m/%d")):
+        """ get scripts with errors, find in directories by date """
         try:
             dir_find_errors = os.path.join('/scripts/errors%s' % date)
             scripts_with_errors = [errors for errors in os.listdir(dir_find_errors)]
             return 'scripts con errores %s' % len(scripts_with_errors)
         except FileNotFoundError as e:
             return 'los errores con la fecha indicada no existen'
-
