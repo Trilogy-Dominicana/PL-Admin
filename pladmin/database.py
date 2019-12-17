@@ -71,14 +71,17 @@ class Database:
         cursor = db.cursor()
 
         # Drop
-        data = cursor.execute("DROP TABLE %s.PLADMIN_METADATA" % self.user)
+        try:
+            cursor.execute("DROP TABLE %s.PLADMIN_METADATA" % self.user)
+        except:
+            pass
 
         sql = (
             """CREATE TABLE %s.PLADMIN_METADATA(
                     object_name varchar2(30) not null,
                     object_type varchar2(18) not null,
                     object_path varchar2(255) not null,
-                    last_commit varchar2(255) not null,
+                    last_commit varchar2(40) not null,
                     sync_date date not null,
                     last_ddl_time date not null,
                     primary key (object_name, object_type)
@@ -257,7 +260,6 @@ class Database:
 
         if localClose:
             db.commit()
-            print("Commit on compile invalids")
             db.close()
 
         return invalids
@@ -367,14 +369,15 @@ class Database:
         Params:
         ------
         status (string): Valid values [VALID, INVALID].
-        db (cx_Oracle) is an instance of cx_Oracle lib.
+        objectTypes (list): List of object type that you want [PACKAGE, FUNCTION, PROCEDURE]
+        withPath (Boolean): [True] if you want to include the path of the object
 
         return (dic) with all objects listed
         """
 
         types = "', '".join(self.types)
         if objectTypes:
-            types = "', '".join([objectTypes])
+            types = "', '".join(objectTypes)
 
         query = (
             """SELECT owner, object_id, object_name, object_type, status, last_ddl_time, created FROM dba_objects WHERE owner = '%s' AND object_type in ('%s')"""
@@ -389,6 +392,8 @@ class Database:
 
         # Return a dic with the data
         result = self.getData(query=query, fetchOne=fetchOne)
+        if fetchOne:
+            return result
 
         if len(result) and withPath:
             i = 0
@@ -452,6 +457,19 @@ class Database:
         )
 
         result = self.getData(sql)
+
+        return result
+
+    def getLastObjectsHash(self):
+        """ Get last database update """
+
+        sql = (
+            """SELECT * FROM (SELECT last_commit, last_ddl_time FROM %s.PLADMIN_METADATA ORDER BY LAST_DDL_TIME DESC)
+                WHERE rownum = 1"""
+            % self.user
+        )
+
+        result = self.getData(query=sql, fetchOne=True)
 
         return result
 
