@@ -191,7 +191,7 @@ def main():
             isObj = utils.getObjectDict(dbObjects, name, objectType)
 
             # Aquí debemos validar si el objecto en verdad tiene modificaciones, comparando el contenido del archivo la base de datos.
-            print(mObj)
+            # print(mObj)
             if isObj and not force:
                 objContend = db.getObjSource(name, objectType).encode('utf-8')
                 f = open(mObj, 'rb')
@@ -200,8 +200,8 @@ def main():
                 # print(hashlib.md5(objContend).hexdigest())
                 # print(hashlib.md5(fcontent).hexdigest())
                 # print(objContend)
-                f.close()
-                exit()
+                # f.close()
+                # exit()
 
                 # Read file and compered changes
                 print(mObj, 'DB modifications, Fail!')
