@@ -1,6 +1,6 @@
 import cx_Oracle, os, re, glob
 from pladmin.files import Files as files
-from datetime import datetime
+from datetime import datetime, date
 
 files = files()
 
@@ -736,3 +736,102 @@ class Database:
             text += res["text"]
 
         return text
+    
+    def createMetaTableScripts(self, db=None):
+        """
+        Create metadata to manage meta information
+        """
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+
+        cursor = db.cursor()
+
+        # Drop
+        data = cursor.execute("DROP TABLE %s.PLADMIN_MIGRATIONS" % self.user)
+
+        sql = (
+            """ CREATE TABLE %s.PLADMIN_MIGRATIONS (
+                id NUMBER GENERATED ALWAYS AS IDENTITY ( START WITH 1 INCREMENT BY 1 ) PRIMARY KEY,
+                script_name VARCHAR2(50) NOT NULL,
+                status VARCHAR(5), 
+                created_at timestamp DEFAULT SYSDATE,
+                execute_at timestamp,
+                CONSTRAINT script_name_unique unique (script_name)
+            )""" % self.user)
+
+        data = cursor.execute(sql)
+
+        if localClose:
+            db.close()
+
+        return data
+    
+    def createMigration(self, scriptName, fullPath, status, typeScript, output, db=None):
+ 
+         if not db:
+            db = self.dbConnect()
+            localClose = True
+      
+         cursor = db.cursor()
+
+         migration = self.getScriptByName(scriptName=scriptName)
+     
+         if not migration:
+
+             sql = (""" INSERT INTO %s.PLADMIN_MIGRATIONS(SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
+                      VALUES('%s', '%s', '%s', '%s', '%s') """) %(self.user, scriptName, status, fullPath, typeScript, output) 
+             data = cursor.execute(sql)
+
+         if localClose:
+             db.commit()
+             db.close()
+
+    def getScriptByName(self, scriptName):
+
+         sql = (
+             "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE script_name='%s' "
+             %(self.user, scriptName)
+         )
+         
+         data = self.getData(query=sql, fetchOne=True)
+         
+         return data
+    
+    def updateMigration(self, status, scriptName, output, db=None):
+
+         if not db:
+            db = self.dbConnect()
+            localClose = True
+      
+         cursor = db.cursor()
+
+         sql = (
+             """ UPDATE %s.PLADMIN_MIGRATIONS 
+                 SET status='%s', output='%s'
+                 WHERE script_name='%s' 
+             """
+         )%(self.user, status, output, scriptName)
+        
+         data = cursor.execute(sql)
+
+         if localClose:
+             db.commit()
+             db.close()
+
+        #  return data
+
+    def getScriptDB(self, typeScript):
+
+         sql = (
+             """ 
+              SELECT * FROM %s.PLADMIN_MIGRATIONS 
+              WHERE status = 'PEN'
+              AND type_script = '%s'
+              AND created_at >= TRUNC(SYSDATE)
+             """
+         )%(self.user, typeScript)
+         
+         data = self.getData(query=sql)
+
+         return data
