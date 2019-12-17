@@ -21,6 +21,7 @@ db = Database(displayInfo=True)
 files = Files(displayInfo=True)
 # utils = Utils()
 
+
 def watch(path_to_watch):
     """ Watch the provided path for changes in any of it's subdirectories """
 
@@ -52,13 +53,13 @@ def watch(path_to_watch):
 
         before = after
 
+
 def db2wc(dry_run, force):
     """ Check objects that has been changed in the database and export it to working copy (local git repository)"""
     if dry_run:
         utils.dryRun()
 
-    uncommitedChanges = files.localChanges()
-    if uncommitedChanges:
+    if files.localChanges():
         print(
             "WARNING! You have uncommitted changes, commit it to avoid loss information"
         )
@@ -87,7 +88,6 @@ def db2wc(dry_run, force):
             # <TODO:> Agregar a option para poder hacer merge del archivo
             if any(objectPath in s for s in fi) and not force:
                 print("%s has local changes, fail!" % objectPath)
-
                 continue
 
         if not dry_run:
@@ -110,7 +110,7 @@ def db2wc(dry_run, force):
 
         if not dry_run and os.path.exists(objPath):
             os.remove(objPath)
-            
+
             # If the file has been removed, drop it in the medatada table
             if not os.path.exists(objPath):
                 db.metadataDelete([dObj])
@@ -135,7 +135,7 @@ def main():
     force = args.force
     # print(vars(args))
 
-    # Create schema command
+    # Create schema
     if action == "newSchema":
         invalids = db.createSchema()
 
@@ -162,74 +162,58 @@ def main():
 
     if action == "db2wc":
         db2wc(dry_run, force)
-    
+
     # Push changes from local repository to db
     if action == "wc2db":
-        print("Getting updating schema with database chagnes")
-        db2wc(dry_run, force)
+        # Turn off bar loader
+        db.displayInfo = False
+        files.displayInfo = False
 
-        # first, we need to add new files that comming from pull or added directly
-        
-        # second, remove deleted files
+        if dry_run:
+            utils.dryRun()
 
-        # and then, validate 
-        
-        # Listing all objects on local repository
-        local = files.listAllObjectFullData()
+        # Get the last updated commit
+        lastCommit = db.getLastObjectsHash()
+        if lastCommit:
+            wcObjects = files.diffByHashWithStatus(lastCommit["last_commit"])
 
-        # List all objects into database
-        inDB = db.getObjects()
-    
-        for lc in local:
-            print(lc)
-            objectName = lc['object_name']
-            objectType = lc['object_type']
-            objectDdl = datetime.fromtimestamp(lc['last_ddl_time'])
+        # List object that could have changed
+        dbObjects = db.getObjectsDb2Wc()
 
-            dbobj = utils.getObjectDict(objects=inDB, name=objectName, type=objectType)
-            
+        objModified = wcObjects["modified"]
+        for mObj in objModified:
 
-            if not len(dbobj):
-                print('Objecto nuevo de cajeta')
+            name, ext = files.getFileName(mObj)
+            objectType = files.objectsTypes(inverted=True, objKey="." + ext)
+
+            # Verify if the object exist on db objects with modifications
+            isObj = utils.getObjectDict(dbObjects, name, objectType)
+
+            # aquí debemos validar si el objecto en verdad tiene modificaciones comparando el contenido del archivo la base de datos
+            # Puede que solo sea compilado y no se haya hecho el DB to WC
+            if isObj and not force:
+                # objContend = db.getObjSource(objectName, objectType)
+                # Read file and compered changes
+                print("Object has modifications on DB", mObj)
                 continue
 
-            dbTime = dbobj[0]['last_ddl_time']
-            # dbHash = dbobj[0]['last_commit']
-            
-            # "CUANDO SE CREA EL ESQUEMA SE DEBE ACTUALIZAR LA FECHA DE MODIFICACION DEL ARCHIVO QUE SE INSERTA EN METADA PARA PODER VALIDAR LOS ARCHIVOS QUE CAMBIAR EN LA COPIA DE TRABAJO"
-            if dbTime > objectDdl:
-                print("El objecto tiene cambios en la base de datos, usar --force")
+            # If evething ok, created or replace the object
+            print("Creating: ", mObj)
+            if not dry_run:
+                db.createReplaceObject([mObj])
+                # Update metadata table
+                objToUpdate = db.getObjects(
+                    objectTypes=[objectType], objectName=name, fetchOne=True
+                )
 
-            if objectDdl > dbTime:
-                print("REPLACE EXCUTED")
-                # print(dbHash)
+                objToUpdate.update(last_commit=files.head_commit, object_path=mObj)
+                updated = db.crateOrUpdateMetadata(objToUpdate)
 
-                # print(dbTime)
-                # print('\n')
-                # print(objectDdl)
-                
-            exit()
+        # ¿Que pasa si se hace un wc2db y no se le hace commit a esos cambios?
+        # print(wcObjects['modified'])
+        # print("\n DB objects with modifications", dbObjects)
 
-
-        # Get files has changed and are uncomited
-        localChanges = files.localChanges()
-
-        # Get changes comparing local branch with remote master branch
-        remoteChanges = files.remoteChanges()
-
-        # Remove duplicated key
-        changes = list(dict.fromkeys(localChanges + remoteChanges))
-
-        # Concat the path to each files
-        data = [files.pl_path + "/" + x for x in changes]
-
-        if data:
-            invalids = db.createReplaceObject(path=data)
-            # print(invalids)
-        # If some objects are invalids, try to compile again
-        # if len(invalids):
-        db.compileObjects()
-
+        exit()
         # TODO List file removed and drop it from database
 
     if action == "createMetadata":
