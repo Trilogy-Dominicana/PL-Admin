@@ -1,6 +1,6 @@
 #!/usr/local/bin/python
 from __future__ import absolute_import
-import sys, getopt, json, os, argparse, time
+import sys, getopt, json, os, argparse, time, hashlib
 
 from datetime import datetime
 from pladmin.database import Database
@@ -63,7 +63,6 @@ def db2wc(dry_run, force):
         print(
             "WARNING! You have uncommitted changes, commit it to avoid loss information"
         )
-        # exit()
     deletedObjs = db.getDeletedObjects()
 
     # List all object with diferences
@@ -72,8 +71,11 @@ def db2wc(dry_run, force):
     # List new objects
     newObjects = db.getNewObjects()
 
+    # Concat all objects
+    allObjects = newObjects + dbObject
+
     # Check if object has change after commit store on the db
-    for obj in newObjects + dbObject:
+    for obj in allObjects:
         lastCommit = obj["last_commit"]
         objectPath = obj["object_path"]
         objectName = obj["object_name"]
@@ -84,8 +86,8 @@ def db2wc(dry_run, force):
         if lastCommit:
             fi = files.diffByHash(lastCommit, True)
 
-            # If the object has chadnges, do not export it
             # <TODO:> Agregar a option para poder hacer merge del archivo
+            # If the object has chadnges, do not export it
             if any(objectPath in s for s in fi) and not force:
                 print("%s has local changes, fail!" % objectPath)
                 continue
@@ -166,8 +168,7 @@ def main():
     # Push changes from local repository to db
     if action == "wc2db":
         # Turn off bar loader
-        db.displayInfo = False
-        files.displayInfo = False
+        db = Database(displayInfo=False)
 
         if dry_run:
             utils.dryRun()
@@ -186,18 +187,27 @@ def main():
             name, ext = files.getFileName(mObj)
             objectType = files.objectsTypes(inverted=True, objKey="." + ext)
 
-            # Verify if the object exist on db objects with modifications
+            # Verify was modified on the db
             isObj = utils.getObjectDict(dbObjects, name, objectType)
 
-            # aquí debemos validar si el objecto en verdad tiene modificaciones comparando el contenido del archivo la base de datos
-            # Puede que solo sea compilado y no se haya hecho el DB to WC
+            # Aquí debemos validar si el objecto en verdad tiene modificaciones, comparando el contenido del archivo la base de datos.
+            print(mObj)
             if isObj and not force:
-                # objContend = db.getObjSource(objectName, objectType)
+                objContend = db.getObjSource(name, objectType).encode('utf-8')
+                f = open(mObj, 'rb')
+                fcontent = f.read()
+                
+                # print(hashlib.md5(objContend).hexdigest())
+                # print(hashlib.md5(fcontent).hexdigest())
+                # print(objContend)
+                f.close()
+                exit()
+
                 # Read file and compered changes
-                print("Object has modifications on DB", mObj)
+                print(mObj, 'DB modifications, Fail!')
                 continue
 
-            # If evething ok, created or replace the object
+            # If everything ok, created or replace the object
             print("Creating: ", mObj)
             if not dry_run:
                 db.createReplaceObject([mObj])
@@ -210,10 +220,6 @@ def main():
                 updated = db.crateOrUpdateMetadata(objToUpdate)
 
         # ¿Que pasa si se hace un wc2db y no se le hace commit a esos cambios?
-        # print(wcObjects['modified'])
-        # print("\n DB objects with modifications", dbObjects)
-
-        exit()
         # TODO List file removed and drop it from database
 
     if action == "createMetadata":

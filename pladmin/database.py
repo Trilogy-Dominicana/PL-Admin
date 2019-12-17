@@ -24,7 +24,7 @@ class Database:
         self.extentions = files.objectsTypes().values()
 
         self.displayInfo = displayInfo
-        files.displayInfo = displayInfo
+        files.displayInfo = self.displayInfo
 
     def createSchema(self):
         # To create users, give permission, etc. We need to connect with admin user using param sysDBA
