@@ -104,7 +104,7 @@ def db2wc(dry_run, force):
         if not lastCommit and not objectPath:
             print("%s %s Added" % (objectType, objectName))
         else:
-            print("%s exported successfully!" % objectPath)
+            print("%s Created successfully!" % objectPath)
 
     # Remove deleted objects
     for dObj in deletedObjs:
@@ -159,8 +159,8 @@ def main():
 
     if action == "updateSchema":
         """ Override complete schema """
-        objs = files.listAllObjsFiles()
-        db.createReplaceObject(objs)
+        # objs = files.listAllObjsFiles()
+        # db.createReplaceObject(objs)
 
     if action == "db2wc":
         db2wc(dry_run, force)
@@ -208,7 +208,7 @@ def main():
                 continue
 
             # If everything ok, created or replace the object
-            print("Creating: ", mObj)
+            print(mObj, "Exported successfully!")
             if not dry_run:
                 db.createReplaceObject([mObj])
                 # Update metadata table
