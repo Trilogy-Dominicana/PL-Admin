@@ -243,7 +243,8 @@ def main():
         db.metadataInsert(data)
 
     if action == "make":
-        migration.create_script(file_type=script, quantity=quantity, basic_pl=basic_pl)
+        mg = migration.create_script(file_type=script, quantity=quantity, basic_pl=basic_pl)
+        print(mg)
 
     if action == "migrate":
 

@@ -748,7 +748,7 @@ class Database:
         cursor = db.cursor()
 
         # Drop
-        data = cursor.execute("DROP TABLE %s.PLADMIN_MIGRATIONS" % self.user)
+        # data = cursor.execute("DROP TABLE %s.PLADMIN_MIGRATIONS" % self.user)
 
         sql = (
             """ CREATE TABLE %s.PLADMIN_MIGRATIONS (
@@ -757,6 +757,7 @@ class Database:
                 status VARCHAR(5), 
                 created_at timestamp DEFAULT SYSDATE,
                 execute_at timestamp,
+                output VARCHAR2(4000),
                 CONSTRAINT script_name_unique unique (script_name)
             )""" % self.user)
 
@@ -774,6 +775,7 @@ class Database:
             localClose = True
       
          cursor = db.cursor()
+        #  self.createMetaTableScripts()
 
          migration = self.getScriptByName(scriptName=scriptName)
      
@@ -788,6 +790,7 @@ class Database:
              db.close()
 
     def getScriptByName(self, scriptName):
+        #  self.createMetaTableScripts()
 
          sql = (
              "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE script_name='%s' "
