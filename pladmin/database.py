@@ -160,8 +160,8 @@ class Database:
         cursor = db.cursor()
 
         for obj in data:
-
-            if len(obj["object_path"]):
+            objectPath = ""
+            if "object_path" in obj:
                 objectPath = "OBJECT_PATH= '%s', " % obj["object_path"]
 
             sql = """UPDATE %s.PLADMIN_METADATA SET %s LAST_COMMIT='%s', SYNC_DATE=SYSDATE, LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
@@ -175,7 +175,7 @@ class Database:
             )
             cursor.execute(sql)
 
-        cursor.close()
+        # cursor.close()
         if localClose:
             db.commit()
             db.close()
@@ -253,6 +253,11 @@ class Database:
                 )
 
             cursor.execute(sql)
+
+            # Update metadata table
+            objToUpdate = self.getObjects(objectTypes=[obj["object_type"]], objectName=obj["object_name"], fetchOne=True)
+            objToUpdate.update(last_commit=files.head_commit)
+            self.metadataUpdate(data=[objToUpdate], db=db)
 
         if objLen != self.lastIntends:
             self.lastIntends = objLen
