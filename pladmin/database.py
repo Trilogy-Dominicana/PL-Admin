@@ -38,6 +38,9 @@ class Database:
             originSchema=self.db_main_schema, detinationSchema=self.user, db=db
         )
 
+        # Create table of migrations
+        self.createMetaTableScripts()
+
         # Create synonyms
         self.createSynonyms(
             originSchema=self.db_main_schema, detinationSchema=self.user, db=db,
@@ -741,6 +744,8 @@ class Database:
         """
         Create metadata to manage meta information
         """
+        localClose = False
+        
         if not db:
             db = self.dbConnect()
             localClose = True
@@ -752,12 +757,13 @@ class Database:
 
         sql = (
             """ CREATE TABLE %s.PLADMIN_MIGRATIONS (
-                id NUMBER GENERATED ALWAYS AS IDENTITY ( START WITH 1 INCREMENT BY 1 ) PRIMARY KEY,
-                script_name VARCHAR2(50) NOT NULL,
-                status VARCHAR(5), 
-                created_at timestamp DEFAULT SYSDATE,
-                execute_at timestamp,
-                output VARCHAR2(4000),
+                ID NUMBER GENERATED ALWAYS AS IDENTITY ( START WITH 1 INCREMENT BY 1 ) PRIMARY KEY,
+                SCRIPT_NAME VARCHAR2(50) NOT NULL,
+                STATUS VARCHAR(5), 
+                CREATED_AT timestamp DEFAULT SYSDATE,
+                FULL_PATH VARCHAR2(250),
+                TYPE_SCRIPT VARCHAR2(6),
+                OUTPUT VARCHAR2(4000),
                 CONSTRAINT script_name_unique unique (script_name)
             )""" % self.user)
 
@@ -769,20 +775,26 @@ class Database:
         return data
     
     def createMigration(self, scriptName, fullPath, status, typeScript, output, db=None):
- 
+         
+         localClose = False
+
          if not db:
             db = self.dbConnect()
             localClose = True
       
          cursor = db.cursor()
-        #  self.createMetaTableScripts()
+        
 
          migration = self.getScriptByName(scriptName=scriptName)
      
          if not migration:
 
-             sql = (""" INSERT INTO %s.PLADMIN_MIGRATIONS(SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
-                      VALUES('%s', '%s', '%s', '%s', '%s') """) %(self.user, scriptName, status, fullPath, typeScript, output) 
+             sql = ( """ 
+                      INSERT INTO %s.PLADMIN_MIGRATIONS (SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
+                      VALUES('%s', '%s', '%s', '%s', '%s')
+                     
+                      """
+                    ) % (self.user, scriptName, status, fullPath, typeScript, output) 
              data = cursor.execute(sql)
 
          if localClose:
@@ -790,8 +802,6 @@ class Database:
              db.close()
 
     def getScriptByName(self, scriptName):
-        #  self.createMetaTableScripts()
-
          sql = (
              "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE script_name='%s' "
              %(self.user, scriptName)
@@ -802,7 +812,9 @@ class Database:
          return data
     
     def updateMigration(self, status, scriptName, output, db=None):
-
+       
+         localClose = False 
+        
          if not db:
             db = self.dbConnect()
             localClose = True
@@ -824,16 +836,19 @@ class Database:
 
         #  return data
 
-    def getScriptDB(self, typeScript):
+    def getScriptDB(self, status='OK', date=None):
 
+         if not date:
+             date = datetime.now().strftime("%Y%m%d")
+            
          sql = (
-             """ 
-              SELECT * FROM %s.PLADMIN_MIGRATIONS 
-              WHERE status = 'PEN'
-              AND type_script = '%s'
-              AND created_at >= TRUNC(SYSDATE)
-             """
-         )%(self.user, typeScript)
+              
+               """ SELECT * FROM %s.PLADMIN_MIGRATIONS 
+                   WHERE status = '%s'
+                   AND created_at >= TO_DATE ('%s', 'YYYYMMDD') 
+               """
+              
+              )%(self.user, status, date)
          
          data = self.getData(query=sql)
 
