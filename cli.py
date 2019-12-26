@@ -148,19 +148,12 @@ def main():
         else:
             print("Schema created successfully!")
 
-    if action == "compileInvalids":
+    if action == "compile":
         # Try to compile invalid objects
+        db = Database(displayInfo=True)
         result = db.compileObjects()
 
         print(result)
-
-    if action == "watch":
-        watch(files.pl_path)
-
-    if action == "updateSchema":
-        """ Override complete schema """
-        # objs = files.listAllObjsFiles()
-        # db.createReplaceObject(objs)
 
     if action == "db2wc":
         db2wc(dry_run, force)
@@ -193,10 +186,10 @@ def main():
             # Aquí debemos validar si el objecto en verdad tiene modificaciones, comparando el contenido del archivo la base de datos.
             # print(mObj)
             if isObj and not force:
-                objContend = db.getObjSource(name, objectType).encode('utf-8')
-                f = open(mObj, 'rb')
+                objContend = db.getObjSource(name, objectType).encode("utf-8")
+                f = open(mObj, "rb")
                 fcontent = f.read()
-                
+
                 # print(hashlib.md5(objContend).hexdigest())
                 # print(hashlib.md5(fcontent).hexdigest())
                 # print(objContend)
@@ -204,7 +197,7 @@ def main():
                 # exit()
 
                 # Read file and compered changes
-                print(mObj, 'DB modifications, Fail!')
+                print(mObj, "DB modifications, Fail!")
                 continue
 
             # If everything ok, created or replace the object
@@ -222,13 +215,8 @@ def main():
         # ¿Que pasa si se hace un wc2db y no se le hace commit a esos cambios?
         # TODO List file removed and drop it from database
 
-    if action == "createMetadata":
-
-        # print(files.files_to_timestamp())
-        # Getting up object type, if it's package, package body, view, procedure, etc.
-        db.createMetaTable()
-        data = db.getObjects(withPath=True)
-        db.metadataInsert(data)
+    if action == "watch":
+        watch(files.pl_path)
 
 
 if __name__ == "__main__":
