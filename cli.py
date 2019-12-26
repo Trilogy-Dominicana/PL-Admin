@@ -63,7 +63,6 @@ def main():
         usage="%(prog)s [action] options",
         description="Process some integers.",
     )
-
     parser.add_argument("action", action="store", help="Push the method name")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true")
@@ -252,7 +251,7 @@ def main():
             print(migration.migrate(script))
 
         elif errors:
-            print(Migrations.scripts_with_error('/%s' % errors))
+            print(migration.scripts_with_error(date=errors))
 
 
 if __name__ == "__main__":

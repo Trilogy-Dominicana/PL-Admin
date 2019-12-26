@@ -5,18 +5,29 @@ from pladmin.files import Files
 
 
 class Migrations(Database, Files):
-    __ddl_path = os.path.join('/scripts/ddl')
-    __dml_path = os.path.join('/scripts/dml')
-    __execute_scripts = os.path.join('/scripts/execute/%s' % datetime.now().strftime("/%Y/%m/%d"))
-    __errors_scripts_path = os.path.join('/scripts/error%s' % datetime.now().strftime("/%Y/%m/%d"))
-    __basic_pl_path = os.path.join('/plsqltest/basic.sql')
-    __branch = None
+
+    __ddl_path         = None
+    __dml_path         = None
+    __execute_scripts  = None
+    __errors_scripts   = None 
+    __basic_pl_path    = None
+    __branch           = None
+    __created          = None 
+    __to_day           = None
+     
 
     def __init__(self):
 
         self.repo = git.Repo(self.pl_path)
         self.__branch = self.repo.active_branch
-        
+
+        self.__created = datetime.now().strftime("/%Y/%m/%d")
+        self.__to_day  = datetime.now().strftime("%Y%m%d")
+        self.__execute_scripts = os.path.join('/scripts/execute%s' % self.__created)
+        self.__errors_scripts  = os.path.join('/scripts/error%s' % self.__created) 
+        self.__ddl_path = os.path.join('/scripts/ddl')
+        self.__dml_path = os.path.join('/scripts/dml')
+
         self.__createScriptsDir()
         
     def create_script(self, file_type, quantity=1, basic_pl=False):
@@ -62,8 +73,8 @@ class Migrations(Database, Files):
         if not os.path.exists(self.__dml_path):
             os.makedirs(self.__dml_path)
 
-        if not os.path.exists(self.__errors_scripts_path):
-            os.makedirs(self.__errors_scripts_path)
+        if not os.path.exists(self.__errors_scripts):
+            os.makedirs(self.__errors_scripts)
         
         if not os.path.exists(self.__execute_scripts):
             os.makedirs(self.__execute_scripts)
@@ -81,7 +92,7 @@ class Migrations(Database, Files):
 
     """ this function execute indicate scripts """
     def migrate(self, type_files=None):
-    
+        data = []
         path = self.__dml_path
 
         if type_files == 'ddl':
@@ -95,12 +106,15 @@ class Migrations(Database, Files):
             migration = os.path.join(path, script)
             dataMigration = self.getScriptByName(script)
 
-            response = self.execute_migrate(migrationFullPath=migration, 
+            response = self.__execute_migrate(migrationFullPath=migration, 
             migrationName=script,infoMigration=dataMigration,typeScript=type_files)
+            
+            data.append(response)
+        
+        return data
+        # print(self.scripts_with_error(date=self.__to_day))
 
-            print(response)
-
-    def execute_migrate(self, migrationFullPath, infoMigration, migrationName, typeScript):
+    def __execute_migrate(self, migrationFullPath, infoMigration, migrationName, typeScript):
 
         try:
             if not infoMigration or (infoMigration and infoMigration['status'] == 'ERR'):
@@ -128,12 +142,16 @@ class Migrations(Database, Files):
                            
                         elif not infoMigration:
                             self.createMigration(scriptName=migrationName, status='OK',
-                                                 fullPath=migrationFullPath, typeScript=typeScript, output=output, db=db)
-                            
+                            fullPath=migrationFullPath, typeScript=typeScript, output=output, db=db)
+                        
+                        ## moving file to execute path
+                        os.rename(migrationFullPath, os.path.join(self.__execute_scripts, migrationName))
+
                         return output
 
                     else:
                         return 'Nothing to migrate'
+                    
 
         except FileNotFoundError as error:
             return error
@@ -149,12 +167,6 @@ class Migrations(Database, Files):
 
             return 'error %s in script %s'%(error, migrationName)
 
-    @staticmethod
-    def scripts_with_error(date=datetime.now().strftime("/%Y/%m/%d")):
+    def scripts_with_error(self, date=''):
         """ get scripts with errors, find in directories by date """
-        try:
-            dir_find_errors = os.path.join('/scripts/errors%s' % date)
-            scripts_with_errors = [errors for errors in os.listdir(dir_find_errors)]
-            return 'scripts con errores %s' % len(scripts_with_errors)
-        except FileNotFoundError as e:
-            return 'los errores con la fecha indicada no existen'
+        return self.getScriptDB(status='ERR',date=date)
