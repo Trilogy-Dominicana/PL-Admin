@@ -54,61 +54,47 @@ alias plqmin="docker container exec -ti pl-admin pladmin"
 docker-compose up -d --build
 ```
 
-
 ### SYNOPSIS
 pladmin [`command`] [`options`]
 - wc2db [--dry-run, --force]
 - db2wc [--dry-run, --force, --merge]
 - newSchema
-- updateSchema
 - watch
 - compileSchema
 - errors
 
 
 ### ESSENTIAL COMMANDS
-`newSchema`: Create new schema from taking values from env vars
+`newSchema`: Create new schema taking values from env vars
 ```sh
 pladmin newSchema
 ```
 
-wc2db: Compare differences between local respository takes the objects with diffrences and push into the database
+wc2db: compare the differences between the last synchronized commit and the local repository and take those changes to the database
 - --dry-run: Show what would be removed, created, but do not actually remove anything
-- --force: Will no do any validation
+- --force: Will no do any validation to export the objects.
 ```sh
 # usage
 pladmin wc2db [options]
 ```
 
-db2wc: Compare differences between local respository, takes the objects with diffrences and then export it to local repo.
+db2wc: Look for objects that has been changed on the database and then export it to local repo.
 > - --dry-run: Show what would be exported but do not actually do anything.
-> - --force: Will no do any validation
+> - --force: Will no do any validation to export the objects.
 > - --merge: Merge the object that you are exporting with the local file. 
 ```sh
 # usage
 pladmin wc2db [options]
 ```
 
-
-
-
-`Update Schema`: This command compare the changes between master remote branch and current files chaange on your local working directory and replace it in you current schema
+`compile`: Look for invalid packages and try to compile it.
 ```sh
 # Inside of container 
-pladmin updateSchema
+pladmin compile
 ```
 
-
-`Watcher`: Take the changes to the database in real time.
+`watch`: Take the changes to the database in real time.
 ```sh
 # Inside of container 
 pladmin watch
 ```
-
-
-`Compile Invalids`: Look for invalid packages and try to compile it. 
-```sh
-# Inside of container 
-pladmin compileInvalids
-```
-
