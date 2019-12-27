@@ -116,8 +116,11 @@ class Migrations(Database, Files):
 
     def __execute_migrate(self, migrationFullPath, infoMigration, migrationName, typeScript):
 
+        """ this function execute all instruccion sql in indicate file
+            and create records with file execute
+        """
         try:
-            if not infoMigration or (infoMigration and infoMigration['status'] == 'ERR'):
+            if not infoMigration
                 db = self.dbConnect()
                 cursor = db.cursor()
                 
@@ -133,39 +136,40 @@ class Migrations(Database, Files):
                     if execute_statement:
                         cursor.execute(execute_statement)
                         """ get output in oracle script """
-                        cursor.callproc("dbms_output.get_line", (text_var, status_var))
+                        
+                        while True:
+                            cursor.callproc("dbms_output.get_line", (text_var, status_var))
+                            # output = text_var.getvalue()
 
-                        output = text_var.getvalue()
+                            if status_var.getvalue != 0:
+                                break
+                            print(text_var.getValue())
                        
-                        if infoMigration and infoMigration['status'] == 'ERR':
-                            self.updateMigration(status='OK', output=output, scriptName=migrationName, db=db)
-                           
-                        elif not infoMigration:
-                            self.createMigration(scriptName=migrationName, status='OK',
-                            fullPath=migrationFullPath, typeScript=typeScript, output=output, db=db)
+                      
+                        self.createMigration(scriptName=migrationName, status='OK',
+                        fullPath=migrationFullPath, typeScript=typeScript, output=output, db=db)
                         
                         ## moving file to execute path
                         os.rename(migrationFullPath, os.path.join(self.__execute_scripts, migrationName))
 
                         return output
-
+        
                     else:
+                        ## removing blank files to clean directory
+                        os.remove(migrationFullPath)
                         return 'Nothing to migrate'
                     
-
-        except FileNotFoundError as error:
-            return error
-
-        except cx_Oracle.DatabaseError as error:
-
-            if infoMigration and infoMigration['status'] == 'ERR':
-                self.updateMigration(status='ERR', output=error, scriptName=migrationName)
-
-            elif not infoMigration:
-                self.createMigration(scriptName=migrationName, status='ERR',
-                                     fullPath=migrationFullPath, typeScript=typeScript, output=error)
+        except Exception as error:
 
             return 'error %s in script %s'%(error, migrationName)
+
+            # if infoMigration and infoMigration['status'] == 'ERR':
+            #     self.updateMigration(status='ERR', output=error, scriptName=migrationName)
+
+            # elif not infoMigration:
+            #     self.createMigration(scriptName=migrationName, status='ERR',
+            #                          fullPath=migrationFullPath, typeScript=typeScript, output=error)
+
 
     def scripts_with_error(self, date=''):
         """ get scripts with errors, find in directories by date """
