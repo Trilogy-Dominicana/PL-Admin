@@ -24,7 +24,7 @@ class Database:
         self.extentions = files.objectsTypes().values()
 
         self.displayInfo = displayInfo
-        files.displayInfo = displayInfo
+        files.displayInfo = self.displayInfo
 
     def createSchema(self):
         # To create users, give permission, etc. We need to connect with admin user using param sysDBA
@@ -74,14 +74,17 @@ class Database:
         cursor = db.cursor()
 
         # Drop
-        data = cursor.execute("DROP TABLE %s.PLADMIN_METADATA" % self.user)
+        try:
+            cursor.execute("DROP TABLE %s.PLADMIN_METADATA" % self.user)
+        except:
+            pass
 
         sql = (
             """CREATE TABLE %s.PLADMIN_METADATA(
                     object_name varchar2(30) not null,
                     object_type varchar2(18) not null,
                     object_path varchar2(255) not null,
-                    last_commit varchar2(255) not null,
+                    last_commit varchar2(40) not null,
                     sync_date date not null,
                     last_ddl_time date not null,
                     primary key (object_name, object_type)
@@ -160,8 +163,8 @@ class Database:
         cursor = db.cursor()
 
         for obj in data:
-
-            if len(obj["object_path"]):
+            objectPath = ""
+            if "object_path" in obj:
                 objectPath = "OBJECT_PATH= '%s', " % obj["object_path"]
 
             sql = """UPDATE %s.PLADMIN_METADATA SET %s LAST_COMMIT='%s', SYNC_DATE=SYSDATE, LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
@@ -175,7 +178,7 @@ class Database:
             )
             cursor.execute(sql)
 
-        cursor.close()
+        # cursor.close()
         if localClose:
             db.commit()
             db.close()
@@ -254,13 +257,17 @@ class Database:
 
             cursor.execute(sql)
 
+            # Update metadata table
+            objToUpdate = self.getObjects(objectTypes=[obj["object_type"]], objectName=obj["object_name"], fetchOne=True)
+            objToUpdate.update(last_commit=files.head_commit)
+            self.metadataUpdate(data=[objToUpdate], db=db)
+
         if objLen != self.lastIntends:
             self.lastIntends = objLen
             self.compileObjects(db=db)
 
         if localClose:
             db.commit()
-            print("Commit on compile invalids")
             db.close()
 
         return invalids
@@ -370,14 +377,15 @@ class Database:
         Params:
         ------
         status (string): Valid values [VALID, INVALID].
-        db (cx_Oracle) is an instance of cx_Oracle lib.
+        objectTypes (list): List of object type that you want [PACKAGE, FUNCTION, PROCEDURE]
+        withPath (Boolean): [True] if you want to include the path of the object
 
         return (dic) with all objects listed
         """
 
         types = "', '".join(self.types)
         if objectTypes:
-            types = "', '".join([objectTypes])
+            types = "', '".join(objectTypes)
 
         query = (
             """SELECT owner, object_id, object_name, object_type, status, last_ddl_time, created FROM dba_objects WHERE owner = '%s' AND object_type in ('%s')"""
@@ -392,6 +400,8 @@ class Database:
 
         # Return a dic with the data
         result = self.getData(query=query, fetchOne=fetchOne)
+        if fetchOne:
+            return result
 
         if len(result) and withPath:
             i = 0
@@ -455,6 +465,19 @@ class Database:
         )
 
         result = self.getData(sql)
+
+        return result
+
+    def getLastObjectsHash(self):
+        """ Get last database update """
+
+        sql = (
+            """SELECT * FROM (SELECT last_commit, last_ddl_time FROM %s.PLADMIN_METADATA ORDER BY LAST_DDL_TIME DESC)
+                WHERE rownum = 1"""
+            % self.user
+        )
+
+        result = self.getData(query=sql, fetchOne=True)
 
         return result
 
