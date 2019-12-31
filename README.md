@@ -71,8 +71,8 @@ pladmin newSchema
 ```
 
 wc2db: compare the differences between the last synchronized commit and the local repository and take those changes to the database
-- --dry-run: Show what would be removed, created, but do not actually remove anything
-- --force: Will no do any validation to export the objects.
+> - --dry-run: Show what would be removed, created, but do not actually remove anything
+> - --force: Will no do any validation to export the objects.
 ```sh
 # usage
 pladmin wc2db [options]
