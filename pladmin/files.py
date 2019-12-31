@@ -10,7 +10,7 @@ class Files:
 
         # Initialize git repo
         self.repo = git.Repo(self.pl_path)
-        self.head_commit = str(self.repo.head.commit)[:8]
+        self.head_commit = str(self.repo.head.commit)[:7]
 
         # Create dir and initialize dir types
         self.createDirs()
@@ -47,7 +47,7 @@ class Files:
         return diff.split("\n")
 
     def diffByHash(self, objHash, absolutePath=False):
-        # """ Get files changes comparing actual branch with actual changes and the last commit """
+        """ Get files changes comparing actual branch with actual changes and the last commit """
         repo = self.repo
         diff = repo.git.diff("--name-only", objHash)
 
@@ -59,18 +59,37 @@ class Files:
 
         return data
 
-    def test(self):
+    def diffByHashWithStatus(self, objHash):
         """ Get files changes comparing actual branch with actual changes and the last commit """
-        data = []
         repo = self.repo
-        # diff = repo.index.diff('HEAD')
-        # diff = repo.untracked_files
-        repo.get_status()
+        data = dict()
+        modified = []
+        deleted = []
+        added = []
 
-        # for item in diff:
-        #     data.append(item)
+        diff = repo.git.diff("--name-status", objHash)
+        lines = diff.splitlines()
 
-        return diff
+        for l in lines:
+            info = l.split('\t')
+            status = info[0]
+            path = os.path.join(self.pl_path, info[1])
+
+            if status == 'M':
+                modified.append(path)
+
+            if status == 'D':
+                deleted.append(path)
+            
+            if status == 'A':
+                added.append(path)
+
+        data['modified'] = modified
+        data['deleted'] = deleted
+        data['added'] = added 
+        data['untraked'] = [os.path.join(self.pl_path, s) for s in repo.untracked_files]
+
+        return data
 
     def remoteChanges(self):
         data = []
