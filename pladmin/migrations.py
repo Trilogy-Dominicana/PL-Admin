@@ -61,6 +61,7 @@ class Migrations(Database, Files):
             return 'file %s exist' % file_name
     
     def __createScriptsDir(self):
+        
         if not os.path.exists(self.__ds_path):
             os.makedirs(self.__ds_path)
 
@@ -103,6 +104,9 @@ class Migrations(Database, Files):
         for script in os.listdir(path):
             migration = os.path.join(path, script)
             dataMigration = self.getScriptByName(script)
+            
+            if dataMigration:
+                return 'this script has already been executed'
 
             response = self.__execute_migrate(migrationFullPath=migration, 
             migrationName=script,infoMigration=dataMigration,typeScript=type_files)
@@ -118,35 +122,40 @@ class Migrations(Database, Files):
             if not data['infoMigration']:
                 db = self.dbConnect()
                 cursor = db.cursor()
+                output = []
                 
                 with open(data['migrationFullPath'], 'r') as script_file:
-
                     """ read file and convert in string for run like script by cx_oracle """
                     execute_statement = script_file.read()
-         
-                    cursor.callproc("dbms_output.enable")
-                    text_var = cursor.var(str)
-                    status_var = cursor.var(int)
 
                     if execute_statement:
+                        # enable DBMS_OUTPUT
+                        cursor.callproc("dbms_output.enable")
                         cursor.execute(execute_statement)
-                        
+                       
+                       # perform loop to fetch the text that was added by PL/SQL
+                        textVar = cursor.var(str)
+                        statusVar = cursor.var(int)
+                            
                         while True:
                             # get output in oracle script
-                            cursor.callproc("dbms_output.get_line", (text_var, status_var))
-                            output = text_var.getvalue()
-
-                            if status_var.getvalue != 0:
+                            cursor.callproc("dbms_output.get_line", (textVar, statusVar))
+                            if statusVar.getvalue() != 0:
                                 break
-                            print(text_var.getValue())
-                       
+                            output.append(textVar.getvalue())
+                        
+                        dbms_output = ' '.join(output)
+
                         self.createMigration(scriptName=data['migrationName'], status='OK',
-                        fullPath=data['migrationFullPath'], typeScript=data['typeScript'], output=output, db=db)
+                        fullPath=data['migrationFullPath'], typeScript=data['typeScript'], 
+                        output=dbms_output)
                         
                         ## moving file to execute path
                         os.rename(data['migrationFullPath'], os.path.join(self.__execute_scripts, data['migrationName']))
-
-                        return output
+                        
+                        # disabled oracle DBMS_OUTPUT
+                        cursor.callproc("dbms_output.disable")
+                        return dbms_output
         
                     else:
                         ## removing blank files to clean directory
