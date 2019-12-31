@@ -1,5 +1,5 @@
 import os, cx_Oracle, git
-from datetime import datetime
+from datetime import datetime, date
 from pladmin.database import Database
 from pladmin.files import Files
 
@@ -16,17 +16,18 @@ class Migrations(Database, Files):
     __to_day           = None
      
 
-    def __init__(self):
+    def __init__(self, schedule):
 
         self.repo = git.Repo(self.pl_path)
         self.__branch = self.repo.active_branch
 
-        self.__created = datetime.now().strftime("/%Y/%m/%d")
+        self.__created = schedule
+
         self.__to_day  = datetime.now().strftime("%Y%m%d")
         self.__execute_scripts = os.path.join('/scripts/execute%s' % self.__created)
         self.__errors_scripts  = os.path.join('/scripts/error%s' % self.__created) 
-        self.__ddl_path = os.path.join('/scripts/ddl')
-        self.__dml_path = os.path.join('/scripts/dml')
+        self.__ddl_path = os.path.join('/scripts/ddl%s' % self.__created)
+        self.__dml_path = os.path.join('/scripts/dml%s' % self.__created)
 
         self.__createScriptsDir()
         
@@ -66,6 +67,23 @@ class Migrations(Database, Files):
             print('file %s exist' % file_name)
     
     def __createScriptsDir(self):
+
+        year  = self.__created[:4]
+        month = self.__created[4:6]
+        day   = self.__created[6::]
+
+        # # valid_date = datetime.date(year=year, month=month, day=day)
+        # print(datetime.now(year=year, month=month, day=day))
+        # exit()
+
+        if not  self.__created > datetime.now().strftime("%Y%m%d"):
+            print('La fecha de programacion debe ser mayor o igual al dia de hoy')
+            return False
+
+        is_valid_schedule = re.search(r"^[/](\d{4}[/\/-]\d{2}[/\/-]\d{2})|(\d{8,8})$", schedule)
+
+        if not is_valid_schedule:
+            return 'Not a valid date'
 
         if not os.path.exists(self.__ddl_path):
             os.makedirs(self.__ddl_path)
@@ -114,17 +132,15 @@ class Migrations(Database, Files):
         return data
         # print(self.scripts_with_error(date=self.__to_day))
 
-    def __execute_migrate(self, migrationFullPath, infoMigration, migrationName, typeScript):
-
+    def __execute_migrate(self, **data):
         """ this function execute all instruccion sql in indicate file
-            and create records with file execute
-        """
+            and create records with file execute """
         try:
-            if not infoMigration
+            if not data['infoMigration']:
                 db = self.dbConnect()
                 cursor = db.cursor()
                 
-                with open(migrationFullPath, 'r') as script_file:
+                with open(data['migrationFullPath'], 'r') as script_file:
 
                     """ read file and convert in string for run like script by cx_oracle """
                     execute_statement = script_file.read()
@@ -139,38 +155,30 @@ class Migrations(Database, Files):
                         
                         while True:
                             cursor.callproc("dbms_output.get_line", (text_var, status_var))
-                            # output = text_var.getvalue()
+                            output = text_var.getvalue()
 
                             if status_var.getvalue != 0:
                                 break
                             print(text_var.getValue())
                        
                       
-                        self.createMigration(scriptName=migrationName, status='OK',
-                        fullPath=migrationFullPath, typeScript=typeScript, output=output, db=db)
+                        self.createMigration(scriptName=data['migrationName'], status='OK',
+                        fullPath=data['migrationFullPath'], typeScript=data['typeScript'], output=output, db=db)
                         
                         ## moving file to execute path
-                        os.rename(migrationFullPath, os.path.join(self.__execute_scripts, migrationName))
+                        os.rename(data['migrationFullPath'], os.path.join(self.__execute_scripts, data['migrationName']))
 
                         return output
         
                     else:
                         ## removing blank files to clean directory
-                        os.remove(migrationFullPath)
+                        os.remove(data['migrationFullPath'])
                         return 'Nothing to migrate'
                     
         except Exception as error:
-
-            return 'error %s in script %s'%(error, migrationName)
-
-            # if infoMigration and infoMigration['status'] == 'ERR':
-            #     self.updateMigration(status='ERR', output=error, scriptName=migrationName)
-
-            # elif not infoMigration:
-            #     self.createMigration(scriptName=migrationName, status='ERR',
-            #                          fullPath=migrationFullPath, typeScript=typeScript, output=error)
-
+            return 'error %s in script %s'%(error, data['migrationName'])
 
     def scripts_with_error(self, date=''):
         """ get scripts with errors, find in directories by date """
         return self.getScriptDB(status='ERR',date=date)
+    
