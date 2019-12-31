@@ -70,7 +70,7 @@ def main():
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--q", default=1, type=int)
     parser.add_argument("--pl", default='n', type=str)
-    parser.add_argument("--script", "-s", type=str, choices=('dml', 'ddl'))
+    parser.add_argument("--script", "-s", type=str, choices=('as', 'ds'))
     parser.add_argument("--schedule", "-p", type=str, default=datetime.now().strftime("/%Y/%m/%d"))
     parser.add_argument("--e", default=datetime.now().strftime("/%Y/%m/%d"), type=str)
 
@@ -246,9 +246,19 @@ def main():
         db.metadataInsert(data)
 
     if action == "make":
-        script_migration = Migrations(schedule=schedule)
-        mg = script_migration.create_script(file_type=script, quantity=quantity, basic_pl=basic_pl)
-        print(mg)
+
+        script_schedule = schedule.replace("/","")
+        is_valid_date = re.search(r"^[/](\d{4}[/\/-]\d{2}[/\/-]\d{2})|(\d{8,8})$", schedule)
+     
+        if not is_valid_date:
+            print('El formato de -p no es valido EJ: /2019/12/11 | 20191211')
+        elif script_schedule < datetime.now().strftime("%Y%m%d"):
+            print('La fecha de programación debe ser mayor o igual al dia de hoy')
+        else:
+            ## check if date to schedule is less than to day 
+            script_migration = Migrations(schedule=schedule)
+            mg = script_migration.create_script(file_type=script,  quantity=quantity, basic_pl=basic_pl)
+            print(mg)
     
     if action == "migrate":
         script_migration = Migrations(schedule=schedule)

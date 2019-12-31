@@ -753,7 +753,7 @@ class Database:
         cursor = db.cursor()
 
         # Drop
-        # data = cursor.execute("DROP TABLE %s.PLADMIN_MIGRATIONS" % self.user)
+        data = cursor.execute("DROP TABLE %s.PLADMIN_MIGRATIONS" % self.user)
 
         sql = (
             """ CREATE TABLE %s.PLADMIN_MIGRATIONS (
@@ -811,31 +811,6 @@ class Database:
          
          return data
     
-    def updateMigration(self, status, scriptName, output, db=None):
-       
-         localClose = False 
-        
-         if not db:
-            db = self.dbConnect()
-            localClose = True
-      
-         cursor = db.cursor()
-
-         sql = (
-             """ UPDATE %s.PLADMIN_MIGRATIONS 
-                 SET status='%s', output='%s'
-                 WHERE script_name='%s' 
-             """
-         )%(self.user, status, output, scriptName)
-        
-         data = cursor.execute(sql)
-
-         if localClose:
-             db.commit()
-             db.close()
-
-        #  return data
-
     def getScriptDB(self, status='OK', date=None):
 
          if not date:
