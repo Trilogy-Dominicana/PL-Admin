@@ -1,6 +1,6 @@
 #!/usr/local/bin/python
 from __future__ import absolute_import
-import sys, getopt, json, os, argparse, time
+import sys, getopt, json, os, argparse, time, re
 
 from datetime import datetime
 from pladmin.database import Database
@@ -20,7 +20,6 @@ TODO:
 """
 db = Database(displayInfo=True)
 files = Files(displayInfo=True)
-migration = Migrations()
 
 
 # utils = Utils()
@@ -63,12 +62,16 @@ def main():
         usage="%(prog)s [action] options",
         description="Process some integers.",
     )
+
+    
+    
     parser.add_argument("action", action="store", help="Push the method name")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--q", default=1, type=int)
     parser.add_argument("--pl", default='n', type=str)
     parser.add_argument("--script", "-s", type=str, choices=('dml', 'ddl'))
+    parser.add_argument("--schedule", "-p", type=str, default=datetime.now().strftime("/%Y/%m/%d"))
     parser.add_argument("--e", default=datetime.now().strftime("/%Y/%m/%d"), type=str)
 
     args = parser.parse_args()
@@ -79,7 +82,8 @@ def main():
     quantity = args.q
     basic_pl = args.pl
     errors = args.e
-
+    schedule = args.schedule
+   
     # Create schema command
     if action == "newSchema":
         invalids = db.createSchema()
@@ -242,16 +246,18 @@ def main():
         db.metadataInsert(data)
 
     if action == "make":
-        mg = migration.create_script(file_type=script, quantity=quantity, basic_pl=basic_pl)
+        script_migration = Migrations(schedule=schedule)
+        mg = script_migration.create_script(file_type=script, quantity=quantity, basic_pl=basic_pl)
         print(mg)
-
+    
     if action == "migrate":
-
+        script_migration = Migrations(schedule=schedule)
+        
         if script:
-            print(migration.migrate(script))
+            print(script_migration.migrate(script))
 
         elif errors:
-            print(migration.scripts_with_error(date=errors))
+            print(script_migration.scripts_with_error(date=errors))
 
 
 if __name__ == "__main__":
