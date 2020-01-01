@@ -231,16 +231,17 @@ def main():
         watch(files.pl_path)
 
     if action == "make":
-        script_schedule = schedule.replace("/","")
-        is_valid_date = re.search(r"^[/](\d{4}[/\/-]\d{2}[/\/-]\d{2})|(\d{8,8})$", schedule)
+        script_schedule = schedule.replace("-","")
+        is_valid_date = re.search(r"^(\d{4}[/-]\d{2}[/-]\d{2})|(\d{8,8})$", schedule)
      
         if not is_valid_date:
-            print('El formato de -p no es valido EJ: /2019/12/11 | 20191211')
+            print('this command only accept days in this format 0000-00-00 | 20001102')
         elif script_schedule < datetime.now().strftime("%Y%m%d"):
-            print('La fecha de programación debe ser mayor o igual al dia de hoy')
+            print('the scheduling date of a script must be greater than or equal to today')
         else:
+            schedule_format = "%s%s%s%s%s%s" % ("/", script_schedule[:4], "/", script_schedule[4:6], "/", script_schedule[6::])
             # check if date to schedule is less than to day 
-            script_migration = Migrations(schedule=schedule)
+            script_migration = Migrations(schedule=schedule_format)
             migration = script_migration.create_script(file_type=script,  quantity=quantity, basic_pl=basic_pl)
             print(migration)
     
