@@ -91,7 +91,7 @@ class Migrations(Database, Files):
         data = []
         path = self.__as_path
 
-        # check if all AS if execute 
+        # check if all AS script was executed 
         if len (os.listdir(path)) > 0:
             return  'All scripts "AS" they must be executed before "DS" '
    
@@ -118,6 +118,12 @@ class Migrations(Database, Files):
     def __execute_migrate(self, **data):
         """ this function execute all instruccion sql in indicate file
             and create records with file execute """
+
+        # These commands must be executed before production.
+        reserved_word = ['ALTER','CREATE', 'REPLACE', 
+                        'DROP', 'TRUNCATE', 'RENAME', 
+                        'GRANT', 'REVOKE']
+        
         try:
             if not data['infoMigration']:
                 db = self.dbConnect()
@@ -127,6 +133,15 @@ class Migrations(Database, Files):
                 with open(data['migrationFullPath'], 'r') as script_file:
                     """ read file and convert in string for run like script by cx_oracle """
                     execute_statement = script_file.read()
+                    
+                    if data['typeScript'].lower() == 'ds':
+                        #  check that the scripts after synchronization do not contain ddl
+                        for word in reserved_word:
+                            exists_word = execute_statement.count(word)
+                            
+                            if exists_word > 0:
+                                return 'it is not possible to execute ddl after sincronitation'
+                                
 
                     if execute_statement:
                         # enable DBMS_OUTPUT
@@ -163,9 +178,7 @@ class Migrations(Database, Files):
                         return 'Nothing to migrate'
                     
         except Exception as error:
+            # if script raise error stop pap ejecution
             raise error
 
-    def scripts_with_error(self, date=''):
-        """ get scripts with errors, find in directories by date """
-        return self.getScriptDB(status='ERR',date=date)
     

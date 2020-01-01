@@ -135,21 +135,22 @@ def main():
     parser.add_argument("action", action="store", help="Push the method name")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument("--q", default=1, type=int)
-    parser.add_argument("--pl", default='n', type=str)
+    parser.add_argument("--quantity", "-q", default=1, type=int)
+    parser.add_argument("--basic_pl", "-pl", default='n', type=str)
     parser.add_argument("--script", "-s", type=str, choices=('as', 'ds'))
     parser.add_argument("--schedule", "-p", type=str, default=datetime.now().strftime("/%Y/%m/%d"))
-    parser.add_argument("--e", default=datetime.now().strftime("/%Y/%m/%d"), type=str)
-
+  
     args     = parser.parse_args()
     action   = args.action
     dry_run  = args.dry_run
     force    = args.force
     script   = args.script
-    quantity = args.q
-    basic_pl = args.pl
-    errors   = args.e
+    quantity = args.quantity
+    basic_pl = args.basic_pl
     schedule = args.schedule
+ 
+
+   
    
     # Create schema
     if action == "newSchema":
@@ -243,8 +244,8 @@ def main():
         else:
             # check if date to schedule is less than to day 
             script_migration = Migrations(schedule=schedule)
-            mg = script_migration.create_script(file_type=script,  quantity=quantity, basic_pl=basic_pl)
-            print(mg)
+            migration = script_migration.create_script(file_type=script,  quantity=quantity, basic_pl=basic_pl)
+            print(migration)
     
     if action == "migrate":
         script_migration = Migrations(schedule=schedule)
@@ -252,8 +253,6 @@ def main():
         if script:
             print(script_migration.migrate(script))
 
-        elif errors:
-            print(script_migration.scripts_with_error(date=errors))
 
 
 if __name__ == "__main__":
