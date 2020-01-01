@@ -14,7 +14,7 @@ class Migrations(Database, Files):
     __branch           = None
     __created          = None 
     __to_day           = None
-     
+
 
     def __init__(self, schedule=datetime.now().strftime("/%Y/%m/%d")):
 
@@ -28,9 +28,8 @@ class Migrations(Database, Files):
 
         self.__createScriptsDir()
 
- 
     def create_script(self, file_type, quantity=1, basic_pl=False):
-
+        """ create file type .sql """
         path = self.__as_path
 
         if file_type == 'ds':
@@ -61,7 +60,7 @@ class Migrations(Database, Files):
             return 'file %s exist' % file_name
     
     def __createScriptsDir(self):
-        
+        """ creating all dir necesary to migrations """
         if not os.path.exists(self.__ds_path):
             os.makedirs(self.__ds_path)
 
@@ -73,10 +72,10 @@ class Migrations(Database, Files):
         
         if not os.path.exists(self.__execute_scripts):
             os.makedirs(self.__execute_scripts)
-          
-    """ this function copy file content and paste in other file """
+    
     @staticmethod
     def __copy_content_file(name_file_to_write, name_file_to_copy):
+        """ this function copy file content and paste in other file """
         try:
             with open(name_file_to_copy) as f:
                 with open(name_file_to_write, "w") as f1:
@@ -85,19 +84,19 @@ class Migrations(Database, Files):
         except FileNotFoundError as e:
             raise
 
-    """ this function execute indicate scripts """
     def migrate(self, type_files=None):
-        
+        """ this function execute indicate scripts """
         data = []
         path = self.__as_path
 
-        # check if all AS script was executed 
-        if len (os.listdir(path)) > 0:
-            return  'All scripts "AS" they must be executed before "DS" '
-   
         if type_files == 'ds':
             path = self.__ds_path
-                
+
+         # check if all AS script was executed 
+        if type_files == 'ds' and len (os.listdir(self.__as_path)) > 0:
+            return  'All scripts "AS" they must be executed before "DS" '
+            
+
         if len (os.listdir(path)) == 0:
             return 'No script to migrate'
               
@@ -106,7 +105,7 @@ class Migrations(Database, Files):
             dataMigration = self.getScriptByName(script)
             
             if dataMigration:
-                return 'this script has already been executed'
+                return 'this script %s has already been executed' % script
 
             response = self.__execute_migrate(migrationFullPath=migration, 
             migrationName=script,infoMigration=dataMigration,typeScript=type_files)
@@ -117,13 +116,7 @@ class Migrations(Database, Files):
 
     def __execute_migrate(self, **data):
         """ this function execute all instruccion sql in indicate file
-            and create records with file execute """
-
-        # These commands must be executed before production.
-        reserved_word = ['ALTER','CREATE', 'REPLACE', 
-                        'DROP', 'TRUNCATE', 'RENAME', 
-                        'GRANT', 'REVOKE']
-        
+            and create records with file execute """ 
         try:
             if not data['infoMigration']:
                 db = self.dbConnect()
@@ -134,15 +127,6 @@ class Migrations(Database, Files):
                     """ read file and convert in string for run like script by cx_oracle """
                     execute_statement = script_file.read()
                     
-                    if data['typeScript'].lower() == 'ds':
-                        #  check that the scripts after synchronization do not contain ddl
-                        for word in reserved_word:
-                            exists_word = execute_statement.count(word)
-                            
-                            if exists_word > 0:
-                                return 'it is not possible to execute ddl after sincronitation'
-                                
-
                     if execute_statement:
                         # enable DBMS_OUTPUT
                         cursor.callproc("dbms_output.enable")
@@ -180,5 +164,33 @@ class Migrations(Database, Files):
         except Exception as error:
             # if script raise error stop pap ejecution
             raise error
+    
+    def check_place_script(self):
+        """ check that script DS dont have command ddl"""
 
+        if len (os.listdir(self.__ds_path)) == 0:
+            return 'Nothing to check'
+        # These commands must be executed before production.
+        reserved_word = ['ALTER','CREATE', 'REPLACE', 
+        'DROP', 'TRUNCATE', 'RENAME', 'GRANT', 'REVOKE']
+
+        script_moved = []
+        message = "all script in order"
+
+        for dir_file in os.listdir(self.__ds_path):
+            script_revision = os.path.join(self.__ds_path, dir_file)
+            with open(script_revision, 'r') as file_script:
+                statement = file_script.read()
+
+                for word in reserved_word:
+                    exists_word = statement.count(word)
+                    
+                    if exists_word > 0:
+                        script_moved.append(dir_file)
+                        os.rename(script_revision, os.path.join(self.__as_path, dir_file))
+                 
+                if script_moved:
+                    message = 'the scripts %s was moved to the execution of ace scripts, because it contained ddl instructions' % script_moved
+        
+        return message
     
