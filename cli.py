@@ -148,10 +148,7 @@ def main():
     quantity = args.quantity
     basic_pl = args.basic_pl
     schedule = args.schedule
- 
 
-   
-   
     # Create schema
     if action == "newSchema":
         invalids = db.createSchema()
@@ -250,8 +247,12 @@ def main():
     if action == "migrate":
         script_migration = Migrations(schedule=schedule)
         
-        if script:
-            print(script_migration.migrate(script))
+        if script: 
+            script_revision = script_migration.check_place_script()
+            print(script_revision)
+
+            execute_migration = script_migration.migrate(type_files=script)
+            print(execute_migration)
 
 
 
