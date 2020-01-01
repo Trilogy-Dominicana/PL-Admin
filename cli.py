@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 import sys, getopt, json, os, argparse, time, hashlib, re
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pladmin.database import Database
 from pladmin.files import Files
 from pladmin.utils import utils
@@ -233,11 +233,13 @@ def main():
     if action == "make":
         script_schedule = schedule.replace("-","")
         is_valid_date = re.search(r"^(\d{4}[/-]\d{2}[/-]\d{2})|(\d{8,8})$", schedule)
-     
+
+        format_schedule = datetime(year=int(script_schedule[:4]), month=int(script_schedule[4:6]), day=int(script_schedule[6::]))
+       
         if not is_valid_date:
             print('this command only accept days in this format 0000-00-00 | 20001102')
-        elif script_schedule < datetime.now().strftime("%Y%m%d"):
-            print('the scheduling date of a script must be greater than or equal to today')
+        elif format_schedule < datetime.now() or format_schedule > (datetime.now() + timedelta(days=15)):
+            print('the scheduling date of a script must be greater than or equal to today and should only be scheduled 15 days ahead')
         else:
             schedule_format = "%s%s%s%s%s%s" % ("/", script_schedule[:4], "/", script_schedule[4:6], "/", script_schedule[6::])
             # check if date to schedule is less than to day 
