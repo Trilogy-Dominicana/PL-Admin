@@ -138,7 +138,7 @@ def main():
     parser.add_argument("--quantity", "-q", default=1, type=int)
     parser.add_argument("--basic_pl", "-pl", default='n', type=str)
     parser.add_argument("--script", "-s", type=str, choices=('as', 'ds'))
-    parser.add_argument("--schedule", "-p", type=str, default=datetime.now().strftime("/%Y/%m/%d"))
+    parser.add_argument("--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d"))
   
     args     = parser.parse_args()
     action   = args.action
@@ -232,13 +232,14 @@ def main():
 
     if action == "make":
         script_schedule = schedule.replace("-","")
+        
         is_valid_date = re.search(r"^(\d{4}[/-]\d{2}[/-]\d{2})|(\d{8,8})$", schedule)
 
         format_schedule = datetime(year=int(script_schedule[:4]), month=int(script_schedule[4:6]), day=int(script_schedule[6::]))
-       
+
         if not is_valid_date:
             print('this command only accept days in this format 0000-00-00 | 20001102')
-        elif format_schedule < datetime.now() or format_schedule > (datetime.now() + timedelta(days=15)):
+        elif format_schedule.strftime('%Y%m%d') < datetime.now().strftime('%Y%m%d') or format_schedule > (datetime.now() + timedelta(days=15)):
             print('the scheduling date of a script must be greater than or equal to today and should only be scheduled 15 days ahead')
         else:
             schedule_format = "%s%s%s%s%s%s" % ("/", script_schedule[:4], "/", script_schedule[4:6], "/", script_schedule[6::])

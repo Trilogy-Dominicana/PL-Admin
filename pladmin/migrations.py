@@ -9,7 +9,6 @@ class Migrations(Database, Files):
     __ds_path          = None
     __as_path          = None
     __execute_scripts  = None
-    __errors_scripts   = None 
     __basic_pl_path    = None
     __branch           = None
     __created          = None 
@@ -22,7 +21,6 @@ class Migrations(Database, Files):
         self.__created = schedule
         self.__to_day  = datetime.now().strftime("%Y%m%d")
         self.__execute_scripts = os.path.join('/scripts/execute%s' % self.__created)
-        self.__errors_scripts  = os.path.join('/scripts/error%s' % self.__created) 
         self.__ds_path = os.path.join('/scripts/ds%s' % self.__created)
         self.__as_path = os.path.join('/scripts/as%s' % self.__created)
 
@@ -66,9 +64,6 @@ class Migrations(Database, Files):
 
         if not os.path.exists(self.__as_path):
             os.makedirs(self.__as_path)
-
-        if not os.path.exists(self.__errors_scripts):
-            os.makedirs(self.__errors_scripts)
         
         if not os.path.exists(self.__execute_scripts):
             os.makedirs(self.__execute_scripts)
