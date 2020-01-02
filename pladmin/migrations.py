@@ -13,16 +13,16 @@ class Migrations(Database, Files):
     __branch           = None
     __created          = None 
     __to_day           = None
+   
 
-
-    def __init__(self, folder_structure=None):
+    def __init__(self, folder_structure=None):q
         self.repo = git.Repo(self.pl_path)
         self.__created = folder_structure
         self.__to_day  = datetime.now().strftime("%Y%m%d")
         self.__execute_scripts = os.path.join('/scripts/execute%s' % self.__created)
         self.__ds_path = os.path.join('/scripts/ds%s' % self.__created)
         self.__as_path = os.path.join('/scripts/as%s' % self.__created)
-
+       
         self.__createScriptsDir()
 
     def create_script(self, file_type, quantity=1, basic_pl=False):
@@ -99,11 +99,16 @@ class Migrations(Database, Files):
             dataMigration = self.getScriptByName(script)
             
             if dataMigration:
+                os.remove(script)
                 return 'this script %s has already been executed' % script
-
+            
             response = self.__execute_migrate(migrationFullPath=migration, 
             migrationName=script,infoMigration=dataMigration,typeScript=type_files)
             
+            # removing dir if no exist script to migrate
+            if len (os.listdir(path)) < 1:
+                os.rmdir(path)
+
             data.append(response)
         
         return data
@@ -186,4 +191,4 @@ class Migrations(Database, Files):
                     message = 'the scripts %s was moved to the execution of ace scripts, because it contained ddl instructions' % script_moved
         
         return message
-    
+           
