@@ -229,32 +229,34 @@ def main():
 
     if action == "watch":
         watch(files.pl_path)
+    
+    if schedule:
 
-    if action == "make":
-        script_schedule = schedule.replace("-","")
-        
         is_valid_date = re.search(r"^(\d{4}[/-]\d{2}[/-]\d{2})|(\d{8,8})$", schedule)
-
-        format_schedule = datetime(year=int(script_schedule[:4]), month=int(script_schedule[4:6]), day=int(script_schedule[6::]))
-
         if not is_valid_date:
             print('this command only accept days in this format 0000-00-00 | 20001102')
-        elif format_schedule.strftime('%Y%m%d') < datetime.now().strftime('%Y%m%d') or format_schedule > (datetime.now() + timedelta(days=15)):
+            return False
+
+        script_schedule = schedule.replace("-","")
+        format_schedule = datetime(year=int(script_schedule[:4]), month=int(script_schedule[4:6]), day=int(script_schedule[6::]))
+     
+        if format_schedule.strftime('%Y%m%d') < datetime.now().strftime('%Y%m%d') or format_schedule > (datetime.now() + timedelta(days=15)):
             print('the scheduling date of a script must be greater than or equal to today and should only be scheduled 15 days ahead')
-        else:
-            schedule_format = "%s%s%s%s%s%s" % ("/", script_schedule[:4], "/", script_schedule[4:6], "/", script_schedule[6::])
-            # check if date to schedule is less than to day 
-            script_migration = Migrations(schedule=schedule_format)
+            return False
+
+        folder_structure = "%s%s%s%s%s%s" % ("/", schedule[:4], "/", schedule[4:6], "/", schedule[6:])
+      
+        if action == "make" and script:
+            script_migration = Migrations(folder_structure=folder_structure)
             migration = script_migration.create_script(file_type=script,  quantity=quantity, basic_pl=basic_pl)
             print(migration)
-    
-    if action == "migrate":
-        script_migration = Migrations(schedule=schedule)
         
-        if script: 
+        if action == "migrate" and script:
+            to_date_folder = datetime.now().strftime('/%Y/%m/%d')
+            script_migration = Migrations(folder_structure=to_date_folder)
+
             script_revision = script_migration.check_place_script()
             print(script_revision)
-
             execute_migration = script_migration.migrate(type_files=script)
             print(execute_migration)
 
