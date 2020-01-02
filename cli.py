@@ -232,9 +232,9 @@ def main():
     
     if schedule:
 
-        is_valid_date = re.search(r"^(\d{4}[/-]\d{2}[/-]\d{2})|(\d{8,8})$", schedule)
+        is_valid_date = re.search(r"^(\d{4}[-]\d{2}[-]\d{2})|(\d{8,8})$", schedule)
         if not is_valid_date:
-            print('this command only accept days in this format 0000-00-00 | 20001102')
+            print('this command only accept dates in this format 0000-00-00 | 20001102')
             return False
 
         script_schedule = schedule.replace("-","")
