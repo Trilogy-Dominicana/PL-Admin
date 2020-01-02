@@ -101,7 +101,7 @@ def db2wc(dry_run, force):
 
             # Update metadata table
             obj.update(last_commit=files.head_commit, object_path=fileObject)
-            updated = db.crateOrUpdateMetadata(obj)
+            updated = db.createOrUpdateMetadata(obj)
 
         # This validation is to know if the object is new o not
         if not lastCommit and not objectPath:
@@ -130,27 +130,27 @@ def main():
         description="Process some integers.",
     )
 
-    
-    
     parser.add_argument("action", action="store", help="Push the method name")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--q", default=1, type=int)
-    parser.add_argument("--pl", default='n', type=str)
-    parser.add_argument("--script", "-s", type=str, choices=('as', 'ds'))
-    parser.add_argument("--schedule", "-p", type=str, default=datetime.now().strftime("/%Y/%m/%d"))
+    parser.add_argument("--pl", default="n", type=str)
+    parser.add_argument("--script", "-s", type=str, choices=("as", "ds"))
+    parser.add_argument(
+        "--schedule", "-p", type=str, default=datetime.now().strftime("/%Y/%m/%d")
+    )
     parser.add_argument("--e", default=datetime.now().strftime("/%Y/%m/%d"), type=str)
 
-    args     = parser.parse_args()
-    action   = args.action
-    dry_run  = args.dry_run
-    force    = args.force
-    script   = args.script
+    args = parser.parse_args()
+    action = args.action
+    dry_run = args.dry_run
+    force = args.force
+    script = args.script
     quantity = args.q
     basic_pl = args.pl
-    errors   = args.e
+    errors = args.e
     schedule = args.schedule
-   
+
     # Create schema
     if action == "newSchema":
         invalids = db.createSchema()
@@ -188,7 +188,13 @@ def main():
         # List object that could have changed
         dbObjects = db.getObjectsDb2Wc()
 
-        objModified = wcObjects["modified"]
+        # look for pendding objects or fail objects
+        pendding = [o['object_path'] for o in db.metadataPendding()]
+
+        # Local modifications
+        objModified = list(set(wcObjects["modified"] + pendding))
+
+
         for mObj in objModified:
 
             name, ext = files.getFileName(mObj)
@@ -196,13 +202,15 @@ def main():
 
             # Verify was modified on the db
             isObj = utils.getObjectDict(dbObjects, name, objectType)
+            # print(mObj)
+            # exit()
 
             # Aquí debemos validar si el objecto en verdad tiene modificaciones, comparando el contenido del archivo la base de datos.
             # print(mObj)
             if isObj and not force:
-                objContend = db.getObjSource(name, objectType).encode("utf-8")
-                f = open(mObj, "rb")
-                fcontent = f.read()
+                # objContend = db.getObjSource(name, objectType).encode("utf-8")
+                # f = open(mObj, "rb")
+                # fcontent = f.read()
 
                 # print(hashlib.md5(objContend).hexdigest())
                 # print(hashlib.md5(fcontent).hexdigest())
@@ -211,20 +219,32 @@ def main():
                 # exit()
 
                 # Read file and compered changes
-                print(mObj, "DB modifications, Fail!")
+
+                
+                print(mObj, "Has changes in the database, Fail!")
+                if not dry_run:
+                    objFailToUpdate = db.getObjects(
+                        objectTypes=[objectType], objectName=name, fetchOne=True
+                    )
+
+                    objFailToUpdate.update(meta_status=1)
+                    del objFailToUpdate['last_ddl_time']
+                    db.createOrUpdateMetadata(objFailToUpdate)
+
                 continue
 
             # If everything ok, created or replace the object
             print(mObj, "Exported successfully!")
             if not dry_run:
                 db.createReplaceObject([mObj])
+
                 # Update metadata table
                 objToUpdate = db.getObjects(
                     objectTypes=[objectType], objectName=name, fetchOne=True
                 )
 
-                objToUpdate.update(last_commit=files.head_commit, object_path=mObj)
-                updated = db.crateOrUpdateMetadata(objToUpdate)
+                objToUpdate.update(last_commit=files.head_commit, object_path=mObj, meta_status=0)
+                updated = db.createOrUpdateMetadata(objToUpdate)
 
         # ¿Que pasa si se hace un wc2db y no se le hace commit a esos cambios?
         # TODO List file removed and drop it from database
@@ -233,22 +253,26 @@ def main():
         watch(files.pl_path)
 
     if action == "make":
-        script_schedule = schedule.replace("/","")
-        is_valid_date = re.search(r"^[/](\d{4}[/\/-]\d{2}[/\/-]\d{2})|(\d{8,8})$", schedule)
-     
+        script_schedule = schedule.replace("/", "")
+        is_valid_date = re.search(
+            r"^[/](\d{4}[/\/-]\d{2}[/\/-]\d{2})|(\d{8,8})$", schedule
+        )
+
         if not is_valid_date:
-            print('El formato de -p no es valido EJ: /2019/12/11 | 20191211')
+            print("El formato de -p no es valido EJ: /2019/12/11 | 20191211")
         elif script_schedule < datetime.now().strftime("%Y%m%d"):
-            print('La fecha de programación debe ser mayor o igual al dia de hoy')
+            print("La fecha de programación debe ser mayor o igual al dia de hoy")
         else:
-            # check if date to schedule is less than to day 
+            # check if date to schedule is less than to day
             script_migration = Migrations(schedule=schedule)
-            mg = script_migration.create_script(file_type=script,  quantity=quantity, basic_pl=basic_pl)
+            mg = script_migration.create_script(
+                file_type=script, quantity=quantity, basic_pl=basic_pl
+            )
             print(mg)
-    
+
     if action == "migrate":
         script_migration = Migrations(schedule=schedule)
-        
+
         if script:
             print(script_migration.migrate(script))
 
