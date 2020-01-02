@@ -87,6 +87,7 @@ class Database:
                     last_commit varchar2(40) not null,
                     sync_date date not null,
                     last_ddl_time date not null,
+                    status number(1) default 0,
                     primary key (object_name, object_type)
                 )"""
             % self.user
@@ -167,12 +168,28 @@ class Database:
             if "object_path" in obj:
                 objectPath = "OBJECT_PATH= '%s', " % obj["object_path"]
 
-            sql = """UPDATE %s.PLADMIN_METADATA SET %s LAST_COMMIT='%s', SYNC_DATE=SYSDATE, LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS') 
+            lastCommit = ""
+            if "last_commit" in obj:
+                lastCommit = "LAST_COMMIT='%s', " % obj["last_commit"]
+
+            lastDdlTime = ""
+            if "last_ddl_time" in obj:
+                lastDdlTime = (
+                    "LAST_DDL_TIME=TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), "
+                    % obj["last_ddl_time"]
+                )
+
+            metaStatus = ""
+            if "meta_status" in obj:
+                metaStatus = "STATUS='%s', " % obj["meta_status"]
+
+            sql = """UPDATE %s.PLADMIN_METADATA SET %s %s %s %s SYNC_DATE=SYSDATE 
                 WHERE object_name = '%s' and object_type = '%s' """ % (
                 self.user,
                 objectPath,
-                obj["last_commit"],
-                obj["last_ddl_time"],
+                lastCommit,
+                lastDdlTime,
+                metaStatus,
                 obj["object_name"],
                 obj["object_type"],
             )
@@ -204,7 +221,17 @@ class Database:
             db.commit()
             db.close()
 
-    def crateOrUpdateMetadata(self, data, db=None):
+    def metadataPendding(self, status=1):
+
+        query = "SELECT object_path FROM %s.pladmin_metadata WHERE status = '%s'" % (
+            self.user,
+            status,
+        )
+        result = self.getData(query=query)
+
+        return result
+
+    def createOrUpdateMetadata(self, data, db=None):
         """ Create or update data on metadata table """
         localClose = False
 
@@ -258,7 +285,11 @@ class Database:
             cursor.execute(sql)
 
             # Update metadata table
-            objToUpdate = self.getObjects(objectTypes=[obj["object_type"]], objectName=obj["object_name"], fetchOne=True)
+            objToUpdate = self.getObjects(
+                objectTypes=[obj["object_type"]],
+                objectName=obj["object_name"],
+                fetchOne=True,
+            )
             objToUpdate.update(last_commit=files.head_commit)
             self.metadataUpdate(data=[objToUpdate], db=db)
 
@@ -325,7 +356,7 @@ class Database:
             cursor.execute(context + content)
 
             # # Update metadata table
-            # updated = self.crateOrUpdateMetadata(
+            # updated = self.createOrUpdateMetadata(
             #     objectName=obj["object_name"],
             #     objectType=obj["object_type"],
             #     objectPath=f,
@@ -621,7 +652,7 @@ class Database:
         files.progress(i, progressTotal, status="SYNONYMS CREATED", end=True)
         cursor.close()
 
-    def getData(self, query, params=None, fetchOne=None, db=None):
+    def getData(self, query, params=None, fetchOne=None, db=None, returnDict=True):
         """ 
         List invalid Packages, Functions and Procedures and Views
         
@@ -643,7 +674,8 @@ class Database:
             result = cursor.execute(query, data)
 
         # Overriding rowfactory method to get the data in a dictionary
-        result.rowfactory = self.makeDictFactory(result)
+        if returnDict:
+            result.rowfactory = self.makeDictFactory(result)
 
         # Fetching data from DB
         if fetchOne:
@@ -762,13 +794,13 @@ class Database:
             text += res["text"]
 
         return text
-    
+
     def createMetaTableScripts(self, db=None):
         """
         Create metadata to manage meta information
         """
         localClose = False
-        
+
         if not db:
             db = self.dbConnect()
             localClose = True
@@ -788,7 +820,9 @@ class Database:
                 TYPE_SCRIPT VARCHAR2(6),
                 OUTPUT VARCHAR2(4000),
                 CONSTRAINT script_name_unique unique (script_name)
-            )""" % self.user)
+            )"""
+            % self.user
+        )
 
         data = cursor.execute(sql)
 
@@ -796,58 +830,65 @@ class Database:
             db.close()
 
         return data
-    
-    def createMigration(self, scriptName, fullPath, status, typeScript, output, db=None):
-         
-         localClose = False
 
-         if not db:
+    def createMigration(
+        self, scriptName, fullPath, status, typeScript, output, db=None
+    ):
+
+        localClose = False
+
+        if not db:
             db = self.dbConnect()
             localClose = True
-      
-         cursor = db.cursor()
-        
 
-         migration = self.getScriptByName(scriptName=scriptName)
-     
-         if not migration:
+        cursor = db.cursor()
 
-             sql = ( """ 
+        migration = self.getScriptByName(scriptName=scriptName)
+
+        if not migration:
+
+            sql = (
+                (
+                    """ 
                       INSERT INTO %s.PLADMIN_MIGRATIONS (SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
                       VALUES('%s', '%s', '%s', '%s', '%s')
                      
                       """
-                    ) % (self.user, scriptName, status, fullPath, typeScript, output) 
-             data = cursor.execute(sql)
+                )
+                % (self.user, scriptName, status, fullPath, typeScript, output)
+            )
+            data = cursor.execute(sql)
 
-         if localClose:
-             db.commit()
-             db.close()
+        if localClose:
+            db.commit()
+            db.close()
 
     def getScriptByName(self, scriptName):
-         sql = (
-             "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE script_name='%s' "
-             %(self.user, scriptName)
-         )
-         
-         data = self.getData(query=sql, fetchOne=True)
-         
-         return data
-    
-    def getScriptDB(self, status='OK', date=None):
+        sql = "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE script_name='%s' " % (
+            self.user,
+            scriptName,
+        )
 
-         if not date:
-             date = datetime.now().strftime("%Y%m%d")
-            
-         sql = (
-              
-               """ SELECT * FROM %s.PLADMIN_MIGRATIONS 
+        data = self.getData(query=sql, fetchOne=True)
+
+        return data
+
+    def getScriptDB(self, status="OK", date=None):
+
+        if not date:
+            date = datetime.now().strftime("%Y%m%d")
+
+        sql = (
+            (
+                """ SELECT * FROM %s.PLADMIN_MIGRATIONS 
                    WHERE status = '%s'
                    AND created_at >= TO_DATE ('%s', 'YYYYMMDD') 
                """
-              
-              )%(self.user, status, date)
-         
-         data = self.getData(query=sql)
+            )
+            % (self.user, status, date)
+        )
 
-         return data
+        data = self.getData(query=sql)
+
+        return data
+
