@@ -9,28 +9,24 @@ class Migrations(Database, Files):
     __ds_path          = None
     __as_path          = None
     __execute_scripts  = None
-    __errors_scripts   = None 
     __basic_pl_path    = None
     __branch           = None
     __created          = None 
     __to_day           = None
-     
+   
 
-    def __init__(self, schedule=datetime.now().strftime("/%Y/%m/%d")):
-
+    def __init__(self, folder_structure=None):q
         self.repo = git.Repo(self.pl_path)
-        self.__created = schedule
+        self.__created = folder_structure
         self.__to_day  = datetime.now().strftime("%Y%m%d")
         self.__execute_scripts = os.path.join('/scripts/execute%s' % self.__created)
-        self.__errors_scripts  = os.path.join('/scripts/error%s' % self.__created) 
         self.__ds_path = os.path.join('/scripts/ds%s' % self.__created)
         self.__as_path = os.path.join('/scripts/as%s' % self.__created)
-
+       
         self.__createScriptsDir()
 
- 
     def create_script(self, file_type, quantity=1, basic_pl=False):
-
+        """ create file type .sql """
         path = self.__as_path
 
         if file_type == 'ds':
@@ -61,22 +57,19 @@ class Migrations(Database, Files):
             return 'file %s exist' % file_name
     
     def __createScriptsDir(self):
-        
+        """ creating all dir necesary to migrations """
         if not os.path.exists(self.__ds_path):
             os.makedirs(self.__ds_path)
 
         if not os.path.exists(self.__as_path):
             os.makedirs(self.__as_path)
-
-        if not os.path.exists(self.__errors_scripts):
-            os.makedirs(self.__errors_scripts)
         
         if not os.path.exists(self.__execute_scripts):
             os.makedirs(self.__execute_scripts)
-          
-    """ this function copy file content and paste in other file """
+    
     @staticmethod
     def __copy_content_file(name_file_to_write, name_file_to_copy):
+        """ this function copy file content and paste in other file """
         try:
             with open(name_file_to_copy) as f:
                 with open(name_file_to_write, "w") as f1:
@@ -85,19 +78,19 @@ class Migrations(Database, Files):
         except FileNotFoundError as e:
             raise
 
-    """ this function execute indicate scripts """
     def migrate(self, type_files=None):
-        
+        """ this function execute indicate scripts """
         data = []
         path = self.__as_path
 
-        # check if all AS if execute 
-        if len (os.listdir(path)) > 0:
-            return  'All scripts "AS" they must be executed before "DS" '
-   
         if type_files == 'ds':
             path = self.__ds_path
-                
+
+         # check if all AS script was executed 
+        if type_files == 'ds' and len (os.listdir(self.__as_path)) > 0:
+            return  'All scripts "AS" they must be executed before "DS" '
+            
+        
         if len (os.listdir(path)) == 0:
             return 'No script to migrate'
               
@@ -106,28 +99,32 @@ class Migrations(Database, Files):
             dataMigration = self.getScriptByName(script)
             
             if dataMigration:
-                return 'this script has already been executed'
-
+                os.remove(script)
+                return 'this script %s has already been executed' % script
+            
             response = self.__execute_migrate(migrationFullPath=migration, 
             migrationName=script,infoMigration=dataMigration,typeScript=type_files)
             
+            # removing dir if no exist script to migrate
+            if len (os.listdir(path)) < 1:
+                os.rmdir(path)
+
             data.append(response)
         
         return data
 
     def __execute_migrate(self, **data):
         """ this function execute all instruccion sql in indicate file
-            and create records with file execute """
+            and create records with file execute """ 
         try:
             if not data['infoMigration']:
                 db = self.dbConnect()
                 cursor = db.cursor()
                 output = []
-                
                 with open(data['migrationFullPath'], 'r') as script_file:
                     """ read file and convert in string for run like script by cx_oracle """
                     execute_statement = script_file.read()
-
+                    
                     if execute_statement:
                         # enable DBMS_OUTPUT
                         cursor.callproc("dbms_output.enable")
@@ -163,9 +160,35 @@ class Migrations(Database, Files):
                         return 'Nothing to migrate'
                     
         except Exception as error:
-            raise error
-
-    def scripts_with_error(self, date=''):
-        """ get scripts with errors, find in directories by date """
-        return self.getScriptDB(status='ERR',date=date)
+            # if script raise error stop pap ejecution
+            raise Exception('an error occurred in the execution of the script %s error: %s' % (data['migrationFullPath'], error))
     
+    def check_place_script(self):
+        """ check that script DS dont have command ddl"""
+
+        if len (os.listdir(self.__ds_path)) == 0:
+            return 'Nothing to check'
+        # These commands must be executed before production.
+        reserved_word = ['ALTER','CREATE', 'REPLACE', 
+        'DROP', 'TRUNCATE', 'RENAME', 'GRANT', 'REVOKE']
+
+        script_moved = []
+        message = "all script in order"
+
+        for dir_file in os.listdir(self.__ds_path):
+            script_revision = os.path.join(self.__ds_path, dir_file)
+            with open(script_revision, 'r') as file_script:
+                statement = file_script.read()
+
+                for word in reserved_word:
+                    exists_word = statement.count(word)
+                    
+                    if exists_word > 0:
+                        script_moved.append(dir_file)
+                        os.rename(script_revision, os.path.join(self.__as_path, dir_file))
+                 
+                if script_moved:
+                    message = 'the scripts %s was moved to the execution of ace scripts, because it contained ddl instructions' % script_moved
+        
+        return message
+           
