@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 import sys, getopt, json, os, argparse, time, hashlib, re
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pladmin.database import Database
 from pladmin.files import Files
 from pladmin.utils import utils
@@ -133,22 +133,18 @@ def main():
     parser.add_argument("action", action="store", help="Push the method name")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument("--q", default=1, type=int)
-    parser.add_argument("--pl", default="n", type=str)
-    parser.add_argument("--script", "-s", type=str, choices=("as", "ds"))
-    parser.add_argument(
-        "--schedule", "-p", type=str, default=datetime.now().strftime("/%Y/%m/%d")
-    )
-    parser.add_argument("--e", default=datetime.now().strftime("/%Y/%m/%d"), type=str)
-
-    args = parser.parse_args()
-    action = args.action
-    dry_run = args.dry_run
-    force = args.force
-    script = args.script
-    quantity = args.q
-    basic_pl = args.pl
-    errors = args.e
+    parser.add_argument("--quantity", "-q", default=1, type=int)
+    parser.add_argument("--basic_pl", "-pl", default='n', type=str)
+    parser.add_argument("--script", "-s", type=str, choices=('as', 'ds'))
+    parser.add_argument("--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d"))
+  
+    args     = parser.parse_args()
+    action   = args.action
+    dry_run  = args.dry_run
+    force    = args.force
+    script   = args.script
+    quantity = args.quantity
+    basic_pl = args.basic_pl
     schedule = args.schedule
 
     # Create schema
@@ -251,33 +247,37 @@ def main():
 
     if action == "watch":
         watch(files.pl_path)
+    
+    if schedule:
 
-    if action == "make":
-        script_schedule = schedule.replace("/", "")
-        is_valid_date = re.search(
-            r"^[/](\d{4}[/\/-]\d{2}[/\/-]\d{2})|(\d{8,8})$", schedule
-        )
-
+        is_valid_date = re.search(r"^(\d{4}[-]\d{2}[-]\d{2})|(\d{8,8})$", schedule)
         if not is_valid_date:
-            print("El formato de -p no es valido EJ: /2019/12/11 | 20191211")
-        elif script_schedule < datetime.now().strftime("%Y%m%d"):
-            print("La fecha de programación debe ser mayor o igual al dia de hoy")
-        else:
-            # check if date to schedule is less than to day
-            script_migration = Migrations(schedule=schedule)
-            mg = script_migration.create_script(
-                file_type=script, quantity=quantity, basic_pl=basic_pl
-            )
-            print(mg)
+            print('this command only accept dates in this format 0000-00-00 | 20001102')
+            return False
 
-    if action == "migrate":
-        script_migration = Migrations(schedule=schedule)
+        script_schedule = schedule.replace("-","")
+        format_schedule = datetime(year=int(script_schedule[:4]), month=int(script_schedule[4:6]), day=int(script_schedule[6::]))
+     
+        if format_schedule.strftime('%Y%m%d') < datetime.now().strftime('%Y%m%d') or format_schedule > (datetime.now() + timedelta(days=15)):
+            print('the scheduling date of a script must be greater than or equal to today and should only be scheduled 15 days ahead')
+            return False
 
-        if script:
-            print(script_migration.migrate(script))
+        folder_structure = "%s%s%s%s%s%s" % ("/", schedule[:4], "/", schedule[4:6], "/", schedule[6:])
+      
+        if action == "make" and script:
+            script_migration = Migrations(folder_structure=folder_structure)
+            migration = script_migration.create_script(file_type=script,  quantity=quantity, basic_pl=basic_pl)
+            print(migration)
+        
+        if action == "migrate" and script:
+            to_date_folder = datetime.now().strftime('/%Y/%m/%d')
+            script_migration = Migrations(folder_structure=to_date_folder)
 
-        elif errors:
-            print(script_migration.scripts_with_error(date=errors))
+            script_revision = script_migration.check_place_script()
+            print(script_revision)
+            execute_migration = script_migration.migrate(type_files=script)
+            print(execute_migration)
+
 
 
 if __name__ == "__main__":
