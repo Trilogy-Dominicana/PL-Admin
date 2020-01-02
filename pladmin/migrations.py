@@ -15,10 +15,9 @@ class Migrations(Database, Files):
     __to_day           = None
 
 
-    def __init__(self, schedule=datetime.now().strftime("/%Y/%m/%d")):
-
+    def __init__(self, folder_structure=None):
         self.repo = git.Repo(self.pl_path)
-        self.__created = schedule
+        self.__created = folder_structure
         self.__to_day  = datetime.now().strftime("%Y%m%d")
         self.__execute_scripts = os.path.join('/scripts/execute%s' % self.__created)
         self.__ds_path = os.path.join('/scripts/ds%s' % self.__created)
@@ -91,7 +90,7 @@ class Migrations(Database, Files):
         if type_files == 'ds' and len (os.listdir(self.__as_path)) > 0:
             return  'All scripts "AS" they must be executed before "DS" '
             
-
+        
         if len (os.listdir(path)) == 0:
             return 'No script to migrate'
               
@@ -117,7 +116,6 @@ class Migrations(Database, Files):
                 db = self.dbConnect()
                 cursor = db.cursor()
                 output = []
-                
                 with open(data['migrationFullPath'], 'r') as script_file:
                     """ read file and convert in string for run like script by cx_oracle """
                     execute_statement = script_file.read()
@@ -158,7 +156,7 @@ class Migrations(Database, Files):
                     
         except Exception as error:
             # if script raise error stop pap ejecution
-            raise error
+            raise Exception('an error occurred in the execution of the script %s error: %s' % (data['migrationFullPath'], error))
     
     def check_place_script(self):
         """ check that script DS dont have command ddl"""
