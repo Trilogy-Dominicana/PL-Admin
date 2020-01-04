@@ -1,4 +1,5 @@
 import os, cx_Oracle, git, re
+from termcolor import colored
 from datetime import datetime, date
 from pladmin.database import Database
 from pladmin.files import Files
@@ -10,8 +11,8 @@ class Migrations(Database, Files):
     __asPath          = None
     __executeScripts  = None
     __basePlPath      = None
-    __branch           = None
-    __created          = None 
+    __branch          = None
+    __created         = None 
     __toDay           = None
    
 
@@ -54,7 +55,7 @@ class Migrations(Database, Files):
             return fileCreating
 
         except FileExistsError as e:
-            return 'file %s exist' % fileName
+            raise 
     
     def __createScriptsDir(self):
         """ creating all dir necesary to migrations """
@@ -88,11 +89,11 @@ class Migrations(Database, Files):
 
          # check if all AS script was executed 
         if typeFile == 'ds' and len (os.listdir(self.__asPath)) > 0:
-            return  'All scripts "AS" they must be executed before "DS" '
+            return  colored('All scripts "AS" they must be executed before "DS" ', 'red')
             
         
         if len (os.listdir(path)) == 0:
-            return 'No script to migrate'
+            return colored('No script to migrate', 'yellow')
               
         for script in os.listdir(path):
             migration = os.path.join(path, script)
@@ -100,7 +101,7 @@ class Migrations(Database, Files):
             
             if dataMigration:
                 os.remove(script)
-                return 'this script %s has already been executed' % script
+                return colored('this script %s has already been executed' % script, 'red')
             
             response = self.__executeMigration(
                 migrationFullPath=migration, migrationName=script, infoMigration=dataMigration,
@@ -154,27 +155,28 @@ class Migrations(Database, Files):
                         
                         # disabled oracle DBMS_OUTPUT
                         cursor.callproc("dbms_output.disable")
-                        return dbmsOutPut
+                        return colored(dbmsOutPut, 'green')
         
                     else:
                         ## removing blank files to clean directory
                         os.remove(data['migrationFullPath'])
-                        return 'Nothing to migrate'
+                        return colored ('Nothing to migrate', 'yellow')
                     
         except Exception as error:
             # if script raise error stop pap ejecution
             raise Exception('an error occurred in the execution of the script %s error: %s' % (data['migrationFullPath'], error))
     
     def checkPlaceScript(self):
-        """ check that script DS dont have command ddl"""
+        """ check that script DS dont have command ddl """
 
         if len (os.listdir(self.__dsPath)) == 0:
-            return 'Nothing to check'
+            return colored('Nothing to check', 'yellow')
         # These commands must be executed before production.
         reservedWords = ['ALTER','CREATE', 'REPLACE', 
         'DROP', 'TRUNCATE', 'RENAME', 'GRANT', 'REVOKE']
 
         scriptsMove = []
+        color = 'green'
         message = "all script in order"
 
         for dirFiles in os.listdir(self.__dsPath):
@@ -190,7 +192,8 @@ class Migrations(Database, Files):
                         os.rename(scriptRevision, os.path.join(self.__asPath, dirFiles))
                  
                 if scriptMove:
+                    color = 'yellow'
                     message = 'the scripts %s was moved to the execution of ace scripts, because it contained ddl instructions' % scriptMove
         
-        return message
+        return colored(message, color)
            

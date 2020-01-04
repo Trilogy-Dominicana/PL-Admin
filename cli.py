@@ -1,6 +1,7 @@
 #!/usr/local/bin/python
 from __future__ import absolute_import
 import sys, getopt, json, os, argparse, time, hashlib, re
+from termcolor import colored, cprint
 
 from datetime import datetime, timedelta
 from pladmin.database import Database
@@ -144,7 +145,7 @@ def main():
     force    = args.force
     script   = args.script
     quantity = args.quantity
-    basic_pl = args.basic_pl
+    basicPL = args.basic_pl
     schedule = args.schedule
 
     # Create schema
@@ -252,14 +253,23 @@ def main():
 
         isValidDate = re.search(r"^(\d{4}[-]\d{2}[-]\d{2})|(\d{8,8})$", schedule)
         if not isValidDate:
-            print('this command only accept dates in this format 0000-00-00 | 20001102')
+            print(
+                colored(
+                'this command only accept dates in this format 0000-00-00 | 20001102'
+             , 'red'
+                )
+            )
             return False
 
         scriptSchedule = schedule.replace("-","")
         formatSchedule = datetime(year=int(scriptSchedule[:4]), month=int(scriptSchedule[4:6]), day=int(scriptSchedule[6::]))
         
         if formatSchedule.strftime('%Y%m%d') < datetime.now().strftime('%Y%m%d') or formatSchedule > (datetime.now() + timedelta(days=15)):
-            print('the scheduling date of a script must be greater than or equal to today and should only be scheduled 15 days ahead')
+            print(
+                colored('the scheduling date of a script must be greater than or equal to today and should only be scheduled 15 days ahead'
+                 ,'red'
+                )
+            )
             return False
 
         folderSchedule = "%s%s%s%s%s%s" % ("/", schedule[:4], "/", schedule[4:6], "/", schedule[6:])
@@ -268,10 +278,11 @@ def main():
             scriptMigration = Migrations(folderSchedule=folderSchedule)
 
             migration = scriptMigration.createScript(
-             fileType=script, quantity=quantity, basicPl=basic_pl
+             fileType=script, quantity=quantity, basicPl=basicPL
             )
 
-            print(migration)
+            for i in migration:
+                print(colored('script %s created', 'green') %i)
         
         if action == "migrate" and script:
             structureFolder = datetime.now().strftime('/%Y/%m/%d')
@@ -280,7 +291,7 @@ def main():
             scriptRevision = scriptMigration.checkPlaceScript()
             print(scriptRevision)
 
-            executeMigration = scriptMigration.migrate(type_files=script)
+            executeMigration = scriptMigration.migrate(typeFile=script)
             print(executeMigration)
 
 
