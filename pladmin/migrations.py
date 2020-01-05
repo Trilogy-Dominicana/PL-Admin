@@ -194,4 +194,29 @@ class Migrations(Database, Files):
                     message = 'the scripts %s was moved to the execution of ace scripts, because it contained ddl instructions' % scriptsMove
         
         return message
-           
+    
+    def listAllMigration(self):
+        ds = os.listdir(self.__dsPath)
+        aS = os.listdir(self.__asPath)
+
+        return aS, ds
+    
+    def removeMigrations(self, migration):
+        try:
+            os.remove(migration)
+            return 'migration removed'
+        except FileNotFoundError as e:
+            return 'migration not found'
+    
+    def getMigration(self, migration, typeFile):
+        try:
+            path = os.path.join(self.__asPath, migration.upper())
+
+            if typeFile == 'ds':
+                path = os.path.join(self.__dsPath, migration.upper())
+
+            with open(path, 'r') as migration:
+                return migration.read()
+
+        except FileNotFoundError as e:
+            return 'migration not found'

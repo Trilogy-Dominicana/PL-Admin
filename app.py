@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-from api.v1.routes import mode
+# from api.v1.routes import mode
 from api.v1.migrations import migrations
 
 # app.register_blueprint(mode, url_prefix='/api/v1')

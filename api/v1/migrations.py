@@ -4,7 +4,16 @@ from pladmin.migrations import Migrations
 migrations = Blueprint('api', __name__)
 objMigrations = Migrations()
 
-@migrations.route('/create/', methods=['POST'])
+@migrations.route('/', methods=['GET'])
+def getAllMigrations():
+    
+    listMigrations = objMigrations.listAllMigration()
+
+    return jsonify({
+        'all_migrations' : listMigrations
+    })
+
+@migrations.route('/', methods=['POST'])
 def generateScript():
     data = request.form
 
@@ -46,13 +55,23 @@ def executeMigrationsByType(scriptType):
 @migrations.route('/execute/all', methods=['POST'])
 def executeAllMigrations():
     options = ['as', 'ds']
-    
-    response = []
-    
-    for opt in options:
-        response.append(objMigrations.migrate(typeFile=opt))
+
+    response = [objMigrations.migrate(typeFile=opt) for opt in options]
     
     return jsonify({
         'message' :  response
     })
-    
+
+@migrations.route('/<name>', methods=['DELETE'])
+def removeMigration(name):
+    response = objMigrations.removeMigrations(name)
+
+    return jsonify({
+      'response' : response 
+    })
+
+@migrations.route('/<name>/<typeFile>', methods=['GET'])
+def getMigration(name, typeFile):
+    response = objMigrations.getMigration(migration=name,typeFile=typeFile)
+    return response 
+   
