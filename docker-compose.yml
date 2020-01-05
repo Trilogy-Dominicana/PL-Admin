@@ -3,6 +3,8 @@ services:
   pl-admin:
     image: viva/pl-admin
     container_name: pl-admin
+    ports:
+      - "5000:4000"
     build:
       context: './'
       args:
