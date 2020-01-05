@@ -4,20 +4,21 @@ ENV LD_LIBRARY_PATH=/usr/local/instantclient
 ENV ORACLE_HOME=/usr/local/instantclient
 
 WORKDIR /app
-RUN mkdir /plsql
+RUN mkdir -p /plsql
 
 COPY requirements.txt .
+COPY docker .
 
 RUN apk update; \
   apk add gcc musl-dev libnsl libaio autoconf curl unzip git openssl-dev tzdata
 
 ARG GIT_NAME
 ARG GIT_EMAIL
-RUN git config --global user.name "$GIT_NAME" && \
+RUN git config --global user.name "$GIT_NAME"; \
   git config --global user.email $GIT_EMAIL
 
 # Setup timezone 
-RUN cp /usr/share/zoneinfo/America/Santo_Domingo /etc/localtime 
+RUN cp /usr/share/zoneinfo/America/Santo_Domingo /etc/localtime
 
 # Get instaclient
 RUN curl -k -o /tmp/basic.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-basic-linux.x64-11.2.0.4.0.zip && \
@@ -25,15 +26,15 @@ RUN curl -k -o /tmp/basic.zip https://gitlab.viva.com.do/public-repos/oracle-ins
   # curl -k -o /tmp/sqlplus.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-sqlplus-linux.x64-11.2.0.4.0.zip
 
 # # Install Oracle Client and build OCI8 (Oracle Command Interface 8 - PHP extension)
-RUN unzip -d /usr/local/ /tmp/basic.zip && \
-  unzip -d /usr/local/ /tmp/devel.zip && \
+RUN unzip -d /usr/local/ /tmp/basic.zip; \
+  unzip -d /usr/local/ /tmp/devel.zip; \
   # unzip -d /usr/local/ /tmp/sqlplus.zip && \
   ## Links are required for older SDKs
-  ln -s /usr/local/instantclient_11_2 ${ORACLE_HOME} && \
-  ln -s ${ORACLE_HOME}/libclntsh.so.* ${ORACLE_HOME}/libclntsh.so && \
-  ln -s ${ORACLE_HOME}/libocci.so.* ${ORACLE_HOME}/libocci.so && \
-  ln -s ${ORACLE_HOME}/lib* /usr/lib && \
-  ln -s ${ORACLE_HOME}/sqlplus /usr/bin/sqlplus && \
+  ln -s /usr/local/instantclient_11_2 ${ORACLE_HOME}; \
+  ln -s ${ORACLE_HOME}/libclntsh.so.* ${ORACLE_HOME}/libclntsh.so; \
+  ln -s ${ORACLE_HOME}/libocci.so.* ${ORACLE_HOME}/libocci.so; \
+  ln -s ${ORACLE_HOME}/lib* /usr/lib; \
+  ln -s ${ORACLE_HOME}/sqlplus /usr/bin/sqlplus; \
   ln -s /usr/lib/libnsl.so.2.0.0  /usr/lib/libnsl.so.1
 
 RUN rm -rf /tmp/*.zip /var/cache/apk/* /tmp/oracle-sdk
@@ -47,6 +48,10 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 #   pip install tqdm && \
 #   pip install --user --upgrade twine
 
+RUN ["chmod", "+x", "/app/docker/setup.sh"]
+
+# Modifying permissions of setup.sh (avoid windows bug related to file line endings (CRLF))
+RUN sed -i -e 's/\r$//' /app/docker/setup.sh
 
 
-# CMD ["python --version"]
+CMD ["sh", "/app/docker/setup.sh"]
