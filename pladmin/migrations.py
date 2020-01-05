@@ -16,8 +16,8 @@ class Migrations(Database, Files):
     __toDay           = None
    
 
-    def __init__(self, folderSchedule=None):
-        self.repo = git.Repo(self.__basePlPath)
+    def __init__(self, folderSchedule=datetime.now().strftime("/%Y/%m/%d")):
+        # self.repo = git.Repo(self.__basePlPath)
         self.__created = folderSchedule
         self.__toDay  = datetime.now().strftime("%Y%m%d")
         self.__executeScripts = os.path.join('/scripts/execute%s' % self.__created)
@@ -49,7 +49,7 @@ class Migrations(Database, Files):
                 os.mknod(files)
                 fileCreating.append(fileName)
 
-                if basicPl.upper() == 'Y':
+                if basicPl == 'Y':
                     self.__copyContentFile(files, self.__basePlPath)
 
             return fileCreating

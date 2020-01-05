@@ -1,7 +1,7 @@
 #!/usr/local/bin/python
 from __future__ import absolute_import
 import sys, getopt, json, os, argparse, time, hashlib, re
-from termcolor import colored, cprint
+from termcolor import colored
 
 from datetime import datetime, timedelta
 from pladmin.database import Database
