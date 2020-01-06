@@ -20,8 +20,8 @@ class Migrations(Database, Files):
         self.__created = folderSchedule
         self.__toDay  = datetime.now().strftime("%Y%m%d")
         self.__executeScripts = os.path.join('/scripts/execute%s' % self.__created)
-        self.__dsPath = os.path.join('/scripts/ds%s' % self.__created)
-        self.__asPath = os.path.join('/scripts/as%s' % self.__created)
+        self.__dsPath = os.path.join('/scripts/ds')
+        self.__asPath = os.path.join('/scripts/as')
        
         self.__createScriptsDir()
 
