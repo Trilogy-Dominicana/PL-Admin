@@ -35,7 +35,7 @@ def generateScript():
         'response': response
     }) 
 
-@migrations.route('/execute/<scriptType>', methods=['POST'])
+@migrations.route('/execute/<scriptType>', methods=['GET'])
 def executeMigrationsByType(scriptType):
 
     if not scriptType in ('as', 'ds'):
@@ -52,7 +52,7 @@ def executeMigrationsByType(scriptType):
        'status_code':200
     })
 
-@migrations.route('/execute/all', methods=['POST'])
+@migrations.route('/execute/all', methods=['GET'])
 def executeAllMigrations():
     options = ['as', 'ds']
 
