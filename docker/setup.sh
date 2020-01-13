@@ -1,3 +1,4 @@
 #!/bin/sh
-# cp /app/docker/post-commit /plsql/.git/hooks/post-commit
-# chmod +x /plsql/.git/hooks/post-commit
+cp -f /app/docker/post-commit.sh /plsql/.git/hooks/post-commit
+
+/bin/sh

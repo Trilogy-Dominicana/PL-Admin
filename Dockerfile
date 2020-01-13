@@ -6,8 +6,8 @@ ENV ORACLE_HOME=/usr/local/instantclient
 WORKDIR /app
 RUN mkdir -p /plsql
 
-COPY requirements.txt .
-COPY docker .
+# COPY requirements.txt .
+COPY . /app
 
 RUN apk update; \
   apk add gcc musl-dev libnsl libaio autoconf curl unzip git openssl-dev tzdata
@@ -54,4 +54,4 @@ RUN ["chmod", "+x", "/app/docker/setup.sh"]
 RUN sed -i -e 's/\r$//' /app/docker/setup.sh
 
 
-CMD ["sh", "/app/docker/setup.sh"]
+ENTRYPOINT ["sh", "/app/docker/setup.sh"]
