@@ -6,12 +6,12 @@ services:
     ports:
       - "5000:4000"
     build:
-      context: './'
+      context: '.'
       args:
         - GIT_NAME=${GIT_NAME}
         - GIT_EMAIL=${GIT_EMAIL}
     volumes:
-      - ./:/app
+      - .:/app
       - ${PLSQL_PATH}:/plsql
     tty: true
     networks:
