@@ -3,8 +3,6 @@ This tools has been created thinking on those apps that has to many logic into t
 
 PL-Amin provide you an easy way to clone a main schema, compile pl/sql code on realtime, check database errors, check diferences between repo and database, etc.
 
-
-
 ### Requirements
 - Docker version ^19.03.1
 - Git ^2.22.0
@@ -14,7 +12,7 @@ PL-Amin provide you an easy way to clone a main schema, compile pl/sql code on r
 git@gitlab.viva.com.do:anaiboa/plsql-manager.git
 ```
 
-### Setup enviroments vas
+### Setup enviroments vars
 1. Edit your bash profile file
 ```sh
 # Using bash
