@@ -219,11 +219,11 @@ class Files:
         self.functions_dir = os.path.join(self.pl_path, "functions")
         os.makedirs(self.functions_dir, exist_ok=True)
 
-        # Create directory structure to save the files e.g (./YYYY/MM/filename.par)
-        # self.uncompressed_file_dir = os.path.join(
-        #     *[os.getcwd(), self.host_files_dir, dt[0:4], dt[4:6], dt[6:8]]
-        # )
-        # os.makedirs(self.uncompressed_file_dir, exist_ok=True)
+        # Create directory structure to save the files e.g (./YYYY/MM/DD)
+        self.script_dir = os.path.join(
+            *[os.getcwd(), self.pl_path, 'scripts', dt[0:4], dt[4:6], dt[6:8]]
+        )
+        os.makedirs(self.script_dir, exist_ok=True)
 
     def createObject(self, objectName, objectType, contend):
         """ Create object on correcponding dir """
