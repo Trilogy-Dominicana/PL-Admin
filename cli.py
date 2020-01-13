@@ -249,50 +249,24 @@ def main():
     if action == "watch":
         watch(files.pl_path)
     
-    if schedule:
+    if action == "make" and script:
+        scriptMigration = Migrations()
 
-        isValidDate = re.search(r"^(\d{4}[-]\d{2}[-]\d{2})|(\d{8,8})$", schedule)
-        if not isValidDate:
-            print(
-                colored(
-                'this command only accept dates in this format 0000-00-00 | 20001102'
-             , 'red'
-                )
-            )
-            return False
-
-        scriptSchedule = schedule.replace("-","")
-        formatSchedule = datetime(year=int(scriptSchedule[:4]), month=int(scriptSchedule[4:6]), day=int(scriptSchedule[6::]))
-        
-        if formatSchedule.strftime('%Y%m%d') < datetime.now().strftime('%Y%m%d') or formatSchedule > (datetime.now() + timedelta(days=15)):
-            print(
-                colored('the scheduling date of a script must be greater than or equal to today and should only be scheduled 15 days ahead'
-                 ,'red'
-                )
-            )
-            return False
-
-        folderSchedule = "%s%s%s%s%s%s" % ("/", schedule[:4], "/", schedule[4:6], "/", schedule[6:])
-
-        if action == "make" and script:
-            scriptMigration = Migrations(folderSchedule=folderSchedule)
-
-            migration = scriptMigration.createScript(
+        migration = scriptMigration.createScript(
              fileType=script, quantity=quantity, basicPl=basicPL
-            )
+        )
 
-            for i in migration:
-                print(colored('script %s created', 'green') %i)
+        for i in migration:
+            print(colored('script %s created', 'green') %i)
         
-        if action == "migrate" and script:
-            structureFolder = datetime.now().strftime('/%Y/%m/%d')
-            scriptMigration = Migrations(folderSchedule=structureFolder)
+    if action == "migrate" and script:
+        scriptMigration = Migrations()
 
-            scriptRevision = scriptMigration.checkPlaceScript()
-            print(scriptRevision)
+        scriptRevision = scriptMigration.checkPlaceScript()
+        print(scriptRevision)
 
-            executeMigration = scriptMigration.migrate(typeFile=script)
-            print(executeMigration)
+        executeMigration = scriptMigration.migrate(typeFile=script)
+        print(executeMigration)
 
 
 
