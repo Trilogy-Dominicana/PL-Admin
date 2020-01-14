@@ -150,6 +150,7 @@ def main():
 
     # Create schema
     if action == "newSchema":
+        db = Database(displayInfo=True)
         invalids = db.createSchema()
 
         if len(invalids):

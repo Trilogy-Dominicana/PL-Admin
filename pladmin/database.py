@@ -137,7 +137,7 @@ class Database:
 
         for obj in data:
             sql = (
-                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS')) "
+                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), '%s')"
                 % (
                     self.user,
                     obj["object_name"],
@@ -145,6 +145,7 @@ class Database:
                     obj["object_path"],
                     obj["last_commit"],
                     obj["last_ddl_time"],
+                    0, # status value is 0 by default and if object is pendding of synchronization is 1
                 )
             )
             cursor.execute(sql)
