@@ -96,3 +96,7 @@ pladmin compile
 # Inside of container 
 pladmin watch
 ```
+
+
+### Topics
+- [Change SYSDBA Password](docs/change-sys-password.md)
