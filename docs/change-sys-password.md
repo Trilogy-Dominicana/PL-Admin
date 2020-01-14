@@ -1,8 +1,10 @@
 ## PL-Admin - Change admin password or any other params
+[Cambiar a Español](change-sys-password-es.md)
+
 If you need change the admin password, schema name, main schema or another params you have modify the enviroments vars saved on .bash_profile or .zshrc file depending of the shell that you are using.
 
 
-Go to ~/.bash_profile of ~/.zshrc and change your params
+Go to ~/.bash_profile or ~/.zshrc and change your params
 ```sh
 vim ~/.zshrc
 
