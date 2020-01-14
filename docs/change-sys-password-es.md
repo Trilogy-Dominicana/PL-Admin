@@ -4,8 +4,12 @@
 Si tu necesitas cambiar la contraseña de tu esquema, administración, esquema principal o cualquier otro parametro, lo único que debes hacer es modificar las variables de entorno en el archivo .bash_profile o .zshrc que se encuentra en tu home. 
 
 
-Abre el fichero ~/.bash_profile o ~/.zshrc y cambia los parametros que sean necesarios.
+Abre tu archico de configurción
 ```sh
+# Bash
+vim ~/.bash_profile
+
+# ZSH
 vim ~/.zshrc
 ```
 

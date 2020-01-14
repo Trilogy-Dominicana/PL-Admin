@@ -4,10 +4,13 @@
 If you need change the admin password, schema name, main schema or another params you have modify the enviroments vars saved on .bash_profile or .zshrc file depending of the shell that you are using.
 
 
-Go to ~/.bash_profile or ~/.zshrc and change your params
+Open you config file
 ```sh
-vim ~/.zshrc
+# Bash
+vim ~/.bash_profile
 
+# ZSH
+vim ~/.zshrc
 ```
 
 Source the params
