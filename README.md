@@ -1,4 +1,6 @@
 # PL/SQL Manager
+[Cambiar a Español](docs/REAMED.md)
+
 This tools has been created thinking on those apps that has to many logic into the database.
 
 PL-Amin provide you an easy way to clone a main schema, compile pl/sql code on realtime, check database errors, check diferences between repo and database, etc.
