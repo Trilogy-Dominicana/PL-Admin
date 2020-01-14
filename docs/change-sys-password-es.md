@@ -1,5 +1,5 @@
 ## PL-Admin - Cambiar contraseña de SYSDBA o cualquier otro parametro
-[Change to Spanish](change-sys-password-es.md)
+[Change to Spanish](change-sys-password.md)
 
 Si tu necesitas cambiar la contraseña de tu esquema, administración, esquema principal o cualquier otro parametro, lo único que debes hacer es modificar las variables de entorno en el archivo .bash_profile o .zshrc que se encuentra en tu home. 
 
