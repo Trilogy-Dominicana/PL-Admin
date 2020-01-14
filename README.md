@@ -1,5 +1,5 @@
 # PL/SQL Manager
-[Cambiar a Español](docs/REAMED.md)
+[Cambiar a Español](docs/README.md)
 
 This tools has been created thinking on those apps that has to many logic into the database.
 
