@@ -132,8 +132,8 @@ def main():
     )
 
     parser.add_argument("action", action="store", help="Push the method name")
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--dry-run", "-d", action="store_true")
+    parser.add_argument("--force", "-f", action="store_true")
     parser.add_argument("--quantity", "-q", default=1, type=int)
     parser.add_argument("--basic_pl", "-pl", default='n', type=str)
     parser.add_argument("--script", "-s", type=str, choices=('as', 'ds'))
@@ -145,7 +145,7 @@ def main():
     force    = args.force
     script   = args.script
     quantity = args.quantity
-    basicPL = args.basic_pl
+    basicPL  = args.basic_pl
     schedule = args.schedule
 
     # Create schema
@@ -169,6 +169,14 @@ def main():
 
     if action == "db2wc":
         db2wc(dry_run, force)
+
+    if action == "invalids":
+        db = Database(displayInfo=True)
+        invalids = db.getObjects(status="INVALID")
+        objLen = len(invalids)
+
+        for obj in invalids:
+            print(obj['object_type'], '-', obj['object_name'])
 
     # Push changes from local repository to db
     if action == "wc2db":
@@ -268,7 +276,6 @@ def main():
 
         executeMigration = scriptMigration.migrate(typeFile=script)
         print(executeMigration)
-
 
 
 if __name__ == "__main__":
