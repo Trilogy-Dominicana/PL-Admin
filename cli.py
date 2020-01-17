@@ -181,7 +181,7 @@ def main():
     # Push changes from local repository to db
     if action == "wc2db":
         # Turn off bar loader
-        db = Database(displayInfo=False)
+        db = Database(displayInfo=True)
 
         if dry_run:
             utils.dryRun()
@@ -194,11 +194,11 @@ def main():
         # List object that could have changed
         dbObjects = db.getObjectsDb2Wc()
 
-        # look for pendding objects or fail objects
-        pendding = [o['object_path'] for o in db.metadataPendding()]
+        # look for pending objects or fail objects
+        pending = [o['object_path'] for o in db.metadataPending()]
 
-        # Local modifications
-        objModified = list(set(wcObjects["modified"] + pendding))
+        # Local modifications (Pending and modified objects)
+        objModified = list(set(wcObjects["modified"] + pending))
 
 
         for mObj in objModified:
@@ -208,8 +208,6 @@ def main():
 
             # Verify was modified on the db
             isObj = utils.getObjectDict(dbObjects, name, objectType)
-            # print(mObj)
-            # exit()
 
             # Aquí debemos validar si el objecto en verdad tiene modificaciones, comparando el contenido del archivo la base de datos.
             # print(mObj)
@@ -252,8 +250,16 @@ def main():
                 objToUpdate.update(last_commit=files.head_commit, object_path=mObj, meta_status=0)
                 updated = db.createOrUpdateMetadata(objToUpdate)
 
+
         # ¿Que pasa si se hace un wc2db y no se le hace commit a esos cambios?
-        # TODO List file removed and drop it from database
+        # Remove object that has been deleted on local repository
+        removed = wcObjects["deleted"]
+        if not dry_run:
+            db.dropDbObjects(removed, db.user)
+
+        for r in removed:
+            print(r, ' Removed')
+
 
     if action == "watch":
         watch(files.pl_path)

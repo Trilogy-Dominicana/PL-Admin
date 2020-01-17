@@ -222,7 +222,7 @@ class Database:
             db.commit()
             db.close()
 
-    def metadataPendding(self, status=1):
+    def metadataPending(self, status=1):
 
         query = "SELECT object_path FROM %s.pladmin_metadata WHERE status = '%s'" % (
             self.user,
@@ -303,6 +303,68 @@ class Database:
             db.close()
 
         return invalids
+
+    def dropDbObjects(self, objects, owner, db=None):
+        """
+        Drop packges, views, procedures or functions
+
+        params:
+        ------
+        objects (list): path routes of the object on the file system
+        db (cx_Oracle.Connection): If you opened a db connection puth here please to avoid
+
+        return (list) with errors if some package were an error
+        """
+
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+
+        cursor = db.cursor()
+        
+        # Prepare data for progress bar
+        progressTotal = len(objects)
+        i = 0
+        files.progress(
+            i,
+            progressTotal,
+            status="LISTING PACKAGES...",
+            title="REMOVING OBJECTS",
+        )
+
+        for f in objects:
+            fname, ftype = files.getFileName(f)
+            objectType = files.objectsTypes(inverted=True, objKey="." + ftype)
+
+            # Only valid extencions sould be processed
+            if not "." + ftype in self.extentions:
+                continue
+
+            # Display progress bar
+            files.progress(i, progressTotal, "REMOVING %s ON DB" % fname)
+            i += 1
+
+            sql = "DROP %s %s.%s" % (objectType, owner, fname)
+
+            if ftype == "vew":
+                sql = "DROP VIEW %s" % fname
+            
+            print("\n",sql,"\n")
+            # exit()
+            # Execute sql statement
+            cursor.execute(sql)
+        
+        files.progress(
+            i,
+            progressTotal,
+            status="OBJECTS HAS BEEN REMOVED",
+            end=True,
+        )
+
+        if localClose:
+            db.close()
+
 
     def createReplaceObject(self, path=None, db=None):
         """
@@ -517,7 +579,7 @@ class Database:
         """ Get Objects that exist on pladmin_metadata table and does't exist on metadata dba_objects"""
         types = "', '".join(self.types)
 
-        sql = """ SELECT a.*
+        sql = """SELECT a.*
         FROM %s.PLADMIN_METADATA a
         WHERE NOT EXISTS (SELECT 1 FROM dba_objects b WHERE b.object_name = a.object_name AND b.object_type = a.object_type AND b.owner='%s')
         AND a.object_type in ('%s') """ % (
@@ -526,22 +588,22 @@ class Database:
             types,
         )
 
-        sql = """SELECT 
-                    mt.object_name 
-                    ,mt.object_type
-                    ,dbs.status
-                    ,mt.last_ddl_time
-                    ,mt.last_ddl_time as meta_last_ddl_time
-                    ,mt.object_path
-                    ,mt.last_commit 
-                    FROM %s.PLADMIN_METADATA mt LEFT JOIN
-                    dba_objects dbs ON dbs.object_name = mt.object_name AND dbs.object_type = mt.object_type AND dbs.owner ='%s'
-                    AND dbs.object_type IN ('%s')
-                    WHERE  dbs.object_name IS NULL""" % (
-            self.user,
-            self.user,
-            types,
-        )
+        # sql = """SELECT 
+        #             mt.object_name 
+        #             ,mt.object_type
+        #             ,dbs.status
+        #             ,mt.last_ddl_time
+        #             ,mt.last_ddl_time as meta_last_ddl_time
+        #             ,mt.object_path
+        #             ,mt.last_commit 
+        #             FROM %s.PLADMIN_METADATA mt LEFT JOIN
+        #             dba_objects dbs ON dbs.object_name = mt.object_name AND dbs.object_type = mt.object_type AND dbs.owner ='%s'
+        #             AND dbs.object_type IN ('%s')
+        #             WHERE  dbs.object_name IS NULL""" % (
+        #     self.user,
+        #     self.user,
+        #     types,
+        # )
 
         result = self.getData(sql)
 
