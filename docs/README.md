@@ -94,3 +94,10 @@ pladmin compile
 # Inside of container 
 pladmin watch
 ```
+
+### Topics
+- [Cambiar el password del SYSDBA](docs/change-sys-password-es.md)
+
+### ¡Importante!
+- El nombre del archivo debe ser el mismo que el del objecto.
+- Despues de cada commit, PL-Admin ejecuta el comanndo `wc2db` para sincronizar git con la base de datos.

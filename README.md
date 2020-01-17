@@ -99,6 +99,9 @@ pladmin compile
 pladmin watch
 ```
 
-
 ### Topics
 - [Change SYSDBA Password](docs/change-sys-password.md)
+
+### ¡Important!
+- The file name has to be the same of the object name.
+- After each commit, PL-Admin excute `wc2db` command to sinchronize git with the database.
