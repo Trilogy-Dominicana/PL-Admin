@@ -145,7 +145,7 @@ class Database:
                     obj["object_path"],
                     obj["last_commit"],
                     obj["last_ddl_time"],
-                    0, # status value is 0 by default and if object is pendding of synchronization is 1
+                    0,  # status value is 0 by default and if object is pendding of synchronization is 1
                 )
             )
             cursor.execute(sql)
@@ -322,16 +322,6 @@ class Database:
             localClose = True
 
         cursor = db.cursor()
-        
-        # Prepare data for progress bar
-        progressTotal = len(objects)
-        i = 0
-        files.progress(
-            i,
-            progressTotal,
-            status="LISTING PACKAGES...",
-            title="REMOVING OBJECTS",
-        )
 
         for f in objects:
             fname, ftype = files.getFileName(f)
@@ -341,30 +331,19 @@ class Database:
             if not "." + ftype in self.extentions:
                 continue
 
-            # Display progress bar
-            files.progress(i, progressTotal, "REMOVING %s ON DB" % fname)
-            i += 1
-
             sql = "DROP %s %s.%s" % (objectType, owner, fname)
 
             if ftype == "vew":
                 sql = "DROP VIEW %s" % fname
-            
-            print("\n",sql,"\n")
-            # exit()
+
             # Execute sql statement
-            cursor.execute(sql)
-        
-        files.progress(
-            i,
-            progressTotal,
-            status="OBJECTS HAS BEEN REMOVED",
-            end=True,
-        )
+            try:
+                cursor.execute(sql)
+            except:
+                pass
 
         if localClose:
             db.close()
-
 
     def createReplaceObject(self, path=None, db=None):
         """
@@ -588,14 +567,14 @@ class Database:
             types,
         )
 
-        # sql = """SELECT 
-        #             mt.object_name 
+        # sql = """SELECT
+        #             mt.object_name
         #             ,mt.object_type
         #             ,dbs.status
         #             ,mt.last_ddl_time
         #             ,mt.last_ddl_time as meta_last_ddl_time
         #             ,mt.object_path
-        #             ,mt.last_commit 
+        #             ,mt.last_commit
         #             FROM %s.PLADMIN_METADATA mt LEFT JOIN
         #             dba_objects dbs ON dbs.object_name = mt.object_name AND dbs.object_type = mt.object_type AND dbs.owner ='%s'
         #             AND dbs.object_type IN ('%s')
@@ -954,4 +933,21 @@ class Database:
         data = self.getData(query=sql)
 
         return data
+
+    def dropObject(self, data, dry_run=False):
+        """ This method has to be executed to remove object from database and in the metadata table"""
+        if not dry_run:
+            self.dropDbObjects(data, self.user)
+
+        for r in data:
+            if not dry_run:
+                fname, ftype = files.getFileName(r)
+                meta = {}
+                meta["object_name"] = fname
+                meta["object_type"] = files.objectsTypes(
+                    inverted=True, objKey="." + ftype
+                )
+                self.metadataDelete([meta])
+
+            print(r, "Removed")
 

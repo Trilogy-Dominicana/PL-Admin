@@ -135,17 +135,19 @@ def main():
     parser.add_argument("--dry-run", "-d", action="store_true")
     parser.add_argument("--force", "-f", action="store_true")
     parser.add_argument("--quantity", "-q", default=1, type=int)
-    parser.add_argument("--basic_pl", "-pl", default='n', type=str)
-    parser.add_argument("--script", "-s", type=str, choices=('as', 'ds'))
-    parser.add_argument("--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d"))
-  
-    args     = parser.parse_args()
-    action   = args.action
-    dry_run  = args.dry_run
-    force    = args.force
-    script   = args.script
+    parser.add_argument("--basic_pl", "-pl", default="n", type=str)
+    parser.add_argument("--script", "-s", type=str, choices=("as", "ds"))
+    parser.add_argument(
+        "--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d")
+    )
+
+    args = parser.parse_args()
+    action = args.action
+    dry_run = args.dry_run
+    force = args.force
+    script = args.script
     quantity = args.quantity
-    basicPL  = args.basic_pl
+    basicPL = args.basic_pl
     schedule = args.schedule
 
     # Create schema
@@ -176,12 +178,12 @@ def main():
         objLen = len(invalids)
 
         for obj in invalids:
-            print(obj['object_type'], '-', obj['object_name'])
+            print(obj["object_type"], "-", obj["object_name"])
 
     # Push changes from local repository to db
     if action == "wc2db":
-        # Turn off bar loader
-        db = Database(displayInfo=True)
+        # Turn off loader bar
+        db = Database(displayInfo=False)
 
         if dry_run:
             utils.dryRun()
@@ -195,11 +197,10 @@ def main():
         dbObjects = db.getObjectsDb2Wc()
 
         # look for pending objects or fail objects
-        pending = [o['object_path'] for o in db.metadataPending()]
+        pending = [o["object_path"] for o in db.metadataPending()]
 
         # Local modifications (Pending and modified objects)
         objModified = list(set(wcObjects["modified"] + pending))
-
 
         for mObj in objModified:
 
@@ -224,7 +225,6 @@ def main():
 
                 # Read file and compered changes
 
-                
                 print(mObj, "Has changes in the database, Fail!")
                 if not dry_run:
                     objFailToUpdate = db.getObjects(
@@ -232,13 +232,12 @@ def main():
                     )
 
                     objFailToUpdate.update(meta_status=1)
-                    del objFailToUpdate['last_ddl_time']
+                    del objFailToUpdate["last_ddl_time"]
                     db.createOrUpdateMetadata(objFailToUpdate)
 
                 continue
 
             # If everything ok, created or replace the object
-            print(mObj, "Exported successfully!")
             if not dry_run:
                 db.createReplaceObject([mObj])
 
@@ -247,33 +246,30 @@ def main():
                     objectTypes=[objectType], objectName=name, fetchOne=True
                 )
 
-                objToUpdate.update(last_commit=files.head_commit, object_path=mObj, meta_status=0)
+                objToUpdate.update(
+                    last_commit=files.head_commit, object_path=mObj, meta_status=0
+                )
                 updated = db.createOrUpdateMetadata(objToUpdate)
 
+            print(mObj, "Exported successfully!")
 
         # ¿Que pasa si se hace un wc2db y no se le hace commit a esos cambios?
         # Remove object that has been deleted on local repository
-        removed = wcObjects["deleted"]
-        if not dry_run:
-            db.dropDbObjects(removed, db.user)
-
-        for r in removed:
-            print(r, ' Removed')
-
+        db.dropObject(wcObjects["deleted"], dry_run)
 
     if action == "watch":
         watch(files.pl_path)
-    
+
     if action == "make" and script:
         scriptMigration = Migrations()
 
         migration = scriptMigration.createScript(
-             fileType=script, quantity=quantity, basicPl=basicPL
+            fileType=script, quantity=quantity, basicPl=basicPL
         )
 
         for i in migration:
-            print(colored('script %s created', 'green') %i)
-        
+            print(colored("script %s created", "green") % i)
+
     if action == "migrate" and script:
         scriptMigration = Migrations()
 
