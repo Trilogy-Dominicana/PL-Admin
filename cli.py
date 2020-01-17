@@ -207,6 +207,9 @@ def main():
             name, ext = files.getFileName(mObj)
             objectType = files.objectsTypes(inverted=True, objKey="." + ext)
 
+            if not objectType:
+                continue
+
             # Verify was modified on the db
             isObj = utils.getObjectDict(dbObjects, name, objectType)
 

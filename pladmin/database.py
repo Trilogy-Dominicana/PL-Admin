@@ -328,7 +328,7 @@ class Database:
             objectType = files.objectsTypes(inverted=True, objKey="." + ftype)
 
             # Only valid extencions sould be processed
-            if not "." + ftype in self.extentions:
+            if not "." + ftype in self.extentions or not objectType:
                 continue
 
             sql = "DROP %s %s.%s" % (objectType, owner, fname)
@@ -940,14 +940,19 @@ class Database:
             self.dropDbObjects(data, self.user)
 
         for r in data:
+            fname, ftype = files.getFileName(r)
+            objectType = files.objectsTypes(
+                inverted=True, objKey="." + ftype
+            )
+            meta = {}
+
+            # Only valid extencions sould be processed
+            if not "." + ftype in files.extentions or not objectType:
+                continue
+
             if not dry_run:
-                fname, ftype = files.getFileName(r)
-                meta = {}
                 meta["object_name"] = fname
-                meta["object_type"] = files.objectsTypes(
-                    inverted=True, objKey="." + ftype
-                )
+                meta["object_type"] = objectType
                 self.metadataDelete([meta])
-
+            
             print(r, "Removed")
-
