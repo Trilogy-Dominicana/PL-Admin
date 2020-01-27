@@ -64,7 +64,8 @@ class Migrations(Files, Database):
         for p in pattern:
             for filename in Path('/plsql/scripts').rglob('*.sql'):
                 if re.search(p, ntpath.basename(filename).lower()):
-                    self.executeMigration(FullName=filename)
+                    yield filename
+                    # self.executeMigration(FullName=filename)
             
             
     def executeMigration(self, FullName):

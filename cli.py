@@ -280,9 +280,9 @@ def main():
         # print(scriptRevision)
 
         allmigrations = scriptMigration.migrate(typeFile=script)
-        print(allmigrations)
-        # for script in allmigrations:
-        #     print(script)
+        # print(allmigrations)
+        for script in allmigrations:
+            print(script)
             # print(
             #     scriptMigration.executeMigration(FullName=script)
             # )
