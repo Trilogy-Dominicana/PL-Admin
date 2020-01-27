@@ -59,14 +59,13 @@ class Migrations(Files, Database):
 
     def migrate(self, typeFile=""):
 
-        findPath = [
-            self.script_dir_dll,
-            self.script_dir_dml
-        ]
-     
-        for path in findPath:
-            for filename in Path(path).rglob('*.sql'):
-                yield filename
+        pattern = ['^ddl+', '^dml+']
+
+        for p in pattern:
+            for filename in Path('/plsql/scripts').rglob('*.sql'):
+                if re.search(p, ntpath.basename(filename).lower()):
+                    self.executeMigration(FullName=filename)
+            
             
     def executeMigration(self, FullName):
         """ this function execute all instruccion sql in indicate file
