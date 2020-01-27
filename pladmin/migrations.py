@@ -59,12 +59,12 @@ class Migrations(Files, Database):
 
     def migrate(self, typeFile=""):
 
-        findPath = {
-            'ddl' : self.script_dir_dll,
-            'dml' :  self.script_dir_dml
-        }
+        findPath = [
+            self.script_dir_dll,
+            self.script_dir_dml
+        ]
      
-        for path in findPath.values():
+        for path in findPath:
             for filename in Path(path).rglob('*.sql'):
                 yield filename
             
