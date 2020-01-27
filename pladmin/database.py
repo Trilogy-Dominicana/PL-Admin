@@ -892,12 +892,12 @@ class Database:
             sql = (
                 (
                     """ 
-                      INSERT INTO %s.PLADMIN_MIGRATIONS (SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
+                      INSERT INTO omega.PLADMIN_MIGRATIONS (SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
                       VALUES('%s', '%s', '%s', '%s', '%s')
                      
                       """
                 )
-                % (self.user, scriptName, status, fullPath, typeScript, output)
+                % (scriptName, status, fullPath, typeScript, output)
             )
             data = cursor.execute(sql)
 
@@ -906,8 +906,7 @@ class Database:
             db.close()
 
     def getScriptByName(self, scriptName):
-        sql = "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE script_name='%s' " % (
-            self.user,
+        sql = "SELECT * FROM PLADMIN_MIGRATIONS WHERE script_name='%s' " % (
             scriptName,
         )
 

@@ -136,7 +136,7 @@ def main():
     parser.add_argument("--force", "-f", action="store_true")
     parser.add_argument("--quantity", "-q", default=1, type=int)
     parser.add_argument("--basic_pl", "-pl", default="n", type=str)
-    parser.add_argument("--script", "-s", type=str, choices=("as", "ds"))
+    parser.add_argument("--script", "-s", type=str, choices=("ddl", "dml"))
     parser.add_argument(
         "--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d")
     )
@@ -276,11 +276,15 @@ def main():
     if action == "migrate" and script:
         scriptMigration = Migrations()
 
-        scriptRevision = scriptMigration.checkPlaceScript()
-        print(scriptRevision)
+        # scriptRevision = scriptMigration.checkPlaceScript()
+        # print(scriptRevision)
 
-        executeMigration = scriptMigration.migrate(typeFile=script)
-        print(executeMigration)
+        allmigrations = scriptMigration.migrate(typeFile=script)
+
+        for script in allmigrations:
+            print(
+                scriptMigration.executeMigration(FullName=script)
+            )
 
 
 if __name__ == "__main__":
