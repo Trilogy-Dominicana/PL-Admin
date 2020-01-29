@@ -22,7 +22,7 @@ cp .env.sample .env
 
 Create an alias the made the proccess more easier
 ```sh
-# Open you profile config should be .bash_profile or .zshrc
+# Open your profile config should be .bash_profile or .zshrc
 vim ~/.bash_profile
 
 # Enter this line:
@@ -69,7 +69,7 @@ db2wc: Look for objects that has been changed on the database and then export it
 pladmin wc2db [options]
 ```
 
-`compile`: Look for invalid packages and try to compile it.
+`compile`: Look for invalid objects and try to compile it.
 ```sh
 # usage
 pladmin compile
