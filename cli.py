@@ -213,7 +213,8 @@ def main():
             # Verify was modified on the db
             isObj = utils.getObjectDict(dbObjects, name, objectType)
 
-            # Aquí debemos validar si el objecto en verdad tiene modificaciones, comparando el contenido del archivo la base de datos.
+            # Aquí debemos validar si el objecto en verdad tiene modificaciones, comparando el contenido del archivo con el qué está en la base de datos.
+            # Here we have to validate if the object really has change on the db, making a diff between content file and content on the database.
             # print(mObj)
             if isObj and not force:
                 # objContend = db.getObjSource(name, objectType).encode("utf-8")
