@@ -50,7 +50,7 @@ pladmin newSchema
 ```
 
 wc2db: Compara la diferencias entre la base de datos y el reposoririo local y reemplaza los objectos con diferencias dentro de la base de datos
-> - --dry-run: Muestra todo lo que sera creado, removido, etc. pero no ejecuta nada.
+> - --dry-run: Muestra todo lo que será creado, removido, etc. pero no ejecuta nada.
 > - --force: Forza la sincronización del repositorio con la base de datos.
 
 ```sh
@@ -59,7 +59,7 @@ pladmin wc2db [opciones]
 ```
 
 db2wc: Busca los objetos que tienen cambios en la base de datos y los exporta al respositorio local.
-> - --dry-run: Muestra todo lo que sera creado, removido, etc. pero no ejecuta nada.
+> - --dry-run: Muestra todo lo que será creado, removido, etc. pero no ejecuta nada.
 > - --force: Forza la sincronización de la base de datos con el repositorio.
 > - --merge: Hace un merge de los cambios en la base de datos y el repositorio local (beta). 
 ```sh
