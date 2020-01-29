@@ -15,12 +15,12 @@ git@gitlab.viva.com.do:anaiboa/plsql-manager.git
 ```
 
 ### Setup
-1. Copy .env.sample and replace the params with your own parameters
+Copy .env.sample and replace the params with your own parameters
 ```sh
 cp .env.sample .env
 ```
 
-2. Create an alias the made the proccess more easier
+Create an alias the made the proccess more easier
 ```sh
 # Open you profile config should be .bash_profile or .zshrc
 vim ~/.bash_profile
@@ -46,8 +46,7 @@ pladmin [`command`] [`options`]
 - errors
 - watch
 
-
-### ESSENTIAL COMMANDS
+### Essential Commands
 `newSchema`: Create new schema taking values from env vars
 ```sh
 pladmin newSchema
