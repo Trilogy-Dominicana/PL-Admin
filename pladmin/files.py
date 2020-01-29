@@ -191,8 +191,6 @@ class Files:
         path (string): String structured with / e.g: you/path/dir/to/file.pbk
         return name, extention
         """
-
-        ## Validar que el archivo cumpla con nombre.extencion no puede ser .
         gzfname = path.split("/")
         fullfname = gzfname[-1]
         fname = fullfname.split(".")
