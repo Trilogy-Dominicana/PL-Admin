@@ -287,13 +287,13 @@ class Database:
             cursor.execute(sql)
 
             # Update metadata table
-            objToUpdate = self.getObjects(
-                objectTypes=[obj["object_type"]],
-                objectName=obj["object_name"],
-                fetchOne=True,
-            )
-            objToUpdate.update(last_commit=files.head_commit)
-            self.metadataUpdate(data=[objToUpdate], db=db)
+            # objToUpdate = self.getObjects(
+            #     objectTypes=[obj["object_type"]],
+            #     objectName=obj["object_name"],
+            #     fetchOne=True,
+            # )
+            # objToUpdate.update(last_commit=files.head_commit)
+            # self.metadataUpdate(data=[objToUpdate], db=db)
 
         if objLen != self.lastIntends:
             self.lastIntends = objLen

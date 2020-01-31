@@ -167,7 +167,10 @@ def main():
         db = Database(displayInfo=True)
         result = db.compileObjects()
 
-        print(result)
+        if len(result):
+            print("\nThis objects are invalids: \n")
+        for inv in result:
+            print(inv["object_name"], inv["object_type"])
 
     if action == "db2wc":
         db2wc(dry_run, force)
