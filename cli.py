@@ -241,7 +241,7 @@ def main():
 
                 continue
 
-            # If everything ok, created or replace the object
+            # If everything is ok, created or replace the object
             if not dry_run:
                 db.createReplaceObject([mObj])
 
@@ -257,8 +257,7 @@ def main():
 
             print(mObj, "Exported successfully!")
 
-        # ¿Que pasa si se hace un wc2db y no se le hace commit a esos cambios?
-        # Remove object that has been deleted on local repository
+        # Remove objects that has been deleted on local repository
         db.dropObject(wcObjects["deleted"], dry_run)
 
     if action == "watch":
