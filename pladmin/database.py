@@ -779,7 +779,7 @@ class Database:
 
     def dbConnect(self, sysDBA=False):
         """
-        Encharge to connect to Oracle database
+        Responsible for connecting to oracle database
 
         Params:
         -------
