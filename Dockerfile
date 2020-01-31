@@ -14,8 +14,8 @@ RUN apk update; \
 
 ARG GIT_NAME
 ARG GIT_EMAIL
-RUN git config --global user.name "$GIT_NAME"; \
-  git config --global user.email $GIT_EMAIL
+# RUN git config --global user.name "$GIT_NAME"; \
+#   git config --global user.email $GIT_EMAIL
 
 # Setup timezone 
 RUN cp /usr/share/zoneinfo/America/Santo_Domingo /etc/localtime

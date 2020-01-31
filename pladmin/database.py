@@ -1,9 +1,10 @@
 import cx_Oracle, os, re, glob
 from pladmin.files import Files as files
 from datetime import datetime, date
+from dotenv import load_dotenv
 
 files = files()
-
+load_dotenv()
 
 class Database:
 
@@ -39,7 +40,7 @@ class Database:
         )
 
         # Create table of migrations
-        self.createMetaTableScripts()
+        # self.createMetaTableScripts()
 
         # Create synonyms
         self.createSynonyms(
