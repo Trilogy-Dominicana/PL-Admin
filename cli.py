@@ -22,10 +22,6 @@ TODO:
 db = Database(displayInfo=True)
 files = Files(displayInfo=True)
 
-
-# utils = Utils()
-
-
 def watch(path_to_watch):
     """ Watch the provided path for changes in any of it's subdirectories """
 
@@ -153,12 +149,14 @@ def main():
     # Create schema
     if action == "newSchema":
         db = Database(displayInfo=True)
+
+        # The create Scheme method returns the packages that are still invalid
         invalids = db.createSchema()
 
         if len(invalids):
             print("\nThis objects are invalids:")
             for inv in invalids:
-                print(inv["object_name"], inv["object_type"])
+                print(inv["object_type"], inv["object_name"])
         else:
             print("Schema created successfully!")
 
@@ -170,7 +168,7 @@ def main():
         if len(result):
             print("\nThis objects are invalids: \n")
         for inv in result:
-            print(inv["object_name"], inv["object_type"])
+            print(inv["object_type"], inv["object_name"])
 
     if action == "db2wc":
         db2wc(dry_run, force)
