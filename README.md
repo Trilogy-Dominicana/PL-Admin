@@ -26,7 +26,7 @@ Create an alias the made the proccess more easier
 vim ~/.bash_profile
 
 # Enter this line:
-alias plqmin="docker container exec -ti pl-admin pladmin"
+alias pladmin="docker container exec -ti pl-admin pladmin"
 
 # Close the file and source you new alias
 source ~/.bash_profile
