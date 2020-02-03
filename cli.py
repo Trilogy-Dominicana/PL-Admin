@@ -2,13 +2,13 @@
 from __future__ import absolute_import
 import sys, getopt, json, os, argparse, time, hashlib, re
 from termcolor import colored
+from prettytable import PrettyTable
 
 from datetime import datetime, timedelta
 from pladmin.database import Database
 from pladmin.files import Files
 from pladmin.utils import utils
 from pladmin.migrations import Migrations
-
 # parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
 # parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
 
@@ -169,6 +169,22 @@ def main():
             print("\nThis objects are invalids: \n")
         for inv in result:
             print(inv["object_type"], inv["object_name"])
+
+    if action == "errors":
+        db = Database(displayInfo=True)
+        result = db.compileObjects()
+        
+        t = PrettyTable(['Name', 'Type', 'Line', 'Text'])
+
+        # Get package errors
+        for r in result:
+            errors = db.getObjErrors(owner=db.user, object_name=r['object_name'],  object_type= r['object_type'])
+            
+            for e in errors:
+                t.add_row([e['name'], e['type'], e['line'], e['text']])
+
+        print(t)
+        
 
     if action == "db2wc":
         db2wc(dry_run, force)

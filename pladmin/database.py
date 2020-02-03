@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 files = files()
 load_dotenv()
 
+
 class Database:
 
     db_admin_user = os.getenv("DB_ADMIN_USER").upper()
@@ -286,15 +287,6 @@ class Database:
 
             cursor.execute(sql)
 
-            # Update metadata table
-            # objToUpdate = self.getObjects(
-            #     objectTypes=[obj["object_type"]],
-            #     objectName=obj["object_name"],
-            #     fetchOne=True,
-            # )
-            # objToUpdate.update(last_commit=files.head_commit)
-            # self.metadataUpdate(data=[objToUpdate], db=db)
-
         if objLen != self.lastIntends:
             self.lastIntends = objLen
             self.compileObjects(db=db)
@@ -384,7 +376,7 @@ class Database:
                 continue
 
             # Display progress bar
-            files.progress(i, progressTotal, "CRATEING %s" % fname)
+            files.progress(i, progressTotal, "CREATING %s" % fname)
             i += 1
 
             opf = open(f, "r")
@@ -425,12 +417,12 @@ class Database:
 
         return data
 
-    def getObjErrors(self, owner, objName, db=None):
+    def getObjErrors(self, owner, object_name, object_type, db=None):
         """ Get object errors on execution time """
 
-        query = "SELECT * FROM dba_errors WHERE owner = '%s' and NAME = '%s'" % (
-            owner,
-            objName,
+        query = (
+            "SELECT * FROM dba_errors WHERE owner = '%s' and NAME = '%s' and TYPE = '%s'"
+            % (owner, object_name, object_type)
         )
         result = self.getData(query=query, db=db)
 
@@ -910,9 +902,7 @@ class Database:
             db.close()
 
     def getScriptByName(self, scriptName):
-        sql = "SELECT * FROM PLADMIN_MIGRATIONS WHERE script_name='%s' " % (
-            scriptName,
-        )
+        sql = "SELECT * FROM PLADMIN_MIGRATIONS WHERE script_name='%s' " % (scriptName)
 
         data = self.getData(query=sql, fetchOne=True)
 
@@ -944,9 +934,7 @@ class Database:
 
         for r in data:
             fname, ftype = files.getFileName(r)
-            objectType = files.objectsTypes(
-                inverted=True, objKey="." + ftype
-            )
+            objectType = files.objectsTypes(inverted=True, objKey="." + ftype)
             meta = {}
 
             # Only valid extencions sould be processed
@@ -957,5 +945,5 @@ class Database:
                 meta["object_name"] = fname
                 meta["object_type"] = objectType
                 self.metadataDelete([meta])
-            
+
             print(r, "Removed")
