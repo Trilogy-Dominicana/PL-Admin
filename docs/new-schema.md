@@ -1,8 +1,9 @@
 ## PL-Admin - Creating a new shcema
 [Cambiar a Español](new-schema-es.md)
 
-If you need change the admin password, schema name, main schema or another params you have modify the enviroments vars saved on .bash_profile or .zshrc file depending of the shell that you are using.
+When the newSchema command is executed, pl-admin takes the value in the variable `DB_USER` creates the schema and then creates all the objects that are in the local repository.
 
+If the schema already exists, the tool will give a choice that it cannot continue and the -f or --force option should be used.
 
 Open you config file
 ```sh

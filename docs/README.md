@@ -80,9 +80,9 @@ pladmin watch
 ```
 
 ### Topics
-- [Crear nuevo esquema](docs/new-shcema-es.md)
-- [Cambios desde la bases de dato al respositorio local (WC), `db2wc`](docs/wc2db-es.md)
-- [Cambiar el password del SYSDBA](docs/change-sys-password-es.md)
+- [Crear nuevo esquema](new-shcema-es.md)
+- [Cambios desde la bases de dato al respositorio local (WC), `db2wc`](wc2db-es.md)
+- [Cambiar el password del SYSDBA](change-sys-password-es.md)
 
 ### ¡Importante!
 - Los nombres de los archivos en el repositorio deben ser el mismo que en la base de datos.

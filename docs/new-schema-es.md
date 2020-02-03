@@ -1,35 +1,16 @@
 ## PL-Admin - Crear un nuevo esquema
 [Chenge to english](new-schema.md)
 
-If you need change the admin password, schema name, main schema or another params you have modify the enviroments vars saved on .bash_profile or .zshrc file depending of the shell that you are using.
+Cuando se ejecuta el comando newSchema, pl-admin toma el valor en la variable `DB_USER` crea el esquema y entonces crea todos los objetos que se encuentran en el respositorio local.
 
+Si el esquema ya existe, la herramienta dará una elerta de que no puede continuar y se deberá utilizar la opción -f o --force. 
 
-Open you config file
+> It is important to know that using the -f or --force pl-admin flag will delete the existing schema with all its objects and create a new one based on the objects that exist in the local repository.
+
 ```sh
-# Bash
-vim ~/.bash_profile
-
-# ZSH
-vim ~/.zshrc
+pladmin newShcema <options>
 ```
 
-Source the params
 ```sh
-soruce ~/.zshrc
-```
-
-Restart the container
-```sh
-docker-compose restart
-```
-
-Check if everything is ok
-```sh
-# docker exec -ti pl-admin echo <env_var> e.g:
-docker exec -ti pl-admin echo $DB_ADMIN_PASSWORD
-```
-
-If this no work for you, just rebuild the image and the container
-```sh
-docker-compose up -d --build
+pladmin newShcema -f
 ```
