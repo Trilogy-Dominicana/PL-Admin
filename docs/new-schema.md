@@ -5,32 +5,11 @@ When the newSchema command is executed, pl-admin takes the value in the variable
 
 If the schema already exists, the tool will give a choice that it cannot continue and the -f or --force option should be used.
 
-Open you config file
-```sh
-# Bash
-vim ~/.bash_profile
 
-# ZSH
-vim ~/.zshrc
+```sh
+pladmin newShcema <options>
 ```
 
-Source the params
 ```sh
-soruce ~/.zshrc
-```
-
-Restart the container
-```sh
-docker-compose restart
-```
-
-Check if everything is ok
-```sh
-# docker exec -ti pl-admin echo <env_var> e.g:
-docker exec -ti pl-admin echo $DB_ADMIN_PASSWORD
-```
-
-If this no work for you, just rebuild the image and the container
-```sh
-docker-compose up -d --build
+pladmin newShcema -f
 ```
