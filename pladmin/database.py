@@ -798,8 +798,8 @@ class Database:
             user = self.db_admin_user
             password = self.db_admin_password
 
-        if self.db_admin_user == "SYS" :
-            mode = cx_Oracle.SYSDBA  
+            if self.db_admin_user == "SYS":
+                mode = cx_Oracle.SYSDBA
 
         return cx_Oracle.connect(
             user=user, password=password, dsn=self.dsn, mode=mode, encoding="UTF-8"
