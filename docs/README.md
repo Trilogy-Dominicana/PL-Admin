@@ -80,6 +80,8 @@ pladmin watch
 ```
 
 ### Topics
+- [Crear nuevo esquema](docs/new-shcema-es.md)
+- [Cambios desde la bases de dato al respositorio local (WC), `db2wc`](docs/wc2db-es.md)
 - [Cambiar el password del SYSDBA](docs/change-sys-password-es.md)
 
 ### ¡Importante!

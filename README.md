@@ -52,7 +52,7 @@ pladmin [`command`] [`options`]
 pladmin newSchema
 ```
 
-wc2db: Compare the differences between the last synchronized commit and the local repository and take those changes to the database
+`wc2db`: Compare the differences between the last synchronized commit and the local repository and take those changes to the database
 > - --dry-run: Show what would be removed, created, but do not actually remove anything
 > - --force: Will no do any validation to export the objects.
 ```sh
@@ -60,7 +60,7 @@ wc2db: Compare the differences between the last synchronized commit and the loca
 pladmin wc2db [options]
 ```
 
-db2wc: Look for objects that has been changed on the database and then export it to local repo.
+`db2wc`: Look for objects that has been changed on the database and then export it to local repo.
 > - --dry-run: Show what would be exported but do not actually do anything.
 > - --force: Will no do any validation to export the objects.
 > - --merge: Merge the object that you are exporting with the local file. 
@@ -88,8 +88,10 @@ pladmin watch
 ```
 
 ### Topics
+- [Creating a New Shcema](docs/new-shcema.md)
+- [Changes from database (DB) to Working Copy (WC), `db2wc`](docs/wc2db.md)
 - [Change SYS DBA Password](docs/change-sys-password.md)
 
 ### Important!
 - The file name has to be the same of the object name.
-- After each commit, PL-Admin excute `wc2db` command to sinchronize git with the database.
+- After each commit, PL-Admin excute `wc2db` command to sinchronize *git* with the database.
