@@ -97,8 +97,8 @@ def db2wc(dry_run, force):
             fileObject = files.createObject(objectName, objectType, objContend)
 
             # Update metadata table
-            obj.update(last_commit=files.head_commit, object_path=fileObject)
-            updated = db.createOrUpdateMetadata(obj)
+            # obj.update(last_commit=files.head_commit, object_path=fileObject)
+            # updated = db.createOrUpdateMetadata(obj)
 
         # This validation is to know if the object is new o not
         if not lastCommit and not objectPath:
@@ -114,8 +114,8 @@ def db2wc(dry_run, force):
             os.remove(objPath)
 
             # If the file has been removed, drop it in the medatada table
-            if not os.path.exists(objPath):
-                db.metadataDelete([dObj])
+            # if not os.path.exists(objPath):
+            #     db.metadataDelete([dObj])
 
         print("%s Removed!" % objPath)
 
