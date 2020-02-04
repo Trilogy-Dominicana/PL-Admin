@@ -11,7 +11,7 @@ git@gitlab.viva.com.do:anaiboa/plsql-manager.git
 ```
 
 ### Setup
-Copia el fichero `.env.sample` y reemplaza los parametros que hay dentro
+Copia el fichero `.env.sample` y reemplaza los parametros
 ```sh
 cp .env.sample .env
 ```
@@ -81,7 +81,7 @@ pladmin watch
 
 ### Topics
 - [Crear nuevo esquema](new-shcema-es.md)
-- [Cambios desde la bases de dato al respositorio local (WC), `db2wc`](wc2db-es.md)
+- [Exportar desde la base de datos al respositorio local (db2wc)](docs/db2wc-es.md)
 - [Cambiar el password del SYSDBA](change-sys-password-es.md)
 
 ### ¡Importante!

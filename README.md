@@ -89,7 +89,7 @@ pladmin watch
 
 ### Topics
 - [Creating a New Shcema](docs/new-shcema.md)
-- [Changes from database (DB) to Working Copy (WC), `db2wc`](docs/wc2db.md)
+- [Export changes from your Database to Git (db2wc)](docs/db2wc.md)
 - [Change SYS DBA Password](docs/change-sys-password.md)
 
 ### Important!
