@@ -1,16 +1,18 @@
 ## PL-Admin - Crear un nuevo esquema
 [Chenge to english](new-schema.md)
 
-Cuando se ejecuta el comando newSchema, pl-admin toma el valor en la variable `DB_USER` crea el esquema y entonces crea todos los objetos que se encuentran en el respositorio local.
+Despues de haber completado el setup de la herramienta, usuarmente el siguiente paso es crear un nuevo esquema. 
 
-Si el esquema ya existe, la herramienta dará una elerta de que no puede continuar y se deberá utilizar la opción -f o --force. 
+Cuando se ejecuta el comando `pladmin newSchema` la herramienta toma el valor de la variable *DB_USER* y verifica si existe un usuario con este nombre, si el usuario existe entonces mostrará un mensaje en pantalla indicando se debe utilizar el flag -f o --force para para borrar el usuario y crearlo nuevamente. 
 
-> It is important to know that using the -f or --force pl-admin flag will delete the existing schema with all its objects and create a new one based on the objects that exist in the local repository.
+> Es importante saber qué al utilizar el indicador -f o --force `pl-admin` eliminará el esquema existente con todos sus objetos y creará uno nuevo basado en los objetos que existen en el repositorio local.
 
+Comando
 ```sh
-pladmin newShcema <options>
+pladmin newSchema
 ```
 
+Forzar la creación del esquema
 ```sh
-pladmin newShcema -f
+pladmin newSchema --force
 ```
