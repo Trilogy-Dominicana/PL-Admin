@@ -8,7 +8,7 @@ PL-Amin provide you an easy way to clone a main schema, compile pl/sql code on r
 ### Requirements
 - Docker version ^19.03.1
 - Git ^2.22.0
-- docker-compose version ^ 1.25.2, build 698e2846
+- docker-compose version ^1.25.2, build 698e2846
 
 ### Clone the repository
 ```sh
