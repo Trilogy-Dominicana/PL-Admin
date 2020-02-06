@@ -1,5 +1,5 @@
 ## PL-Admin - Exportar cambios desde la base de datos a Git (db2wc)
-[Change to english](wc2db-es.md)
+[Change to english](db2wc-es.md)
 
 Con PL-Admin puedes hacer tus cambios dentro de la base de datos y posteriormente exportarlos al respositorio local.
 
@@ -27,4 +27,4 @@ pladmin db2wc --force
 > Al utilizar --force estás indicando a PL-Admin que exporte los cambios desde la base de datos al repositorio sin importar si este tiene modificaciones locales. 
 
 
-
+¿Aún no lo entiendes bien? Mira este video.
