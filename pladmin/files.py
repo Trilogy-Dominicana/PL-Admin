@@ -1,4 +1,4 @@
-import os, sys, re, shutil, glob, git, time
+import os, sys, re, shutil, glob, git, time, hashlib
 from datetime import datetime
 
 
@@ -124,7 +124,7 @@ class Files:
 
         return data
 
-    def listAllObjectFullData(self, path=None):
+    def listAllObjectFullData(self, path=None, md5=False):
         """ For each file found in path get the last modified timestamp """
         files = self.listAllObjsFiles()
         data = []
@@ -137,6 +137,14 @@ class Files:
             obj["object_type"] = self.objectsTypes(inverted=True, objKey="." + ext)
             obj["object_path"] = f
             obj["last_ddl_time"] = os.path.getmtime(f)
+
+            if md5:
+                # obj["md5"] = self.fileMD5(f)
+
+                with open(f) as opf:
+                    content = opf.read().encode()
+                    obj["md5"] = hashlib.md5(content).hexdigest()
+            
             data.append(obj)
 
         return data
@@ -299,3 +307,36 @@ class Files:
                 print("\n")
 
         return False
+    
+
+    def fileMD5(self, filePath):
+        """ Devuelve el digest md5 de un archivo de sistema """
+        fh = open(filePath, 'rb')
+        md5 = hashlib.md5()
+        buf = fh.read(4096)
+        while buf != '':
+            md5.update(buf)
+            buf = fh.read(4096)
+        return md5.hexdigest()
+
+    def getMD5Object(self, svnObj, cur=None):
+        """ Return a md5 hash of a spesific object """
+        closeCursor = False
+        if cur is None:
+            conn = self.db.getConnection()
+            cur = conn.cursor()
+            closeCursor = True
+        if svnObj.objType == ORAType.VIEW:
+            sql = "select text from dba_views where owner=:1 and view_name=:2"
+            params = (self.dbTargetSchema, svnObj.objName)
+        else:
+            sql = "SELECT text FROM sys.dba_source WHERE owner=:1 AND name=:1 and type=:2 ORDER BY line"
+            params = (self.dbTargetSchema, svnObj.objName, svnObj.objType)
+        cur.execute(sql, params)
+        md5 = hashlib.md5()
+        for (text,) in cur:
+            md5.update(text)
+
+            if closeCursor:
+                cur.close()
+            return md5.hexdigest()

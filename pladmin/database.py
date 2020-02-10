@@ -90,6 +90,7 @@ class Database:
                     sync_date date not null,
                     last_ddl_time date not null,
                     status number(1) default 0,
+                    md5 varchar2(32) not null,
                     primary key (object_name, object_type)
                 )"""
             % self.user
