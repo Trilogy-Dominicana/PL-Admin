@@ -1,4 +1,4 @@
-import cx_Oracle, os, re, glob
+import cx_Oracle, os, re, glob, hashlib
 from pladmin.files import Files as files
 from datetime import datetime, date
 from dotenv import load_dotenv
@@ -45,8 +45,11 @@ class Database:
 
         # Create synonyms
         self.createSynonyms(
-            originSchema=self.db_main_schema, detinationSchema=self.user, db=db,
+            originSchema=self.db_main_schema, detinationSchema=self.user, db=db
         )
+
+        # Close SYS admin db connection
+        db.close()
 
         # Create meta table
         self.createMetaTable()
@@ -62,7 +65,6 @@ class Database:
         data = self.getObjects(withPath=True)
         self.metadataInsert(data)
 
-        db.close()
         return invalids
 
     def createMetaTable(self, db=None):
@@ -87,10 +89,10 @@ class Database:
                     object_type varchar2(18) not null,
                     object_path varchar2(255) not null,
                     last_commit varchar2(40) not null,
+                    md5 varchar2(32) not null,
                     sync_date date not null,
                     last_ddl_time date not null,
                     status number(1) default 0,
-                    md5 varchar2(32) not null,
                     primary key (object_name, object_type)
                 )"""
             % self.user
@@ -139,14 +141,16 @@ class Database:
         cursor = db.cursor()
 
         for obj in data:
+            md5 = files.fileMD5(obj["object_path"])
             sql = (
-                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), '%s')"
+                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s','%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), '%s')"
                 % (
                     self.user,
                     obj["object_name"],
                     obj["object_type"],
                     obj["object_path"],
                     obj["last_commit"],
+                    md5,
                     obj["last_ddl_time"],
                     0,  # status value is 0 by default and if object is pendding of synchronization is 1
                 )
@@ -807,12 +811,12 @@ class Database:
 
         return createRow
 
-    def getObjSource(self, object_name, object_type):
+    def getObjSource(self, object_name, object_type, md5=False):
 
         # Open db connection as a sysadmin
         db = self.dbConnect(sysDBA=True)
 
-        sql = """ SELECT * FROM DBA_SOURCE
+        sql = """SELECT * FROM DBA_SOURCE
             WHERE OWNER = '%s' AND NAME = '%s' AND type = '%s' """ % (
             self.user,
             object_name,
@@ -820,19 +824,22 @@ class Database:
         )
 
         if object_type == "VIEW":
-            sql = """ SELECT * FROM DBA_VIEWS
+            sql = """SELECT * FROM DBA_VIEWS
             WHERE OWNER = '%s' AND VIEW_NAME = '%s' """ % (
                 self.user,
                 object_name,
             )
 
         result = self.getData(sql, db=db)
-        text = ""
+        content = ""
 
         for res in result:
-            text += res["text"]
+            content += res["text"]
+        
+        if md5:
+            return hashlib.md5(content.encode()).hexdigest()
 
-        return text
+        return content
 
     def createMetaTableScripts(self, db=None):
         """
