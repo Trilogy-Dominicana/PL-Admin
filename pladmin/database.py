@@ -239,6 +239,15 @@ class Database:
 
         return result
 
+    def metadataAllObjects(self):
+        """ Get all data from metadata"""
+
+        query = "SELECT * FROM %s.pladmin_metadata" % self.user
+        result = self.getData(query=query)
+
+        return result
+
+
     def createOrUpdateMetadata(self, data, db=None):
         """ Create or update data on metadata table """
         localClose = False
@@ -322,8 +331,7 @@ class Database:
         cursor = db.cursor()
 
         for f in objects:
-            fname, ftype = files.getFileName(f)
-            objectType = files.objectsTypes(inverted=True, objKey="." + ftype)
+            fname, ftype, objectType = files.getFileName(f)
 
             # Only valid extencions sould be processed
             if not "." + ftype in self.extentions or not objectType:
@@ -374,7 +382,7 @@ class Database:
         )
 
         for f in path:
-            fname, ftype = files.getFileName(f)
+            fname, ftype, objectType = files.getFileName(f)
 
             # Only valid extencions sould be processed
             if not "." + ftype in self.extentions:
@@ -941,8 +949,7 @@ class Database:
             self.dropDbObjects(data, self.user)
 
         for r in data:
-            fname, ftype = files.getFileName(r)
-            objectType = files.objectsTypes(inverted=True, objKey="." + ftype)
+            fname, ftype, objectType = files.getFileName(r)
             meta = {}
 
             # Only valid extencions sould be processed
