@@ -131,10 +131,10 @@ class Files:
 
         for f in files:
             obj = {}
-            name, ext = self.getFileName(f)
+            name, ext, oType = self.getFileName(f)
 
             obj["object_name"] = name
-            obj["object_type"] = self.objectsTypes(inverted=True, objKey="." + ext)
+            obj["object_type"] = oType
             obj["object_path"] = f
             obj["last_ddl_time"] = os.path.getmtime(f)
 
@@ -192,12 +192,12 @@ class Files:
 
         return False
 
-    def getFileName(self, path):
+    def getFileName(self, path, object_type=False):
         """ Extract file name and file extention from a path
         Params:
         ------
         path (string): String structured with / e.g: you/path/dir/to/file.pbk
-        return name, extention
+        return name, extention, objecType
         """
         gzfname = path.split("/")
         fullfname = gzfname[-1]
@@ -205,7 +205,10 @@ class Files:
         name = fname[0]
         extention = fname[1]
 
-        return name, extention
+        objectType = self.objectsTypes(inverted=True, objKey="." + extention)
+
+        return name, extention, objectType
+
 
     def createDirs(self):
 
