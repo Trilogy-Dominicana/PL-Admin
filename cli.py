@@ -211,16 +211,19 @@ def wc2db2(dry_run, force):
 
     wcObjects = files.listAllObjectFullData(md5=True)
     for obj in wcObjects:
-        name, ext = files.getFileName(obj['object_path'])
-        objectType = files.objectsTypes(inverted=True, objKey="." + ext)
+        name, ext, objectType = files.getFileName(obj["object_path"])
+
         dbmd5 = db.getObjSource(object_name=name, object_type=objectType, md5=True)
-        
+
+        metaObjects = db.metadataAllObjects()
+        mObject = utils.getObjectDict(metaObjects, name, objectType)
         # print(obj['object_path'] + '\n')
-        # print(name, '.', ext)
-        print(obj["md5"], ' - ', dbmd5)
+
+        # print(mObject['md5'])
+        print(obj["md5"], ' - ', mObject['md5'])
         # print(dbmd5)
         exit()
-
+    db.close()
     # Get the last updated commit
     # lastCommit = db.getLastObjectsHash()
     # if lastCommit:
@@ -237,8 +240,7 @@ def wc2db2(dry_run, force):
 
     for mObj in objModified:
 
-        name, ext = files.getFileName(mObj)
-        objectType = files.objectsTypes(inverted=True, objKey="." + ext)
+        name, ext, objectType = files.getFileName(mObj)
 
         if not objectType:
             continue
@@ -369,7 +371,7 @@ def main():
     if action == "wc2db":
         wc2db(dry_run, force)
 
-    if action == "t":
+    if action == "wc2db2":
         wc2db2(dry_run, force)
         # obj = files.listAllObjectFullData(md5=True)
         # for o in obj:
