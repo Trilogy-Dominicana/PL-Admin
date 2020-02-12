@@ -210,20 +210,29 @@ def wc2db2(dry_run, force):
         utils.dryRun()
 
     wcObjects = files.listAllObjectFullData(md5=True)
+    metaObjects = db.metadataAllObjects()
+    
     for obj in wcObjects:
         name, ext, objectType = files.getFileName(obj["object_path"])
 
-        dbmd5 = db.getObjSource(object_name=name, object_type=objectType, md5=True)
-
-        metaObjects = db.metadataAllObjects()
+        # dbmd5 = db.getObjSource(object_name=name, object_type=objectType, md5=True)
+        
         mObject = utils.getObjectDict(metaObjects, name, objectType)
         # print(obj['object_path'] + '\n')
 
         # print(mObject['md5'])
+        if not mObject:
+            print('No aparece: ', name + ' ' + objectType)
+            continue
+        
+        if obj["md5"] == mObject['md5']:
+            continue
+        
         print(obj["md5"], ' - ', mObject['md5'])
-        # print(dbmd5)
-        exit()
-    db.close()
+        print(name + ext)
+    # db.close()
+    exit()
+    
     # Get the last updated commit
     # lastCommit = db.getLastObjectsHash()
     # if lastCommit:
