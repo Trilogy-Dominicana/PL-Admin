@@ -191,13 +191,18 @@ class Database:
             if "meta_status" in obj:
                 metaStatus = "STATUS='%s', " % obj["meta_status"]
 
-            sql = """UPDATE %s.PLADMIN_METADATA SET %s %s %s %s SYNC_DATE=SYSDATE 
+            md5 = ""
+            if "md5" in obj:
+                md5 = "MD5='%s', " % obj["md5"]
+
+            sql = """UPDATE %s.PLADMIN_METADATA SET %s %s %s %s %s SYNC_DATE=SYSDATE 
                 WHERE object_name = '%s' and object_type = '%s' """ % (
                 self.user,
                 objectPath,
                 lastCommit,
                 lastDdlTime,
                 metaStatus,
+                md5,
                 obj["object_name"],
                 obj["object_type"],
             )
@@ -246,7 +251,6 @@ class Database:
         result = self.getData(query=query)
 
         return result
-
 
     def createOrUpdateMetadata(self, data, db=None):
         """ Create or update data on metadata table """
@@ -310,6 +314,26 @@ class Database:
             db.close()
 
         return invalids
+
+    def includeNewObject(self, object_name, object_type, md5, object_path):
+        """ Create or replace object and update metadata table at the same time """
+        self.createReplaceObject([object_path])
+
+        # Update metadata table
+        newObject = self.getObjects(
+            objectTypes=[object_type], objectName=object_name, fetchOne=True
+        )
+
+        newObject.update(
+            last_commit=files.head_commit,
+            object_path=object_path,
+            md5=md5,
+            meta_status=0,
+        )
+
+        updated = self.createOrUpdateMetadata(newObject)
+
+        return updated
 
     def dropDbObjects(self, objects, owner, db=None):
         """
@@ -843,7 +867,7 @@ class Database:
 
         for res in result:
             content += res["text"]
-        
+
         if md5:
             return hashlib.md5(content.encode()).hexdigest()
 
