@@ -45,7 +45,7 @@ def watch(path_to_watch):
 
         if modified:
             print("Modified: ", modified)
-            db.createReplaceObject(path=modified)
+            db.createReplaceDbObject(path=modified)
 
         if added:
             print("Added: ", added)
@@ -171,7 +171,7 @@ def wc2db(dry_run, force):
 
         # If everything is ok, created or replace the object
         if not dry_run:
-            db.createReplaceObject([mObj])
+            db.createReplaceDbObject([mObj])
 
             # Update metadata table
             objToUpdate = db.getObjects(
@@ -192,17 +192,24 @@ def wc2db(dry_run, force):
 def wc2db2(dry_run, force):
     # Turn off loader bar
     db = Database(displayInfo=False)
-    info = PrettyTable(["Object", "Type", "Path", "Status", "info"])
+    info = PrettyTable(["Object", "Type", "Path", "Status", "Info"])
 
     if dry_run:
         utils.dryRun()
 
+    # Objects in the loca repo
     wcObjects = files.listAllObjectFullData(md5=True)
+
+    # Object on the metadata table
     metaObjects = db.metadataAllObjects()
+
+    # Object in the database
+    dbObjects = db.getObjects()
+
 
     for obj in wcObjects:
         objPath = obj["object_path"]
-        
+
         # Get the name, extention and type of the object
         name, ext, objectType = files.getFileName(objPath)
 
@@ -212,8 +219,8 @@ def wc2db2(dry_run, force):
         # If the object do not exist, that means that is a new object
         if not mObject:
             if not dry_run:
-                db.includeNewObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=objPath)
-            
+                db.createReplaceObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=objPath)
+
             info.add_row([name, objectType, objPath, 'Created', 'This package was added to the database'])
 
             continue
@@ -230,17 +237,41 @@ def wc2db2(dry_run, force):
         if dbmd5 != mObject["md5"] and not force:
             info.add_row([name, objectType, objPath, 'Fail', 'The object has changes in the database'])
             continue
-        
+
         # If not dry-run, create the object and update metadata table
         if not dry_run:
-            db.includeNewObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=obj["object_path"])
-        
+            db.createReplaceObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=obj["object_path"])
+
         info.add_row([name, objectType, objPath, 'Updated', 'The object was updated successfully!'])
 
-        # Remove objects that has been deleted on local repository
-        # db.dropObject(wcObjects["deleted"], dry_run)
+    for metaObj in metaObjects:
+        object_name = metaObj["object_name"]
+        object_type = metaObj["object_type"]
+        object_path = metaObj["object_path"]
+        
+        # Check if the meta object exist on the repo objects.
+        wcDroped = utils.getObjectDict(wcObjects, object_name, object_type)
+        
+        # Check if the object exist on the database
+        dbDroped = utils.getObjectDict(dbObjects, object_name, object_type)
 
-        print(info)
+        # If the object in metadata does not exist in local repo that means that the object has been detele in the local repo
+        if not wcDroped and dbDroped:
+            if not dry_run:
+                # Remove objects that has been deleted on local repository
+                db.dropObject(object_type, object_name)
+
+            info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed in the database'])
+            continue
+        
+        # IF exist on metadata table and exist on the repo, restored it.
+        if not dbDroped and wcDroped:
+            if not dry_run:
+                db.createReplaceObject(object_name=object_name, object_type=object_type, md5=wcDroped["md5"], object_path=wcDroped["object_path"])
+
+            info.add_row([object_name, object_type, object_path, 'Restored', 'The object has been restored in the database'])
+
+    print(info, '\n')
 
 
 def main():
@@ -320,9 +351,6 @@ def main():
 
     if action == "wc2db2":
         wc2db2(dry_run, force)
-        # obj = files.listAllObjectFullData(md5=True)
-        # for o in obj:
-        #     print(o["md5"])
 
     if action == "invalids":
         db = Database(displayInfo=True)

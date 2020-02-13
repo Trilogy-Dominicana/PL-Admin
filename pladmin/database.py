@@ -56,7 +56,7 @@ class Database:
 
         # Create o replace packages, views, functions and procedures (All elements in files.objectsTypes())
         data = files.listAllObjsFiles()
-        self.createReplaceObject(path=data)
+        self.createReplaceDbObject(path=data)
 
         # If some objects are invalids, try to compile
         invalids = self.compileObjects()
@@ -213,23 +213,34 @@ class Database:
             db.commit()
             db.close()
 
-    def metadataDelete(self, data, db=None):
+    def metadataDelete(self, object_type, object_name, db=None):
 
         localClose = False
         if not db:
             db = self.dbConnect()
             localClose = True
+
         cursor = db.cursor()
 
-        for obj in data:
-            sql = (
-                """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' and object_type = '%s' """
-                % (self.user, obj["object_name"], obj["object_type"])
-            )
+        # query_type = "AND object_type='%s'" % object_type
+
+        # # If the object type is package, we have to remove the package body too
+        # if object_type == "PACKAGE":
+        #     query_type = "AND object_type IN ('PACKAGE', 'PACKAGE BODY')"
+
+        sql = """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' and object_type = '%s' """ % (
+            self.user,
+            object_name,
+            object_type
+        )
+
+        try:
             cursor.execute(sql)
+        except e:
+            print(e)
+            pass
 
         cursor.close()
-
         if localClose:
             db.commit()
             db.close()
@@ -315,11 +326,13 @@ class Database:
 
         return invalids
 
-    def includeNewObject(self, object_name, object_type, md5, object_path):
+    def createReplaceObject(self, object_name, object_type, md5, object_path):
         """ Create or replace object and update metadata table at the same time """
-        self.createReplaceObject([object_path])
 
-        # Update metadata table
+
+        self.createReplaceDbObject([object_path])
+
+        # Get the new object that has beed created with his last_ddl_time
         newObject = self.getObjects(
             objectTypes=[object_type], objectName=object_name, fetchOne=True
         )
@@ -331,17 +344,17 @@ class Database:
             meta_status=0,
         )
 
+        # Update metadata table
         updated = self.createOrUpdateMetadata(newObject)
 
         return updated
 
-    def dropDbObjects(self, objects, owner, db=None):
+    def dropDbObjects(self, object_type, object_name, db=None):
         """
         Drop packges, views, procedures or functions
 
         params:
         ------
-        objects (list): path routes of the object on the file system
         db (cx_Oracle.Connection): If you opened a db connection puth here please to avoid
 
         return (list) with errors if some package were an error
@@ -354,28 +367,21 @@ class Database:
 
         cursor = db.cursor()
 
-        for f in objects:
-            fname, ftype, objectType = files.getFileName(f)
+        sql = "DROP %s %s.%s" % (object_type, self.user, object_name)
 
-            # Only valid extencions sould be processed
-            if not "." + ftype in self.extentions or not objectType:
-                continue
+        if object_type == "VIEW":
+            sql = "DROP VIEW %s" % object_name
 
-            sql = "DROP %s %s.%s" % (objectType, owner, fname)
-
-            if ftype == "vew":
-                sql = "DROP VIEW %s" % fname
-
-            # Execute sql statement
-            try:
-                cursor.execute(sql)
-            except:
-                pass
+        # Execute sql statement
+        try:
+            cursor.execute(sql)
+        except:
+            pass
 
         if localClose:
             db.close()
 
-    def createReplaceObject(self, path=None, db=None):
+    def createReplaceDbObject(self, path=None, db=None):
         """
         Create or Replace packges, views, procedures and functions 
 
@@ -423,24 +429,13 @@ class Database:
             context = "CREATE OR REPLACE "
             if ftype == "vew":
                 context = "CREATE OR REPLACE FORCE VIEW %s AS \n" % fname
-
+            
+            
             # Execute create or replace package
-            cursor.execute(context + content)
-
-            # # Update metadata table
-            # updated = self.createOrUpdateMetadata(
-            #     objectName=obj["object_name"],
-            #     objectType=obj["object_type"],
-            #     objectPath=f,
-            #     lastCommit=files.head_commit,
-            #     lastDdlTime=obj["last_ddl_time"],
-            #     db=db,
-            # )
-
-            # Check if the object has some errors
-            # errors = self.getObjErrors(owner=self.user, objName=fname, db=db)
-            # if errors:
-            #     data.extend(errors)
+            try:
+                cursor.execute(context + content)
+            except e:
+                print(e)
 
         files.progress(
             i,
@@ -967,22 +962,13 @@ class Database:
 
         return data
 
-    def dropObject(self, data, dry_run=False):
+    def dropObject(self, object_type, object_name):
         """ This method has to be executed to remove object from database and in the metadata table"""
-        if not dry_run:
-            self.dropDbObjects(data, self.user)
 
-        for r in data:
-            fname, ftype, objectType = files.getFileName(r)
-            meta = {}
+        # Remove the object in the database
+        self.dropDbObjects(object_type, object_name)
 
-            # Only valid extencions sould be processed
-            if not "." + ftype in files.extentions or not objectType:
-                continue
+        # Remove the object in metadata table
+        self.metadataDelete(object_type, object_name)
 
-            if not dry_run:
-                meta["object_name"] = fname
-                meta["object_type"] = objectType
-                self.metadataDelete([meta])
-
-            print(r, "Removed")
+        return "Removed"
