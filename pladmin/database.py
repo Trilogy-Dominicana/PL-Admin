@@ -222,12 +222,6 @@ class Database:
 
         cursor = db.cursor()
 
-        # query_type = "AND object_type='%s'" % object_type
-
-        # # If the object type is package, we have to remove the package body too
-        # if object_type == "PACKAGE":
-        #     query_type = "AND object_type IN ('PACKAGE', 'PACKAGE BODY')"
-
         sql = """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' and object_type = '%s' """ % (
             self.user,
             object_name,
@@ -526,6 +520,7 @@ class Database:
                 ,mt.last_ddl_time as meta_last_ddl_time
                 ,mt.object_path
                 ,mt.last_commit
+                ,mt.md5
             FROM dba_objects dbs
             INNER JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
             WHERE owner = '%s' 
