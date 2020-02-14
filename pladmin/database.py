@@ -756,9 +756,7 @@ class Database:
         cursor.execute(sql, {"db_user": self.user})
 
         user = cursor.fetchone()
-
-        # If user exist, drop it
-        if user:
+        if user[0]:
             if force:
                 files.progress(
                     count=2, total=progressTotal, status="DROP USER %s" % self.user
