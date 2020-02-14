@@ -222,10 +222,10 @@ class Database:
 
         cursor = db.cursor()
 
-        sql = """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' and object_type = '%s' """ % (
+        sql = """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' AND object_type = '%s' """ % (
             self.user,
-            object_name,
-            object_type
+            object_type,
+            object_name
         )
 
         try:
@@ -234,7 +234,6 @@ class Database:
             print(e)
             pass
 
-        cursor.close()
         if localClose:
             db.commit()
             db.close()

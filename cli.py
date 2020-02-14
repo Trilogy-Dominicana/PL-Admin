@@ -126,12 +126,17 @@ def db2wc(dry_run, force):
 
     # Remove deleted objects
     for dObj in deletedObjs:
-        objPath = dObj["object_path"]
+        object_name= dObj['object_name']
+        object_type= dObj['object_type']
+        object_path= dObj['object_path']
 
-        if not dry_run and os.path.exists(objPath):
-            os.remove(objPath)
+        if not dry_run:
+            db.metadataDelete(object_name, object_type)
+            
+            if os.path.exists(object_path):
+                os.remove(object_path)
 
-        info.add_row([objectName, objectType, objPath, 'Removed', 'The object has been removed from the repository'])
+        info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed from the repository'])
     
     print(info)
 
