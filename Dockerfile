@@ -49,4 +49,4 @@ RUN ["chmod", "+x", "/app/docker/setup.sh"]
 RUN sed -i -e 's/\r$//' /app/docker/setup.sh
 
 
-ENTRYPOINT ["sh", "/app/docker/setup.sh"]
+# ENTRYPOINT ["sh", "/app/docker/setup.sh"]
