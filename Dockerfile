@@ -1,5 +1,5 @@
-FROM python:3.7-alpine
-
+# FROM python:3.7-alpine
+FROM python:alpine3.10
 ENV LD_LIBRARY_PATH=/usr/local/instantclient
 ENV ORACLE_HOME=/usr/local/instantclient
 
