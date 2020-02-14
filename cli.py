@@ -255,7 +255,7 @@ def main():
         db = Database(displayInfo=True)
 
         # The create Scheme method returns the packages that are still invalid
-        invalids = db.createSchema()
+        invalids = db.createSchema(force)
 
         if len(invalids):
             print("\nThis objects are invalids:")

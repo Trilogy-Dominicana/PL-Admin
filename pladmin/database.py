@@ -28,12 +28,16 @@ class Database:
         self.displayInfo = displayInfo
         files.displayInfo = self.displayInfo
 
-    def createSchema(self):
+    def createSchema(self, force=False):
         # To create users, give permission, etc. We need to connect with admin user using param sysDBA
         db = self.dbConnect(sysDBA=True)
 
         # Drop and create the user
-        self.newUser(db=db)
+        user = self.newUser(db=db, force=force)
+
+        if not user:
+            print('\n The user %s already exist, use --force option override the schema' % self.user) 
+            exit()
 
         # Give grants to the user
         self.createGramtsTo(
@@ -585,24 +589,7 @@ class Database:
             self.user,
             types,
         )
-
-        # sql = """SELECT
-        #             mt.object_name
-        #             ,mt.object_type
-        #             ,dbs.status
-        #             ,mt.last_ddl_time
-        #             ,mt.last_ddl_time as meta_last_ddl_time
-        #             ,mt.object_path
-        #             ,mt.last_commit
-        #             FROM %s.PLADMIN_METADATA mt LEFT JOIN
-        #             dba_objects dbs ON dbs.object_name = mt.object_name AND dbs.object_type = mt.object_type AND dbs.owner ='%s'
-        #             AND dbs.object_type IN ('%s')
-        #             WHERE  dbs.object_name IS NULL""" % (
-        #     self.user,
-        #     self.user,
-        #     types,
-        # )
-
+ 
         result = self.getData(sql)
 
         return result
@@ -753,7 +740,7 @@ class Database:
 
         return data
 
-    def newUser(self, db):
+    def newUser(self, db, force=False):
 
         progressTotal = 3
         files.progress(
@@ -768,12 +755,17 @@ class Database:
         sql = "SELECT COUNT(1) AS v_count FROM dba_users WHERE username = :db_user"
         cursor.execute(sql, {"db_user": self.user})
 
+        user = cursor.fetchone()
+
         # If user exist, drop it
-        if cursor.fetchone()[0] > 0:
-            files.progress(
-                count=2, total=progressTotal, status="DROP USER %s" % self.user
-            )
-            cursor.execute("DROP USER %s CASCADE" % self.user)
+        if user:
+            if force:
+                files.progress(
+                    count=2, total=progressTotal, status="DROP USER %s" % self.user
+                )
+                cursor.execute("DROP USER %s CASCADE" % self.user)
+            else:
+                return False
 
         # Create the user
         files.progress(
@@ -794,6 +786,7 @@ class Database:
         files.progress(
             count=3, total=progressTotal, status="USER %s CREATED" % self.user, end=True
         )
+        return True
 
     def dbConnect(self, sysDBA=False):
         """
