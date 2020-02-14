@@ -17,6 +17,9 @@ from pladmin.migrations import Migrations
 db = Database(displayInfo=True)
 files = Files(displayInfo=True)
 
+# Table for wc2db and db2wc methods
+info = PrettyTable(["Object", "Type", "Path", "Status", "Info"])
+info.align = 'l'
 
 def watch(path_to_watch):
     """ Watch the provided path for changes in any of it's subdirectories """
@@ -78,48 +81,47 @@ def db2wc(dry_run, force):
         objectName = obj["object_name"]
         objectType = obj["object_type"]
         objectTime = obj["last_ddl_time"]
-        md5 = obj["md5"]
+        metaMd5 = obj["md5"]
         
-        # Check if is a new object
-        if not objectPath and not md5:
-            continue
-            # Si es nuevo en la db, se debe validar que el archivo que se va a crear, no exista y si existe, retornar la ruta en la que se encuentra
-            #  Si no existe, entonces se genera el nuevo objeto
-            # fileObject = files.createObject(objectName, objectType, dbContent)
-
-        print('Workking with: ', objectPath)
-
         dbContent = db.getObjSource(objectName, objectType)
         dbMd5 = hashlib.md5(dbContent.encode()).hexdigest()
-        
-        # Check if the object really has changes
-        if md5 == dbMd5:
+
+        # Check if is a new object
+        if not objectPath and not metaMd5:
+            fileObject="-"
+            # Si es nuevo en la db, se debe validar que el archivo que se va a crear, no exista y si existe, retornar la ruta en la que se encuentra
+            # Si no existe, entonces se genera el nuevo objeto
+            if not dry_run:
+                # Create the file with de object
+                fileObject = files.createObject(objectName, objectType, dbContent)
+                
+                # Update metadata
+                obj.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
+                updated = db.createOrUpdateMetadata(obj)
+
+            info.add_row([objectName, objectType, fileObject, 'Created', 'New object created on local repository'])
+            
             continue
         
-        #TODO: Add validation to validate the object path. 
+        # Check if the object really has changes
+        if metaMd5 == dbMd5:
+            continue
+        
+        #TODO: Add validation to validate the object path.
         wcMd5 = files.fileMD5(objectPath)
 
         # The the object has changes in local file and not --force option continue
-        if wcMd5 == md5 and not force:
-            print('El objecto tiene cambios locales')
+        if wcMd5 != metaMd5 and not force:
+            info.add_row([objectName, objectType, objectPath, 'Fail', 'The object has changes in the local repository'])
             continue
-        
         
         if not dry_run:
             fileObject = files.createObject(objectName, objectType, dbContent)
-            print(fileObject, ' Created')
+            info.add_row([objectName, objectType, objectPath, 'Updated', 'The object has been updated in local repository'])
+            
             # Update metadata table
-            objToUpdate = db.getObjects(
-                objectTypes=[objectType], objectName=objectName, fetchOne=True
-            )
-
-            objToUpdate.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
-
-            updated = db.createOrUpdateMetadata(objToUpdate)
-
-            # Update metadata table
-            # obj.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
-            # updated = db.createOrUpdateMetadata(obj)
+            obj.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
+            updated = db.createOrUpdateMetadata(obj)
 
 
     # Remove deleted objects
@@ -129,18 +131,13 @@ def db2wc(dry_run, force):
         if not dry_run and os.path.exists(objPath):
             os.remove(objPath)
 
-            # If the file has been removed, drop it in the medatada table
-            # if not os.path.exists(objPath):
-            #     db.metadataDelete([dObj])
-
-        print("%s Removed!" % objPath)
-
+        info.add_row([objectName, objectType, objPath, 'Removed', 'The object has been removed from the repository'])
+    
+    print(info)
 
 def wc2db(dry_run, force):
     # Turn off loader bar
     db = Database(displayInfo=False)
-    info = PrettyTable(["Object", "Type", "Path", "Status", "Info"])
-    info.align = 'l'
 
     if dry_run:
         utils.dryRun()

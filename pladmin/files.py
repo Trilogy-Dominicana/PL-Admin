@@ -273,7 +273,6 @@ class Files:
         with open(path, "wt+") as f:
             f.truncate(0)
             f.write(contend)
-            f.write("\n")
 
         return path
 
