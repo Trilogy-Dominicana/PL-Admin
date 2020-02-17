@@ -117,11 +117,12 @@ def db2wc(dry_run, force):
         
         if not dry_run:
             fileObject = files.createObject(objectName, objectType, dbContent)
-            info.add_row([objectName, objectType, objectPath, 'Updated', 'The object has been updated in local repository'])
-            
+        
             # Update metadata table
             obj.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
             updated = db.createOrUpdateMetadata(obj)
+            
+        info.add_row([objectName, objectType, objectPath, 'Updated', 'The object has been updated in local repository'])
 
 
     # Remove deleted objects
