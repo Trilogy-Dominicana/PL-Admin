@@ -1,4 +1,4 @@
-import os, sys, re, shutil, glob, git, time
+import os, sys, re, shutil, glob, git, time, hashlib
 from datetime import datetime
 
 
@@ -124,19 +124,27 @@ class Files:
 
         return data
 
-    def listAllObjectFullData(self, path=None):
+    def listAllObjectFullData(self, path=None, md5=False):
         """ For each file found in path get the last modified timestamp """
         files = self.listAllObjsFiles()
         data = []
 
         for f in files:
             obj = {}
-            name, ext = self.getFileName(f)
+            name, ext, oType = self.getFileName(f)
 
             obj["object_name"] = name
-            obj["object_type"] = self.objectsTypes(inverted=True, objKey="." + ext)
+            obj["object_type"] = oType
             obj["object_path"] = f
             obj["last_ddl_time"] = os.path.getmtime(f)
+
+            if md5:
+                obj["md5"] = self.fileMD5(f)
+
+                # with open(f) as opf:
+                #     content = opf.read().encode()
+                #     obj["md5"] = hashlib.md5(content).hexdigest()
+            
             data.append(obj)
 
         return data
@@ -184,12 +192,12 @@ class Files:
 
         return False
 
-    def getFileName(self, path):
+    def getFileName(self, path, object_type=False):
         """ Extract file name and file extention from a path
         Params:
         ------
         path (string): String structured with / e.g: you/path/dir/to/file.pbk
-        return name, extention
+        return name, extention, objecType
         """
         gzfname = path.split("/")
         fullfname = gzfname[-1]
@@ -197,7 +205,10 @@ class Files:
         name = fname[0]
         extention = fname[1]
 
-        return name, extention
+        objectType = self.objectsTypes(inverted=True, objKey="." + extention)
+
+        return name, extention, objectType
+
 
     def createDirs(self):
 
@@ -262,7 +273,6 @@ class Files:
         with open(path, "wt+") as f:
             f.truncate(0)
             f.write(contend)
-            f.write("\n")
 
         return path
 
@@ -299,3 +309,11 @@ class Files:
                 print("\n")
 
         return False
+    
+
+    def fileMD5(self, filePath):
+        """ Get file content, hash it and return a md5 hash"""
+        with open(filePath) as opf:
+            content = opf.read().encode()
+        
+        return hashlib.md5(content).hexdigest()

@@ -1,5 +1,5 @@
-FROM python:3.7-alpine
-
+# FROM python:3.7-alpine
+FROM python:alpine3.10
 ENV LD_LIBRARY_PATH=/usr/local/instantclient
 ENV ORACLE_HOME=/usr/local/instantclient
 
@@ -49,4 +49,4 @@ RUN ["chmod", "+x", "/app/docker/setup.sh"]
 RUN sed -i -e 's/\r$//' /app/docker/setup.sh
 
 
-ENTRYPOINT ["sh", "/app/docker/setup.sh"]
+# ENTRYPOINT ["sh", "/app/docker/setup.sh"]

@@ -13,13 +13,30 @@ class utils:
 -----------------------------------------------\n """
         )
 
-    def getObjectDict(objects, name, type):
+    def getObjectDictInList(objects, name, type):
         """ Get an spesific object from a list of dicts"""
-        data = list(filter(
-            lambda objDB: (
-                objDB["object_name"] == name and objDB["object_type"] == type
+        data = dict(
+            filter(
+                lambda objDB: (
+                    objDB["object_name"] == name and objDB["object_type"] == type
+                ),
+                objects.items(),
+            )
+        )
+
+        return data
+
+
+    def getObjectDict(objects, name, type):
+        """ Get an spesific object from a list of dicts and return a dict"""
+
+        data = next(
+            (
+                item
+                for item in objects
+                if item["object_name"] == name and item["object_type"] == type
             ),
-            objects,
-        ))
+            None,
+        )
 
         return data

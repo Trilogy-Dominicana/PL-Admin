@@ -1,4 +1,4 @@
-import cx_Oracle, os, re, glob
+import cx_Oracle, os, re, glob, hashlib
 from pladmin.files import Files as files
 from datetime import datetime, date
 from dotenv import load_dotenv
@@ -28,12 +28,16 @@ class Database:
         self.displayInfo = displayInfo
         files.displayInfo = self.displayInfo
 
-    def createSchema(self):
+    def createSchema(self, force=False):
         # To create users, give permission, etc. We need to connect with admin user using param sysDBA
         db = self.dbConnect(sysDBA=True)
 
         # Drop and create the user
-        self.newUser(db=db)
+        user = self.newUser(db=db, force=force)
+
+        if not user:
+            print('\n The user %s already exist, use --force option override the schema' % self.user) 
+            exit()
 
         # Give grants to the user
         self.createGramtsTo(
@@ -45,15 +49,18 @@ class Database:
 
         # Create synonyms
         self.createSynonyms(
-            originSchema=self.db_main_schema, detinationSchema=self.user, db=db,
+            originSchema=self.db_main_schema, detinationSchema=self.user, db=db
         )
+
+        # Close SYS admin db connection
+        db.close()
 
         # Create meta table
         self.createMetaTable()
 
         # Create o replace packages, views, functions and procedures (All elements in files.objectsTypes())
         data = files.listAllObjsFiles()
-        self.createReplaceObject(path=data)
+        self.createReplaceDbObject(path=data)
 
         # If some objects are invalids, try to compile
         invalids = self.compileObjects()
@@ -62,7 +69,6 @@ class Database:
         data = self.getObjects(withPath=True)
         self.metadataInsert(data)
 
-        db.close()
         return invalids
 
     def createMetaTable(self, db=None):
@@ -87,6 +93,7 @@ class Database:
                     object_type varchar2(18) not null,
                     object_path varchar2(255) not null,
                     last_commit varchar2(40) not null,
+                    md5 varchar2(32) not null,
                     sync_date date not null,
                     last_ddl_time date not null,
                     status number(1) default 0,
@@ -138,14 +145,16 @@ class Database:
         cursor = db.cursor()
 
         for obj in data:
+            md5 = files.fileMD5(obj["object_path"])
             sql = (
-                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), '%s')"
+                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s','%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), '%s')"
                 % (
                     self.user,
                     obj["object_name"],
                     obj["object_type"],
                     obj["object_path"],
                     obj["last_commit"],
+                    md5,
                     obj["last_ddl_time"],
                     0,  # status value is 0 by default and if object is pendding of synchronization is 1
                 )
@@ -186,13 +195,18 @@ class Database:
             if "meta_status" in obj:
                 metaStatus = "STATUS='%s', " % obj["meta_status"]
 
-            sql = """UPDATE %s.PLADMIN_METADATA SET %s %s %s %s SYNC_DATE=SYSDATE 
+            md5 = ""
+            if "md5" in obj:
+                md5 = "MD5='%s', " % obj["md5"]
+
+            sql = """UPDATE %s.PLADMIN_METADATA SET %s %s %s %s %s SYNC_DATE=SYSDATE 
                 WHERE object_name = '%s' and object_type = '%s' """ % (
                 self.user,
                 objectPath,
                 lastCommit,
                 lastDdlTime,
                 metaStatus,
+                md5,
                 obj["object_name"],
                 obj["object_type"],
             )
@@ -203,22 +217,26 @@ class Database:
             db.commit()
             db.close()
 
-    def metadataDelete(self, data, db=None):
+    def metadataDelete(self, object_type, object_name, db=None):
 
         localClose = False
         if not db:
             db = self.dbConnect()
             localClose = True
+
         cursor = db.cursor()
 
-        for obj in data:
-            sql = (
-                """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' and object_type = '%s' """
-                % (self.user, obj["object_name"], obj["object_type"])
-            )
-            cursor.execute(sql)
+        sql = """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' AND object_type = '%s' """ % (
+            self.user,
+            object_type,
+            object_name
+        )
 
-        cursor.close()
+        try:
+            cursor.execute(sql)
+        except e:
+            print(e)
+            pass
 
         if localClose:
             db.commit()
@@ -230,6 +248,14 @@ class Database:
             self.user,
             status,
         )
+        result = self.getData(query=query)
+
+        return result
+
+    def metadataAllObjects(self):
+        """ Get all data from metadata"""
+
+        query = "SELECT * FROM %s.pladmin_metadata" % self.user
         result = self.getData(query=query)
 
         return result
@@ -297,13 +323,35 @@ class Database:
 
         return invalids
 
-    def dropDbObjects(self, objects, owner, db=None):
+    def createReplaceObject(self, object_name, object_type, md5, object_path):
+        """ Create or replace object and update metadata table at the same time """
+
+
+        self.createReplaceDbObject([object_path])
+
+        # Get the new object that has beed created with his last_ddl_time
+        newObject = self.getObjects(
+            objectTypes=[object_type], objectName=object_name, fetchOne=True
+        )
+
+        newObject.update(
+            last_commit=files.head_commit,
+            object_path=object_path,
+            md5=md5,
+            meta_status=0,
+        )
+
+        # Update metadata table
+        updated = self.createOrUpdateMetadata(newObject)
+
+        return updated
+
+    def dropDbObjects(self, object_type, object_name, db=None):
         """
         Drop packges, views, procedures or functions
 
         params:
         ------
-        objects (list): path routes of the object on the file system
         db (cx_Oracle.Connection): If you opened a db connection puth here please to avoid
 
         return (list) with errors if some package were an error
@@ -316,29 +364,21 @@ class Database:
 
         cursor = db.cursor()
 
-        for f in objects:
-            fname, ftype = files.getFileName(f)
-            objectType = files.objectsTypes(inverted=True, objKey="." + ftype)
+        sql = "DROP %s %s.%s" % (object_type, self.user, object_name)
 
-            # Only valid extencions sould be processed
-            if not "." + ftype in self.extentions or not objectType:
-                continue
+        if object_type == "VIEW":
+            sql = "DROP VIEW %s" % object_name
 
-            sql = "DROP %s %s.%s" % (objectType, owner, fname)
-
-            if ftype == "vew":
-                sql = "DROP VIEW %s" % fname
-
-            # Execute sql statement
-            try:
-                cursor.execute(sql)
-            except:
-                pass
+        # Execute sql statement
+        try:
+            cursor.execute(sql)
+        except:
+            pass
 
         if localClose:
             db.close()
 
-    def createReplaceObject(self, path=None, db=None):
+    def createReplaceDbObject(self, path=None, db=None):
         """
         Create or Replace packges, views, procedures and functions 
 
@@ -369,7 +409,7 @@ class Database:
         )
 
         for f in path:
-            fname, ftype = files.getFileName(f)
+            fname, ftype, objectType = files.getFileName(f)
 
             # Only valid extencions sould be processed
             if not "." + ftype in self.extentions:
@@ -386,24 +426,13 @@ class Database:
             context = "CREATE OR REPLACE "
             if ftype == "vew":
                 context = "CREATE OR REPLACE FORCE VIEW %s AS \n" % fname
-
+            
+            
             # Execute create or replace package
-            cursor.execute(context + content)
-
-            # # Update metadata table
-            # updated = self.createOrUpdateMetadata(
-            #     objectName=obj["object_name"],
-            #     objectType=obj["object_type"],
-            #     objectPath=f,
-            #     lastCommit=files.head_commit,
-            #     lastDdlTime=obj["last_ddl_time"],
-            #     db=db,
-            # )
-
-            # Check if the object has some errors
-            # errors = self.getObjErrors(owner=self.user, objName=fname, db=db)
-            # if errors:
-            #     data.extend(errors)
+            try:
+                cursor.execute(context + content)
+            except e:
+                print(e)
 
         files.progress(
             i,
@@ -494,6 +523,7 @@ class Database:
                 ,mt.last_ddl_time as meta_last_ddl_time
                 ,mt.object_path
                 ,mt.last_commit
+                ,mt.md5
             FROM dba_objects dbs
             INNER JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
             WHERE owner = '%s' 
@@ -559,24 +589,7 @@ class Database:
             self.user,
             types,
         )
-
-        # sql = """SELECT
-        #             mt.object_name
-        #             ,mt.object_type
-        #             ,dbs.status
-        #             ,mt.last_ddl_time
-        #             ,mt.last_ddl_time as meta_last_ddl_time
-        #             ,mt.object_path
-        #             ,mt.last_commit
-        #             FROM %s.PLADMIN_METADATA mt LEFT JOIN
-        #             dba_objects dbs ON dbs.object_name = mt.object_name AND dbs.object_type = mt.object_type AND dbs.owner ='%s'
-        #             AND dbs.object_type IN ('%s')
-        #             WHERE  dbs.object_name IS NULL""" % (
-        #     self.user,
-        #     self.user,
-        #     types,
-        # )
-
+ 
         result = self.getData(sql)
 
         return result
@@ -727,7 +740,7 @@ class Database:
 
         return data
 
-    def newUser(self, db):
+    def newUser(self, db, force=False):
 
         progressTotal = 3
         files.progress(
@@ -742,12 +755,15 @@ class Database:
         sql = "SELECT COUNT(1) AS v_count FROM dba_users WHERE username = :db_user"
         cursor.execute(sql, {"db_user": self.user})
 
-        # If user exist, drop it
-        if cursor.fetchone()[0] > 0:
-            files.progress(
-                count=2, total=progressTotal, status="DROP USER %s" % self.user
-            )
-            cursor.execute("DROP USER %s CASCADE" % self.user)
+        user = cursor.fetchone()
+        if user[0]:
+            if force:
+                files.progress(
+                    count=2, total=progressTotal, status="DROP USER %s" % self.user
+                )
+                cursor.execute("DROP USER %s CASCADE" % self.user)
+            else:
+                return False
 
         # Create the user
         files.progress(
@@ -768,6 +784,7 @@ class Database:
         files.progress(
             count=3, total=progressTotal, status="USER %s CREATED" % self.user, end=True
         )
+        return True
 
     def dbConnect(self, sysDBA=False):
         """
@@ -806,12 +823,12 @@ class Database:
 
         return createRow
 
-    def getObjSource(self, object_name, object_type):
+    def getObjSource(self, object_name, object_type, md5=False):
 
         # Open db connection as a sysadmin
         db = self.dbConnect(sysDBA=True)
 
-        sql = """ SELECT * FROM DBA_SOURCE
+        sql = """SELECT * FROM DBA_SOURCE
             WHERE OWNER = '%s' AND NAME = '%s' AND type = '%s' """ % (
             self.user,
             object_name,
@@ -819,19 +836,22 @@ class Database:
         )
 
         if object_type == "VIEW":
-            sql = """ SELECT * FROM DBA_VIEWS
+            sql = """SELECT * FROM DBA_VIEWS
             WHERE OWNER = '%s' AND VIEW_NAME = '%s' """ % (
                 self.user,
                 object_name,
             )
 
         result = self.getData(sql, db=db)
-        text = ""
+        content = ""
 
         for res in result:
-            text += res["text"]
+            content += res["text"]
 
-        return text
+        if md5:
+            return hashlib.md5(content.encode()).hexdigest()
+
+        return content
 
     def createMetaTableScripts(self, db=None):
         """
@@ -927,23 +947,13 @@ class Database:
 
         return data
 
-    def dropObject(self, data, dry_run=False):
+    def dropObject(self, object_type, object_name):
         """ This method has to be executed to remove object from database and in the metadata table"""
-        if not dry_run:
-            self.dropDbObjects(data, self.user)
 
-        for r in data:
-            fname, ftype = files.getFileName(r)
-            objectType = files.objectsTypes(inverted=True, objKey="." + ftype)
-            meta = {}
+        # Remove the object in the database
+        self.dropDbObjects(object_type, object_name)
 
-            # Only valid extencions sould be processed
-            if not "." + ftype in files.extentions or not objectType:
-                continue
+        # Remove the object in metadata table
+        self.metadataDelete(object_type, object_name)
 
-            if not dry_run:
-                meta["object_name"] = fname
-                meta["object_type"] = objectType
-                self.metadataDelete([meta])
-
-            print(r, "Removed")
+        return "Removed"

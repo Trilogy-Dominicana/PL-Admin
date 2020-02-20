@@ -9,18 +9,17 @@ from pladmin.database import Database
 from pladmin.files import Files
 from pladmin.utils import utils
 from pladmin.migrations import Migrations
+
 # parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
 # parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
 
 
-"""
-TODO:
-[] Funcionalidad para compilar solo el archivo en el qué se está trabajando.
-[] Funcionalidad para compilar todos los archivos que cambiaron a partir del ultimo commit.
-[] Funcionalidad para compilar las diferencias entre el repositorio local y el remoto (master)
-"""
 db = Database(displayInfo=True)
 files = Files(displayInfo=True)
+
+# Table for wc2db and db2wc methods
+info = PrettyTable(["Object", "Type", "Path", "Status", "Info"])
+info.align = 'l'
 
 def watch(path_to_watch):
     """ Watch the provided path for changes in any of it's subdirectories """
@@ -43,7 +42,7 @@ def watch(path_to_watch):
 
         if modified:
             print("Modified: ", modified)
-            db.createReplaceObject(path=modified)
+            db.createReplaceDbObject(path=modified)
 
         if added:
             print("Added: ", added)
@@ -59,10 +58,10 @@ def db2wc(dry_run, force):
     if dry_run:
         utils.dryRun()
 
-    if files.localChanges():
-        print(
-            "WARNING! You have uncommitted changes, commit it to avoid loss information"
-        )
+    # if files.localChanges():
+    #     print(
+    #         "WARNING! You have uncommitted changes, commit it to avoid loss information"
+    #     )
     deletedObjs = db.getDeletedObjects()
 
     # List all object with diferences
@@ -74,6 +73,7 @@ def db2wc(dry_run, force):
     # Concat all objects
     allObjects = newObjects + dbObject
 
+
     # Check if object has change after commit store on the db
     for obj in allObjects:
         lastCommit = obj["last_commit"]
@@ -81,43 +81,148 @@ def db2wc(dry_run, force):
         objectName = obj["object_name"]
         objectType = obj["object_type"]
         objectTime = obj["last_ddl_time"]
+        metaMd5 = obj["md5"]
+        
+        dbContent = db.getObjSource(objectName, objectType)
+        dbMd5 = hashlib.md5(dbContent.encode()).hexdigest()
 
-        # Check if exist a hash commit before. This becouse new objects does not has commit hash
-        if lastCommit:
-            fi = files.diffByHash(lastCommit, True)
+        # Check if is a new object
+        if not objectPath and not metaMd5:
+            fileObject="-"
+            # Si es nuevo en la db, se debe validar que el archivo que se va a crear, no exista y si existe, retornar la ruta en la que se encuentra
+            # Si no existe, entonces se genera el nuevo objeto
+            if not dry_run:
+                # Create the file with de object
+                fileObject = files.createObject(objectName, objectType, dbContent)
+                
+                # Update metadata
+                obj.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
+                updated = db.createOrUpdateMetadata(obj)
 
-            # <TODO:> Agregar a option para poder hacer merge del archivo
-            # If the object has chadnges, do not export it
-            if any(objectPath in s for s in fi) and not force:
-                print("%s has local changes, fail!" % objectPath)
-                continue
+            info.add_row([objectName, objectType, fileObject, 'Created', 'New object created on local repository'])
+            
+            continue
+        
+        # Check if the object really has changes
+        if metaMd5 == dbMd5:
+            continue
+        
+        #TODO: Add validation to validate the object path.
+        wcMd5 = files.fileMD5(objectPath)
 
+        # The the object has changes in local file and not --force option continue
+        if wcMd5 != metaMd5 and not force:
+            info.add_row([objectName, objectType, objectPath, 'Fail', 'The object has changes in the local repository'])
+            continue
+        
         if not dry_run:
-            objContend = db.getObjSource(objectName, objectType)
-            fileObject = files.createObject(objectName, objectType, objContend)
-
+            fileObject = files.createObject(objectName, objectType, dbContent)
+        
             # Update metadata table
-            # obj.update(last_commit=files.head_commit, object_path=fileObject)
-            # updated = db.createOrUpdateMetadata(obj)
+            obj.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
+            updated = db.createOrUpdateMetadata(obj)
+            
+        info.add_row([objectName, objectType, objectPath, 'Updated', 'The object has been updated in local repository'])
 
-        # This validation is to know if the object is new o not
-        if not lastCommit and not objectPath:
-            print("%s %s Added" % (objectType, objectName))
-        else:
-            print("%s Created successfully!" % objectPath)
 
     # Remove deleted objects
     for dObj in deletedObjs:
-        objPath = dObj["object_path"]
+        object_name= dObj['object_name']
+        object_type= dObj['object_type']
+        object_path= dObj['object_path']
 
-        if not dry_run and os.path.exists(objPath):
-            os.remove(objPath)
+        if not dry_run:
+            db.metadataDelete(object_name, object_type)
+            
+            if os.path.exists(object_path):
+                os.remove(object_path)
 
-            # If the file has been removed, drop it in the medatada table
-            # if not os.path.exists(objPath):
-            #     db.metadataDelete([dObj])
+        info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed from the repository'])
+    
+    print(info)
 
-        print("%s Removed!" % objPath)
+def wc2db(dry_run, force):
+    # Turn off loader bar
+    db = Database(displayInfo=False)
+
+    if dry_run:
+        utils.dryRun()
+
+    # Objects in the loca repo
+    wcObjects = files.listAllObjectFullData(md5=True)
+
+    # Object on the metadata table
+    metaObjects = db.metadataAllObjects()
+
+    # Object in the database
+    dbObjects = db.getObjects()
+
+
+    for obj in wcObjects:
+        objPath = obj["object_path"]
+
+        # Get the name, extention and type of the object
+        name, ext, objectType = files.getFileName(objPath)
+
+        # Get the object from metatada
+        mObject = utils.getObjectDict(metaObjects, name, objectType)
+
+        # If the object do not exist, that means that is a new object
+        if not mObject:
+            if not dry_run:
+                db.createReplaceObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=objPath)
+
+            info.add_row([name, objectType, objPath, 'Created', 'This package was added to the database'])
+
+            continue
+
+        # If the object exist, then validate if the hash is the same, if so, that means that the object does not has chenges, so, continue.
+        if obj["md5"] == mObject["md5"]:
+            continue
+
+        # Before taking the object to the database, it must be verified that the object has not changed in the db
+        # To do this, we draw the source, generate the MD5 and compare it with that of the metadata
+        dbmd5 = db.getObjSource(object_name=name, object_type=objectType, md5=True)
+
+        # If the object has database changes, avoid sending to database.
+        if dbmd5 != mObject["md5"] and not force:
+            info.add_row([name, objectType, objPath, 'Fail', 'The object has changes in the database'])
+            continue
+
+        # If not dry-run, create the object and update metadata table
+        if not dry_run:
+            db.createReplaceObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=obj["object_path"])
+
+        info.add_row([name, objectType, objPath, 'Updated', 'The object was updated successfully!'])
+
+    for metaObj in metaObjects:
+        object_name = metaObj["object_name"]
+        object_type = metaObj["object_type"]
+        object_path = metaObj["object_path"]
+        
+        # Check if the meta object exist on the repo objects.
+        wcDroped = utils.getObjectDict(wcObjects, object_name, object_type)
+        
+        # Check if the object exist on the database
+        dbDroped = utils.getObjectDict(dbObjects, object_name, object_type)
+
+        # If the object in metadata does not exist in local repo that means that the object has been detele in the local repo
+        if not wcDroped and dbDroped:
+            if not dry_run:
+                # Remove objects that has been deleted on local repository
+                db.dropObject(object_type, object_name)
+
+            info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed in the database'])
+            continue
+        
+        # IF exist on metadata table and exist on the repo, restored it.
+        if not dbDroped and wcDroped:
+            if not dry_run:
+                db.createReplaceObject(object_name=object_name, object_type=object_type, md5=wcDroped["md5"], object_path=wcDroped["object_path"])
+
+            info.add_row([object_name, object_type, object_path, 'Restored', 'The object has been restored in the database'])
+
+    print(info, '\n')
 
 
 def main():
@@ -151,7 +256,7 @@ def main():
         db = Database(displayInfo=True)
 
         # The create Scheme method returns the packages that are still invalid
-        invalids = db.createSchema()
+        invalids = db.createSchema(force)
 
         if len(invalids):
             print("\nThis objects are invalids:")
@@ -173,21 +278,27 @@ def main():
     if action == "errors":
         db = Database(displayInfo=True)
         result = db.compileObjects()
-        
-        t = PrettyTable(['Name', 'Type', 'Line', 'Text'])
+
+        t = PrettyTable(["Name", "Type", "Line", "Text"])
 
         # Get package errors
         for r in result:
-            errors = db.getObjErrors(owner=db.user, object_name=r['object_name'],  object_type= r['object_type'])
-            
+            errors = db.getObjErrors(
+                owner=db.user,
+                object_name=r["object_name"],
+                object_type=r["object_type"],
+            )
+
             for e in errors:
-                t.add_row([e['name'], e['type'], e['line'], e['text']])
+                t.add_row([e["name"], e["type"], e["line"], e["text"]])
 
         print(t)
-        
 
     if action == "db2wc":
         db2wc(dry_run, force)
+
+    if action == "wc2db":
+        wc2db(dry_run, force)
 
     if action == "invalids":
         db = Database(displayInfo=True)
@@ -196,86 +307,6 @@ def main():
 
         for obj in invalids:
             print(obj["object_type"], "-", obj["object_name"])
-
-    # Push changes from local repository to db
-    if action == "wc2db":
-        # Turn off loader bar
-        db = Database(displayInfo=False)
-
-        if dry_run:
-            utils.dryRun()
-
-        # Get the last updated commit
-        lastCommit = db.getLastObjectsHash()
-        if lastCommit:
-            wcObjects = files.diffByHashWithStatus(lastCommit["last_commit"])
-
-        # List object that could have changed
-        dbObjects = db.getObjectsDb2Wc()
-
-        # look for pending objects or fail objects
-        pending = [o["object_path"] for o in db.metadataPending()]
-
-        # Local modifications (Pending and modified objects)
-        objModified = list(set(wcObjects["modified"] + pending))
-
-        for mObj in objModified:
-
-            name, ext = files.getFileName(mObj)
-            objectType = files.objectsTypes(inverted=True, objKey="." + ext)
-
-            if not objectType:
-                continue
-
-            # Verify was modified on the db
-            isObj = utils.getObjectDict(dbObjects, name, objectType)
-
-            # Aquí debemos validar si el objecto en verdad tiene modificaciones, comparando el contenido del archivo con el qué está en la base de datos.
-            # Here we have to validate if the object really has change on the db, making a diff between content file and content on the database.
-            # print(mObj)
-            if isObj and not force:
-                # objContend = db.getObjSource(name, objectType).encode("utf-8")
-                # f = open(mObj, "rb")
-                # fcontent = f.read()
-
-                # print(hashlib.md5(objContend).hexdigest())
-                # print(hashlib.md5(fcontent).hexdigest())
-                # print(objContend)
-                # f.close()
-                # exit()
-
-                # Read file and compered changes
-
-                print(mObj, "Has changes in the database, Fail!")
-                if not dry_run:
-                    objFailToUpdate = db.getObjects(
-                        objectTypes=[objectType], objectName=name, fetchOne=True
-                    )
-
-                    objFailToUpdate.update(meta_status=1)
-                    del objFailToUpdate["last_ddl_time"]
-                    db.createOrUpdateMetadata(objFailToUpdate)
-
-                continue
-
-            # If everything is ok, created or replace the object
-            if not dry_run:
-                db.createReplaceObject([mObj])
-
-                # Update metadata table
-                objToUpdate = db.getObjects(
-                    objectTypes=[objectType], objectName=name, fetchOne=True
-                )
-
-                objToUpdate.update(
-                    last_commit=files.head_commit, object_path=mObj, meta_status=0
-                )
-                updated = db.createOrUpdateMetadata(objToUpdate)
-
-            print(mObj, "Exported successfully!")
-
-        # Remove objects that has been deleted on local repository
-        db.dropObject(wcObjects["deleted"], dry_run)
 
     if action == "watch":
         watch(files.pl_path)
