@@ -1,11 +1,15 @@
 import cx_Oracle, os, re, glob, hashlib
+
 from pladmin.files import Files as files
+
+
 from datetime import datetime, date
 from dotenv import load_dotenv
 
 files = files()
-load_dotenv()
 
+# Load database config
+load_dotenv(files.db_cnfpath)
 
 class Database:
 
@@ -92,11 +96,9 @@ class Database:
                     object_name varchar2(30) not null,
                     object_type varchar2(18) not null,
                     object_path varchar2(255) not null,
-                    last_commit varchar2(40) not null,
                     md5 varchar2(32) not null,
                     sync_date date not null,
                     last_ddl_time date not null,
-                    status number(1) default 0,
                     primary key (object_name, object_type)
                 )"""
             % self.user
@@ -147,16 +149,14 @@ class Database:
         for obj in data:
             md5 = files.fileMD5(obj["object_path"])
             sql = (
-                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s','%s', '%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'), '%s')"
+                "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s','%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'))"
                 % (
                     self.user,
                     obj["object_name"],
                     obj["object_type"],
                     obj["object_path"],
-                    obj["last_commit"],
                     md5,
                     obj["last_ddl_time"],
-                    0,  # status value is 0 by default and if object is pendding of synchronization is 1
                 )
             )
             cursor.execute(sql)
@@ -180,10 +180,6 @@ class Database:
             if "object_path" in obj:
                 objectPath = "OBJECT_PATH= '%s', " % obj["object_path"]
 
-            lastCommit = ""
-            if "last_commit" in obj:
-                lastCommit = "LAST_COMMIT='%s', " % obj["last_commit"]
-
             lastDdlTime = ""
             if "last_ddl_time" in obj:
                 lastDdlTime = (
@@ -199,11 +195,10 @@ class Database:
             if "md5" in obj:
                 md5 = "MD5='%s', " % obj["md5"]
 
-            sql = """UPDATE %s.PLADMIN_METADATA SET %s %s %s %s %s SYNC_DATE=SYSDATE 
+            sql = """UPDATE %s.PLADMIN_METADATA SET %s %s %s %s SYNC_DATE=SYSDATE 
                 WHERE object_name = '%s' and object_type = '%s' """ % (
                 self.user,
                 objectPath,
-                lastCommit,
                 lastDdlTime,
                 metaStatus,
                 md5,
@@ -334,12 +329,7 @@ class Database:
             objectTypes=[object_type], objectName=object_name, fetchOne=True
         )
 
-        newObject.update(
-            last_commit=files.head_commit,
-            object_path=object_path,
-            md5=md5,
-            meta_status=0,
-        )
+        newObject.update(object_path=object_path, md5=md5)
 
         # Update metadata table
         updated = self.createOrUpdateMetadata(newObject)
@@ -506,7 +496,7 @@ class Database:
                 )
 
                 result[i].update({"object_path": p[0]})
-                result[i].update({"last_commit": files.head_commit})
+                # result[i].update({"last_commit": files.head_commit})
                 i += 1
 
         return result
@@ -522,7 +512,6 @@ class Database:
                 ,dbs.last_ddl_time
                 ,mt.last_ddl_time as meta_last_ddl_time
                 ,mt.object_path
-                ,mt.last_commit
                 ,mt.md5
             FROM dba_objects dbs
             INNER JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
@@ -549,7 +538,6 @@ class Database:
                 ,dbs.last_ddl_time
                 ,mt.last_ddl_time as meta_last_ddl_time
                 ,mt.object_path
-                ,mt.last_commit
             FROM dba_objects dbs
             LEFT JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
             WHERE owner = '%s' 
