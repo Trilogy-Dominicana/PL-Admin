@@ -76,7 +76,6 @@ def db2wc(dry_run, force):
 
     # Check if object has change after commit store on the db
     for obj in allObjects:
-        lastCommit = obj["last_commit"]
         objectPath = obj["object_path"]
         objectName = obj["object_name"]
         objectType = obj["object_type"]
@@ -119,7 +118,7 @@ def db2wc(dry_run, force):
             fileObject = files.createObject(objectName, objectType, dbContent)
         
             # Update metadata table
-            obj.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
+            obj.update(object_path=fileObject, md5=dbMd5)
             updated = db.createOrUpdateMetadata(obj)
             
         info.add_row([objectName, objectType, objectPath, 'Updated', 'The object has been updated in local repository'])
@@ -140,6 +139,7 @@ def db2wc(dry_run, force):
         info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed from the repository'])
     
     print(info)
+
 
 def wc2db(dry_run, force):
     # Turn off loader bar
