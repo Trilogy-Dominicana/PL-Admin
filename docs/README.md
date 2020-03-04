@@ -46,7 +46,7 @@ source ~/.bash_profile
 
 ### Topics
 - [Uso](usage-es.md)
-- [Crear nuevo esquema](new-shcema-es.md)
+- [Crear nuevo esquema](new-schema-es.md)
 - [Exportar desde la base de datos al respositorio local (db2wc)](docs/db2wc-es.md)
 - [Cambiar el password del SYSDBA](change-sys-password-es.md)
 
