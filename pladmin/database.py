@@ -8,24 +8,36 @@ from dotenv import load_dotenv
 
 files = files()
 
-# Load database config
-load_dotenv(files.db_cnfpath)
 
 class Database:
-
-    db_admin_user = os.getenv("DB_ADMIN_USER").upper()
-    db_admin_password = os.getenv("DB_ADMIN_PASSWORD")
-    db_default_table_space = os.getenv("DB_DEFAULT_TABLE_SPACE").upper()
-    db_temp_table_space = os.getenv("DB_TEMP_TABLE_SPACE").upper()
-    db_main_schema = os.getenv("DB_MAIN_SCHEMA").upper()
-    service_name = os.getenv("DB_SERVICE_NAME")
-    user = os.getenv("DB_USER").upper()
-    password = os.getenv("DB_PASSWORD")
-    host = os.getenv("DB_HOST")
-    port = os.getenv("DB_PORT")
     lastIntends = 0
 
     def __init__(self, displayInfo=False):
+
+        if not os.path.exists(files.db_cnfpath):
+            print(
+                "Database config file does not exist. Please, copy .env.sample file to your PL/SQL code path with new name as .env, change the params and try again"
+            )
+            exit()
+
+        try:
+            # Load database config
+            load_dotenv(files.db_cnfpath)
+
+            self.db_admin_user = os.getenv("DB_ADMIN_USER").upper()
+            self.db_admin_password = os.getenv("DB_ADMIN_PASSWORD")
+            self.db_default_table_space = os.getenv("DB_DEFAULT_TABLE_SPACE").upper()
+            self.db_temp_table_space = os.getenv("DB_TEMP_TABLE_SPACE").upper()
+            self.db_main_schema = os.getenv("DB_MAIN_SCHEMA").upper()
+            self.service_name = os.getenv("DB_SERVICE_NAME")
+            self.user = os.getenv("DB_USER").upper()
+            self.password = os.getenv("DB_PASSWORD")
+            self.host = os.getenv("DB_HOST")
+            self.port = os.getenv("DB_PORT")
+
+        except Exception as e:
+            print("Make sure you have all params setup on .env file")
+
         self.types = files.objectsTypes().keys()
         self.extentions = files.objectsTypes().values()
 
@@ -40,7 +52,10 @@ class Database:
         user = self.newUser(db=db, force=force)
 
         if not user:
-            print('\n The user %s already exist, use --force option override the schema' % self.user) 
+            print(
+                "\n The user %s already exist, use --force option override the schema"
+                % self.user
+            )
             exit()
 
         # Give grants to the user
@@ -75,6 +90,51 @@ class Database:
 
         return invalids
 
+
+    def metadataTableExist(self):
+        """ Validate if metadata table exits, if not, create it """
+        sql = (
+            "SELECT * FROM USER_TABLES WHERE table_name = 'PLADMIN_METADATA' AND TABLESPACE_NAME = '%s'"
+            % self.db_default_table_space
+        )
+
+        metatable = self.getData(query=sql, fetchOne=True)
+
+        if metatable:
+            return True
+        
+        return False
+
+    def initMetadata(self):
+        # Validate if metadata table exits, if not, create it
+        sql = (
+            "SELECT * FROM USER_TABLES WHERE table_name = 'PLADMIN_METADATA' AND TABLESPACE_NAME = '%s'"
+            % self.db_default_table_space
+        )
+
+        metatable = self.getData(query=sql, fetchOne=True)
+
+        if not metatable:
+            self.createMetaTable()
+
+        # Getting up objects
+        data = self.getObjects(withPath=True)
+
+        # Create objects that not exists into wc
+        for obj in data:
+            if obj['object_path']:
+                continue
+            
+            name = obj['object_name']
+            object_type = obj['object_type']
+
+            # Generate md5 object
+
+            db.createReplaceObject(object_name=name, object_type=object_type, md5=obj["md5"], object_path=objPath)
+            print(obj['object_name'])
+
+        # self.metadataInsert(data)
+
     def createMetaTable(self, db=None):
         """
         Create metadata to manage meta information
@@ -93,7 +153,7 @@ class Database:
 
         sql = (
             """CREATE TABLE %s.PLADMIN_METADATA(
-                    object_name varchar2(30) not null,
+                    object_name varchar2(100) not null,
                     object_type varchar2(18) not null,
                     object_path varchar2(255) not null,
                     md5 varchar2(32) not null,
@@ -133,7 +193,7 @@ class Database:
 
         return obj
 
-    def metadataInsert(self, data, db=None):
+    def metadataInsert(self, data, md5=False, db=None):
         """ Insert data into metadata table.
         
         Params: 
@@ -148,6 +208,7 @@ class Database:
 
         for obj in data:
             md5 = files.fileMD5(obj["object_path"])
+
             sql = (
                 "INSERT INTO %s.PLADMIN_METADATA VALUES('%s', '%s', '%s','%s', sysdate, TO_DATE('%s','RRRR/MM/DD HH24:MI:SS'))"
                 % (
@@ -187,24 +248,20 @@ class Database:
                     % obj["last_ddl_time"]
                 )
 
-            metaStatus = ""
-            if "meta_status" in obj:
-                metaStatus = "STATUS='%s', " % obj["meta_status"]
-
             md5 = ""
             if "md5" in obj:
                 md5 = "MD5='%s', " % obj["md5"]
 
-            sql = """UPDATE %s.PLADMIN_METADATA SET %s %s %s %s SYNC_DATE=SYSDATE 
+            sql = """UPDATE %s.PLADMIN_METADATA SET %s %s %s SYNC_DATE=SYSDATE 
                 WHERE object_name = '%s' and object_type = '%s' """ % (
                 self.user,
                 objectPath,
                 lastDdlTime,
-                metaStatus,
                 md5,
                 obj["object_name"],
                 obj["object_type"],
             )
+
             cursor.execute(sql)
 
         # cursor.close()
@@ -221,10 +278,9 @@ class Database:
 
         cursor = db.cursor()
 
-        sql = """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' AND object_type = '%s' """ % (
-            self.user,
-            object_type,
-            object_name
+        sql = (
+            """DELETE FROM %s.PLADMIN_METADATA WHERE object_name = '%s' AND object_type = '%s' """
+            % (self.user, object_type, object_name)
         )
 
         try:
@@ -236,16 +292,6 @@ class Database:
         if localClose:
             db.commit()
             db.close()
-
-    def metadataPending(self, status=1):
-
-        query = "SELECT object_path FROM %s.pladmin_metadata WHERE status = '%s'" % (
-            self.user,
-            status,
-        )
-        result = self.getData(query=query)
-
-        return result
 
     def metadataAllObjects(self):
         """ Get all data from metadata"""
@@ -321,10 +367,9 @@ class Database:
     def createReplaceObject(self, object_name, object_type, md5, object_path):
         """ Create or replace object and update metadata table at the same time """
 
-
         self.createReplaceDbObject([object_path])
 
-        # Get the new object that has beed created with his last_ddl_time
+        # Get the new object that has been created with his last_ddl_time
         newObject = self.getObjects(
             objectTypes=[object_type], objectName=object_name, fetchOne=True
         )
@@ -416,13 +461,13 @@ class Database:
             context = "CREATE OR REPLACE "
             if ftype == "vew":
                 context = "CREATE OR REPLACE FORCE VIEW %s AS \n" % fname
-            
-            
+
             # Execute create or replace package
             try:
                 cursor.execute(context + content)
             except e:
                 print(e)
+                pass
 
         files.progress(
             i,
@@ -455,9 +500,8 @@ class Database:
         withPath=False,
         fetchOne=None,
     ):
-        # [] Se debe agregar a este metodo el porqué el objeto está invalido
         """
-        List invalid Packages, Functions and Procedures and Views
+        List Packages, Functions and Procedures and Views
         
         Params:
         ------
@@ -485,19 +529,21 @@ class Database:
 
         # Return a dic with the data
         result = self.getData(query=query, fetchOne=fetchOne)
+
         if fetchOne:
             return result
 
         if len(result) and withPath:
-            i = 0
             for obj in result:
+
                 p = files.findObjFileByType(
                     objectType=obj["object_type"], objectName=obj["object_name"]
                 )
 
-                result[i].update({"object_path": p[0]})
-                # result[i].update({"last_commit": files.head_commit})
-                i += 1
+                obj.update({"object_path": ''})
+
+                if len(p):
+                    obj.update({"object_path": p[0]})
 
         return result
 
@@ -538,6 +584,7 @@ class Database:
                 ,dbs.last_ddl_time
                 ,mt.last_ddl_time as meta_last_ddl_time
                 ,mt.object_path
+                ,mt.md5
             FROM dba_objects dbs
             LEFT JOIN %s.PLADMIN_METADATA mt on dbs.object_name = mt.object_name and dbs.object_type = mt.object_type
             WHERE owner = '%s' 
@@ -577,7 +624,7 @@ class Database:
             self.user,
             types,
         )
- 
+
         result = self.getData(sql)
 
         return result
@@ -797,10 +844,15 @@ class Database:
 
             if self.db_admin_user == "SYS":
                 mode = cx_Oracle.SYSDBA
-
-        return cx_Oracle.connect(
-            user=user, password=password, dsn=self.dsn, mode=mode, encoding="UTF-8"
-        )
+        try:
+            return cx_Oracle.connect(
+                user=user, password=password, dsn=self.dsn, mode=mode, encoding="UTF-8"
+            )
+        except Exception as e:
+            print("Error using %s schema" % self.user)
+            # print('*** Caught exception: %s: %s' % (e.__class__, e))
+            print(e)
+            exit()
 
     def makeDictFactory(self, cursor):
         """ cx_Oracle library doesn't bring a simple way to convert a query result into a dictionary. """
