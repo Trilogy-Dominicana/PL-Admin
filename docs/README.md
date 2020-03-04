@@ -50,15 +50,19 @@ source ~/.bash_profile
 - [Exportar desde la base de datos al respositorio local (db2wc)](docs/db2wc-es.md)
 - [Cambiar el password del SYSDBA](change-sys-password-es.md)
 
-### ¡Importante!
-- Los nombres de los archivos en el repositorio deben ser el mismo que en la base de datos.
-- No pueden haber archivos duplicados
-- Las extensiones de cada archivo determinará que tipo de objecto es:
-    - PACKAGE: `.psk`
-    - PACKAGE BODY: `.pbk`
-    - VIEW: `.vew`
-    - FUNCTION: `.fnc`
-    - PROCEDURE: `.prc`
+### ¡Importante para el repositorio del código PL/SQL!
+- Los nombres de los archivos deben ser el mismo que el nombre del objeto.
+- No pueden haber archivos duplicados en el albort de directorios.
+- Las extensiones de cada archivo determinará que tipo de objecto es.
+- Cada objecto debe estar dentro del directorio correspondiente.
+
+| Object Type | File Extention | Directory |
+| ------ | ------ | ------ |
+| PACKAGE | .psk | ./packages |
+| PACKAGE BODY | .pbk | ./packages |
+| VIEW | .vew | ./views |
+| FUNCTION | .fnc | ./functions |
+| PROCEDURE | .prc | ./procedures |
 
 
 

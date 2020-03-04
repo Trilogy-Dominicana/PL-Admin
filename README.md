@@ -52,12 +52,16 @@ source ~/.bash_profile
 - [Export changes from your Database to Git (db2wc)](docs/db2wc.md)
 - [Change SYS DBA Password](docs/change-sys-password.md)
 
-### Important!
+### Important for your PL/SQL path
 - The file name has to be the same of the object name.
-- Do not duplicate files
-- The file extension indicate what kind of object is:
-    - PACKAGE: `.psk`
-    - PACKAGE BODY: `.pbk`
-    - VIEW: `.vew`
-    - FUNCTION: `.fnc`
-    - PROCEDURE: `.prc`
+- Do not duplicate files names.
+- The file extension indicate what kind of object is.
+- Each object type has to be in the corresponding directory
+
+| Object Type | File Extention | Directory |
+| ------ | ------ | ------ |
+| PACKAGE | .psk | ./packages |
+| PACKAGE BODY | .pbk | ./packages |
+| VIEW | .vew | ./views |
+| FUNCTION | .fnc | ./functions |
+| PROCEDURE | .prc | ./procedures |
