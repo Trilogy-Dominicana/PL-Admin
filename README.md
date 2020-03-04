@@ -20,6 +20,7 @@ Creating images and container
 docker build --no-cache -t viva/pl-admin .
 
 # Create the container
+# Do not forget replace <path_to_plsql_code> for your plsql path dir
 docker run -ti --name=pladmin-omega -d -v <path/to/plsql_code>:/plsql viva/pl-admin
 
 # In case that you have other schema just create another container with other name
