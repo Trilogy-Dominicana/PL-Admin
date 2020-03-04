@@ -5,85 +5,64 @@ Esta herramienta ha sido creada pensando en esas aplicaciones que contienen much
 
 PL-Admin te ayuda en la clonación de tu esquema de base de datos principal, compilar código pl/sql en tiempo real, revisar errores de compilacion, revisar diferencias entre la base de datos y tu repositorio entre otras cosas.
 
-### Clona el repositorio
-```sh
-git@gitlab.viva.com.do:anaiboa/plsql-manager.git
-```
-
 ### Setup
-Copia el fichero `.env.sample` y reemplaza los parametros
+Clone the repo
 ```sh
-cp .env.sample .env
+git clone git@gitlab.viva.com.do:anaiboa/pl-admin.git
 ```
 
-Crea un alia del comando
+Creating images and container
 ```sh
-# Abre tu configuración de perfil (.bash_profile or .zshrc)
+# Construir la imagen con la aplicación
+docker build --no-cache -t viva/pl-admin .
+
+# Crear el contenedor para un esquema
+docker run -ti --name=pladmin-omega -d -v <path/to/plsql_code>:/plsql viva/pl-admin
+
+# En caso de que tengas más de un esquema, siemplemente crea otro contenedor con nombre diferente
+docker run -ti --name=pladmin-reclamaciones -d -v <path/to/plsql_code>:/plsql viva/pl-admin
+```
+
+Copia el fichero .env.sample a cada ruta donde tengas código pl/sql
+```sh
+cp .env.sample you_plsql_path/.env
+``
+
+Crea un alias para que sea más fácil ejecutar el comando
+```sh
+# Abre la configuración de tu perfil. puede ser .bash_profile o .zshrc dependiendo del shell que estes utilizando
 vim ~/.bash_profile
 
-# Agrega la siguiente linea:
-alias plqmin="docker container exec -ti pl-admin pladmin"
+# Agrega esta linea:
+alias pladmin="docker container exec -ti pladmin-omega pladmin"
 
-# Cierra el fichero de configuración y carga nuevamente
+# En caso de que tengas más de un esquema, repite el mismo paso cambiando el nombre del contenedor
+alias pl-reclamaciones="docker container exec -ti pladmin-reclamaciones pladmin"
+
+# Cierra el fichero y no olvides cargar la configuración que ingresaste
 source ~/.bash_profile
 ```
 
-### Construye el contenedor
-```sh
-docker-compose up -d --build
-```
-
-### Synopsis
-pladmin [`comando`] [`opciones`]
-- wc2db [--dry-run, --force]
-- db2wc [--dry-run, --force, --merge]
-- newSchema
-- watch
-- compileSchema
-- errors
-
-
-### Lista de commandos
-`newSchema`: Crea un nueva esquema tomando la configuración ingresada en el .env
-```sh
-pladmin newSchema
-```
-
-wc2db: Compara la diferencias entre la base de datos y el reposoririo local y reemplaza los objectos con diferencias dentro de la base de datos
-> - --dry-run: Muestra todo lo que será creado, removido, etc. pero no ejecuta nada.
-> - --force: Forza la sincronización del repositorio con la base de datos.
-
-```sh
-# uso
-pladmin wc2db [opciones]
-```
-
-db2wc: Busca los objetos que tienen cambios en la base de datos y los exporta al respositorio local.
-> - --dry-run: Muestra todo lo que será creado, removido, etc. pero no ejecuta nada.
-> - --force: Forza la sincronización de la base de datos con el repositorio.
-> - --merge: Hace un merge de los cambios en la base de datos y el repositorio local (beta). 
-```sh
-# uso
-pladmin wc2db [opciones]
-```
-
-`compile`: Busca los objectos invalidos e intenta compilarlos.
-```sh
-# uso
-pladmin compile
-```
-
-`watch`: Se mantiene escuchando cambios en el repositorio local y los lleva a la base de datos.
-```sh
-# uso
-pladmin watch
-```
 
 ### Topics
+- [Uso](usage-es.md)
 - [Crear nuevo esquema](new-shcema-es.md)
 - [Exportar desde la base de datos al respositorio local (db2wc)](docs/db2wc-es.md)
 - [Cambiar el password del SYSDBA](change-sys-password-es.md)
 
-### ¡Importante!
-- Los nombres de los archivos en el repositorio deben ser el mismo que en la base de datos.
-- Despues de cada commit, PL-Admin ejecuta el comanndo `wc2db` para sincronizar git con la base de datos.
+### ¡Importante para el repositorio del código PL/SQL!
+- Los nombres de los archivos deben ser el mismo que el nombre del objeto.
+- No pueden haber archivos duplicados en el albort de directorios.
+- Las extensiones de cada archivo determinará que tipo de objecto es.
+- Cada objecto debe estar dentro del directorio correspondiente.
+
+| Object Type | File Extention | Directory |
+| ------ | ------ | ------ |
+| PACKAGE | .psk | ./packages |
+| PACKAGE BODY | .pbk | ./packages |
+| VIEW | .vew | ./views |
+| FUNCTION | .fnc | ./functions |
+| PROCEDURE | .prc | ./procedures |
+
+
+

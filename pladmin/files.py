@@ -1,4 +1,4 @@
-import os, sys, re, shutil, glob, git, time, hashlib
+import os, sys, re, shutil, glob, time, hashlib
 from datetime import datetime
 
 
@@ -9,9 +9,12 @@ class Files:
     def __init__(self, displayInfo=False):
 
         # Initialize git repo
-        self.repo = git.Repo(self.pl_path)
-        self.head_commit = str(self.repo.head.commit)[:7]
+        # self.repo = git.Repo(self.pl_path)
+        # self.head_commit = str(self.repo.head.commit)[:7]
+        # Setup config path
 
+        self.db_cnfpath = os.path.join(self.pl_path, '.env')
+        
         # Create dir and initialize dir types
         self.createDirs()
 
@@ -107,7 +110,7 @@ class Files:
     def filesChangesByTime(self, minutes):
         """ This fuction return a list of files that changes in a range time """
         _cached_stamp = 0
-        filename = "/plsql/packages/ALG_CORRECCION_DIRECCIONES.pbk"
+        # filename = "/plsql/packages/ALG_CORRECCION_DIRECCIONES.pbk"
         stamp = os.stat(filename).st_mtime
         now = datetime.now()
         dateTimeObj = now.timestamp() - stamp
@@ -141,10 +144,6 @@ class Files:
             if md5:
                 obj["md5"] = self.fileMD5(f)
 
-                # with open(f) as opf:
-                #     content = opf.read().encode()
-                #     obj["md5"] = hashlib.md5(content).hexdigest()
-            
             data.append(obj)
 
         return data

@@ -1,4 +1,4 @@
-import os, cx_Oracle, git, re, ntpath
+import os, cx_Oracle, re, ntpath
 from pathlib import Path
 from datetime import datetime, date
 from pladmin.database import Database
