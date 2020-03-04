@@ -105,36 +105,6 @@ class Database:
         
         return False
 
-    def initMetadata(self):
-        # Validate if metadata table exits, if not, create it
-        sql = (
-            "SELECT * FROM USER_TABLES WHERE table_name = 'PLADMIN_METADATA' AND TABLESPACE_NAME = '%s'"
-            % self.db_default_table_space
-        )
-
-        metatable = self.getData(query=sql, fetchOne=True)
-
-        if not metatable:
-            self.createMetaTable()
-
-        # Getting up objects
-        data = self.getObjects(withPath=True)
-
-        # Create objects that not exists into wc
-        for obj in data:
-            if obj['object_path']:
-                continue
-            
-            name = obj['object_name']
-            object_type = obj['object_type']
-
-            # Generate md5 object
-
-            db.createReplaceObject(object_name=name, object_type=object_type, md5=obj["md5"], object_path=objPath)
-            print(obj['object_name'])
-
-        # self.metadataInsert(data)
-
     def createMetaTable(self, db=None):
         """
         Create metadata to manage meta information
