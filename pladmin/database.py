@@ -665,7 +665,7 @@ class Database:
                     AND oo.object_type IN ('SEQUENCE', 'TABLE', 'TYPE')
                     AND oo.object_name NOT LIKE 'SYS_PLSQL_%%'
                     AND oo.object_name NOT LIKE 'QTSF_CHAIN_%%'
-                    AND oo.object_name <> 'METADATA_TABLE'
+                    AND oo.object_name <> 'PLADMIN_METADATA'
                     AND NOT EXISTS
                             (SELECT 1
                                 FROM sys.dba_objects tob
