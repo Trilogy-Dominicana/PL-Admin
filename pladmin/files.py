@@ -25,11 +25,11 @@ class Files:
     def objectsTypes(self, inverted=False, objKey=None):
         """ Do not change the order of items """
         data = {}
-        data["PACKAGE"] = ".psk"
-        data["VIEW"] = ".vew"
-        data["FUNCTION"] = ".fnc"
+        data["PACKAGE"] = ".pks"
+        data["VIEW"] = ".vw"
+        data["FUNCTION"] = ".fun"
         data["PROCEDURE"] = ".prc"
-        data["PACKAGE BODY"] = ".pbk"
+        data["PACKAGE BODY"] = ".pkb"
 
         if inverted:
             data = dict(map(reversed, data.items()))

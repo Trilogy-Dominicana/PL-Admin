@@ -61,8 +61,8 @@ source ~/.bash_profile
 
 | Object Type | File Extention | Directory |
 | ------ | ------ | ------ |
-| PACKAGE | .psk | ./packages |
-| PACKAGE BODY | .pbk | ./packages |
-| VIEW | .vew | ./views |
+| PACKAGE | .pks | ./packages |
+| PACKAGE BODY | .pkb | ./packages |
+| VIEW | .vw | ./views |
 | FUNCTION | .fnc | ./functions |
 | PROCEDURE | .prc | ./procedures |

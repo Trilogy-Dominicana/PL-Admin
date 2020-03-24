@@ -56,13 +56,10 @@ source ~/.bash_profile
 - Las extensiones de cada archivo determinará que tipo de objecto es.
 - Cada objecto debe estar dentro del directorio correspondiente.
 
-| Object Type | File Extention | Directory |
+| Objecto | Extención | Ruta |
 | ------ | ------ | ------ |
-| PACKAGE | .psk | ./packages |
-| PACKAGE BODY | .pbk | ./packages |
-| VIEW | .vew | ./views |
+| PACKAGE | .pks | ./packages |
+| PACKAGE BODY | .pks | ./packages |
+| VIEW | .vw | ./views |
 | FUNCTION | .fnc | ./functions |
 | PROCEDURE | .prc | ./procedures |
-
-
-
