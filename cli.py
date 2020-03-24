@@ -67,14 +67,17 @@ def db2wc(dry_run, force):
             
         db.createMetaTable()
         init = True
+    
+    # Connect as SYS
+    dba = db.dbConnect(sysDBA=True)
 
-    deletedObjs = db.getDeletedObjects()
+    deletedObjs = db.getDeletedObjects(db=dba)
 
     # List all object with diferences
-    dbObject = db.getObjectsDb2Wc()
+    dbObject = db.getObjectsDb2Wc(db=dba)
 
     # List new objects
-    newObjects = db.getNewObjects()
+    newObjects = db.getNewObjects(db=dba)
 
     # Concat all objects
     allObjects = newObjects + dbObject
@@ -144,6 +147,7 @@ def db2wc(dry_run, force):
 
         info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed from the repository'])
     
+    dba.clonse()
     print(info)
 
 

@@ -469,6 +469,7 @@ class Database:
         status=None,
         withPath=False,
         fetchOne=None,
+        db=None
     ):
         """
         List Packages, Functions and Procedures and Views
@@ -498,7 +499,7 @@ class Database:
             query += " AND object_name = '%s'" % objectName
 
         # Return a dic with the data
-        result = self.getData(query=query, fetchOne=fetchOne)
+        result = self.getData(query=query, fetchOne=fetchOne, db=db)
 
         if fetchOne:
             return result
@@ -517,7 +518,7 @@ class Database:
 
         return result
 
-    def getObjectsDb2Wc(self):
+    def getObjectsDb2Wc(self, db=None):
         """ Get objects that has been changed after the last syncronization"""
         types = "', '".join(self.types)
 
@@ -539,11 +540,11 @@ class Database:
             types,
         )
 
-        result = self.getData(sql)
+        result = self.getData(sql, db=db)
 
         return result
 
-    def getNewObjects(self):
+    def getNewObjects(self, db=None):
         """ Get Objects that exist on dba_object and does't exist on metadata table"""
         types = "', '".join(self.types)
 
@@ -565,7 +566,7 @@ class Database:
             types,
         )
 
-        result = self.getData(sql)
+        result = self.getData(sql, db=db)
 
         return result
 
@@ -582,7 +583,7 @@ class Database:
 
         return result
 
-    def getDeletedObjects(self):
+    def getDeletedObjects(self, db=None):
         """ Get Objects that exist on pladmin_metadata table and does't exist on metadata dba_objects"""
         types = "', '".join(self.types)
 
@@ -595,7 +596,7 @@ class Database:
             types,
         )
 
-        result = self.getData(sql)
+        result = self.getData(sql, db=db)
 
         return result
 
@@ -724,7 +725,7 @@ class Database:
         if not params:
             result = cursor.execute(query)
         else:
-            result = cursor.execute(query, data)
+            result = cursor.execute(query, params)
 
         # Overriding rowfactory method to get the data in a dictionary
         if returnDict:
