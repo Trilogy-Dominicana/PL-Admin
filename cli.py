@@ -147,7 +147,7 @@ def db2wc(dry_run, force):
 
         info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed from the repository'])
     
-    dba.clonse()
+    dba.close()
     print(info)
 
 
