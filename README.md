@@ -1,7 +1,7 @@
-# PL/SQL Manager
+# PL Admin
 [Cambiar a Español](docs/README.md)
 
-PL-Amin provides you an easy way to clone a main schema, compile pl/sql code on realtime, check for database errors, check for differences between repos and databases, and so much more.
+PL-Amin is a PL/SQL Manager that provides you with an easy way to clone a main schema, compile pl/sql code on realtime, check for database errors, check for differences between repos and databases, and so much more.
 
 This tool was created to deal with database-centered apps, with too much logic on the database side and very little on the code side.
 
