@@ -1,19 +1,20 @@
 class utils:
-    def dryRun():
+    def dryRun(self):
         print(
             """
- _____  _______     __     _____  _    _ _   _ 
+_____  _______     __     _____  _    _ _   _ 
 |  __ \|  __ \ \   / /    |  __ \| |  | | \ | |
 | |  | | |__) \ \_/ /_____| |__) | |  | |  \| |
 | |  | |  _  / \   /______|  _  /| |  | | . ` |
 | |__| | | \ \  | |       | | \ \| |__| | |\  |
 |_____/|_|  \_\ |_|       |_|  \_\\_____/|_| \_| 
 -----------------------------------------------
-         No change will take effect.
------------------------------------------------\n """
+        No change will take effect.
+-----------------------------------------------\n 
+            """
         )
 
-    def getObjectDictInList(objects, name, type):
+    def getObjectDictInList(self, objects, name, type):
         """ Get an spesific object from a list of dicts"""
         data = dict(
             filter(
@@ -27,7 +28,7 @@ class utils:
         return data
 
 
-    def getObjectDict(objects, name, type):
+    def getObjectDict(self, objects, name, type):
         """ Get an spesific object from a list of dicts and return a dict"""
 
         data = next(
