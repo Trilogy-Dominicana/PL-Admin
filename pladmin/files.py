@@ -23,7 +23,7 @@ class Files:
         self.progress_len = 0
 
     def objectsTypes(self, inverted=False, objKey=None):
-        """ Do not change the order of items """
+        # Do not change the order of items
         data = {}
         data["PACKAGE"] = ".pks"
         data["VIEW"] = ".vw"
@@ -107,34 +107,21 @@ class Files:
 
         return data
 
-    def filesChangesByTime(self, minutes):
-        """ This fuction return a list of files that changes in a range time """
-        _cached_stamp = 0
-        # filename = "/plsql/packages/ALG_CORRECCION_DIRECCIONES.pbk"
-        stamp = os.stat(filename).st_mtime
-        now = datetime.now()
-        dateTimeObj = now.timestamp() - stamp
-        print(dateTimeObj)
-
-        if stamp != _cached_stamp:
-            _cached_stamp = stamp
-            # File has changed, so do something...
-
     def files_to_timestamp(self, path=None):
-        """ For each file found in path get the last modified timestamp """
+        """ For every file found in path get the last modified timestamp """
         files = self.listAllObjsFiles()
         data = dict([(f, os.path.getmtime(f)) for f in files])
 
         return data
 
     def listAllObjectFullData(self, path=None, md5=False):
-        """ For each file found in path get the last modified timestamp """
+        """ For every file found in path get the last modified timestamp """
         files = self.listAllObjsFiles()
         data = []
 
         for f in files:
             obj = {}
-            name, ext, oType = self.getFileName(f)
+            name, _, oType = self.getFileName(f)
 
             obj["object_name"] = name
             obj["object_type"] = oType
@@ -173,7 +160,7 @@ class Files:
         objectType (string) Object Type on DB (PACKAGE, PACKAGE BODY, PROCEDURE, VIEW or FUNCTION)
         objectName (string) Object name on DB, the name has to be the same on DB and the repo (e.g MY_PACKAGE_EXAMPLE)
 
-        return (array) with the complete path of file """
+        return (list) with the complete path of file """
 
         oType = self.objectsTypes()[objectType]
 
@@ -185,7 +172,7 @@ class Files:
     def validateIfFileExist(self, name, path):
         """ Determinate if a exist into a tree directory """
 
-        for root, dirs, files in os.walk(path):
+        for _, _, files in os.walk(path):
             if name in files:
                 return True
 
@@ -246,7 +233,7 @@ class Files:
         os.makedirs(self.script_dir_dml, exist_ok=True)
 
     def createObject(self, objectName, objectType, contend):
-        """ Create object on correcponding dir """
+        """ Creates object on it's correcponding dir """
 
         # Validate if the object type is permited
         if not objectType in self.types:

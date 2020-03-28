@@ -255,7 +255,7 @@ class Database:
 
         try:
             cursor.execute(sql)
-        except e:
+        except Exception as e:
             print(e)
             pass
 
@@ -385,7 +385,7 @@ class Database:
 
     def createReplaceDbObject(self, path=None, db=None):
         """
-        Create or Replace packges, views, procedures and functions 
+        Creates or Replaces packges, views, procedures and functions.
 
         params:
         ------

@@ -28,7 +28,7 @@ class Migrations(Files, Database):
 
         fileCreating = []
             
-        for i in range(0, quantity):
+        for _ in range(quantity):
             date = datetime.now()
             today = date.strftime("%m%d%Y%H%M%S")
 
