@@ -1,20 +1,23 @@
-# PL/SQL Manager
+# PL Admin
 [Cambiar a Español](docs/README.md)
 
-This tools has been created thinking on those apps that has to many logic into the database.
+PL-Amin is a PL/SQL Manager that provides you with an easy way to clone a main schema, compile pl/sql code on realtime, check for database errors, check for differences between repos and databases, and so much more.
 
-PL-Amin provide you an easy way to clone a main schema, compile pl/sql code on realtime, check database errors, check diferences between repo and database, etc.
+This tool was created to deal with database-centered apps, with too much logic on the database side and very little on the code side.
 
-### Requirements
-- Docker version ^19.03.1
+## Requirements
+```sh
+$ docker -v
+  Docker version 19.03.5 # Or greater
+```
 
-### Setup
-Clone the repo
+## Setup
++ Clone the repo
 ```sh
 git clone git@gitlab.viva.com.do:anaiboa/pl-admin.git
 ```
 
-Creating images and container
++ Creating images and container
 ```sh
 # Build the docker image
 docker build --no-cache -t viva/pl-admin .
@@ -27,10 +30,10 @@ docker run -ti --name=pladmin-omega -d -v <path/to/plsql_code>:/plsql viva/pl-ad
 docker run -ti --name=pladmin-reclamaciones -d -v <path/to/plsql_code>:/plsql viva/pl-admin
 ```
 
-Copy .env.sample file to each pl/sql path and change the params
++ Copy `.env.sample` file to each pl/sql path and change the params
 ```sh
 cp .env.sample you_plsql_path/.env
-``
+```
 
 Create an alias the made the proccess more easier
 ```sh
@@ -56,8 +59,8 @@ source ~/.bash_profile
 ### Important for your PL/SQL path
 - The file name has to be the same of the object name.
 - Do not duplicate files names.
-- The file extension indicate what kind of object is.
-- Each object type has to be in the corresponding directory
+- The file extension indicates what kind of object it is.
+- Each object type has to be in it's corresponding directory.
 
 | Object Type | File Extention | Directory |
 | ------ | ------ | ------ |
