@@ -33,7 +33,7 @@ docker run -ti --name=pladmin-reclamaciones -d -v <path/to/plsql_code>:/plsql vi
 + Copy `.env.sample` file to each pl/sql path and change the params
 ```sh
 cp .env.sample you_plsql_path/.env
-``
+```
 
 Create an alias the made the proccess more easier
 ```sh
