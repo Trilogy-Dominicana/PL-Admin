@@ -1,5 +1,5 @@
 class utils:
-    def dryRun():
+    def dryRun(self):
         print(
             """
  _____  _______     __     _____  _    _ _   _ 
@@ -13,7 +13,7 @@ class utils:
 -----------------------------------------------\n """
         )
 
-    def getObjectDictInList(objects, name, type):
+    def getObjectDictInList(self, objects, name, type):
         """ Get an spesific object from a list of dicts"""
         data = dict(
             filter(
@@ -27,7 +27,7 @@ class utils:
         return data
 
 
-    def getObjectDict(objects, name, type):
+    def getObjectDict(self, objects, name, type):
         """ Get an spesific object from a list of dicts and return a dict"""
 
         data = next(
