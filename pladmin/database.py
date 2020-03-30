@@ -435,7 +435,7 @@ class Database:
             # Execute create or replace package
             try:
                 cursor.execute(context + content)
-            except e:
+            except Exception as e:
                 print(e)
                 pass
 
