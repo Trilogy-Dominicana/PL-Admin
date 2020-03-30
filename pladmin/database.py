@@ -840,7 +840,7 @@ class Database:
         db = self.dbConnect(sysDBA=True)
 
         sql = """SELECT * FROM DBA_SOURCE
-            WHERE OWNER = '%s' AND NAME = '%s' AND type = '%s' """ % (
+            WHERE OWNER = '%s' AND NAME = '%s' AND type = '%s' ORDER BY line ASC""" % (
             self.user,
             object_name,
             object_type,
