@@ -429,7 +429,7 @@ class Database:
             opf.close()
 
             context = "CREATE OR REPLACE "
-            if ftype == "vew":
+            if ftype == "vw":
                 context = "CREATE OR REPLACE FORCE VIEW %s AS \n" % fname
 
             # Execute create or replace package
