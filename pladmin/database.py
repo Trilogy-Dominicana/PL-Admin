@@ -322,7 +322,11 @@ class Database:
                     obj["object_name"],
                 )
 
-            cursor.execute(sql)
+            try:
+                cursor.execute(sql)
+            except Exception as e:
+                print('Error on compile %s ' % obj["object_name"], e)
+                pass
 
         if objLen != self.lastIntends:
             self.lastIntends = objLen
@@ -343,6 +347,10 @@ class Database:
         newObject = self.getObjects(
             objectTypes=[object_type], objectName=object_name, fetchOne=True
         )
+
+        if not newObject:
+            print('ERROR CREATING OBJECT %s' % object_name)
+            return none
 
         newObject.update(object_path=object_path, md5=md5)
 
