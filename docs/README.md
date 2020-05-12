@@ -21,7 +21,7 @@ services:
     build:
       context: '.'
     volumes:
-      - <you_plsql_path>:/plsql # <-- NO OLVICES REEMPLAZAR <you_plsql_path> POR EL PATH A TO CÓDIGO PL/SQL
+      - <you_plsql_path>:/plsql # <-- NO OLVICES REEMPLAZAR <you_plsql_path> POR EL PATH DE TU CÓDIGO PL/SQL
     tty: true
     networks:
       - backend
