@@ -8,7 +8,7 @@ PL-Admin te ayuda en la clonación de tu esquema de base de datos principal, com
 ### Setup
 Clone the repo
 ```sh
-git clone git@gitlab.viva.com.do:anaiboa/pl-admin.git
+git clone git@github.com:Trilogy-Dominicana/PL-Admin.git
 ```
 
 ## docker-compose example

@@ -30,7 +30,7 @@ services:
 ## Setup
 + Clone the repo
 ```sh
-git clone git@gitlab.viva.com.do:anaiboa/pl-admin.git
+git clone git@github.com:Trilogy-Dominicana/PL-Admin.git
 ```
 
 + Creating images and container
