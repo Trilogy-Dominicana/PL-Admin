@@ -1,4 +1,4 @@
-import os, cx_Oracle, git, re, ntpath
+import os, cx_Oracle, re, ntpath
 from pathlib import Path
 from datetime import datetime, date
 from pladmin.database import Database
@@ -28,7 +28,7 @@ class Migrations(Files, Database):
 
         fileCreating = []
             
-        for i in range(0, quantity):
+        for _ in range(quantity):
             date = datetime.now()
             today = date.strftime("%m%d%Y%H%M%S")
 

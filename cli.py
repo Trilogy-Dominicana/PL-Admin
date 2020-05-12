@@ -58,17 +58,26 @@ def db2wc(dry_run, force):
     if dry_run:
         utils.dryRun()
 
-    # if files.localChanges():
-    #     print(
-    #         "WARNING! You have uncommitted changes, commit it to avoid loss information"
-    #     )
-    deletedObjs = db.getDeletedObjects()
+    # Create metadata table if not exist
+    init = False
+    if not db.metadataTableExist():
+        print('Initializing PL-Admin... This acction can take a couple minutes!')
+        if dry_run:
+            exit()
+            
+        db.createMetaTable()
+        init = True
+    
+    # Connect as SYS
+    dba = db.dbConnect(sysDBA=True)
+
+    deletedObjs = db.getDeletedObjects(db=dba)
 
     # List all object with diferences
-    dbObject = db.getObjectsDb2Wc()
+    dbObject = db.getObjectsDb2Wc(db=dba)
 
     # List new objects
-    newObjects = db.getNewObjects()
+    newObjects = db.getNewObjects(db=dba)
 
     # Concat all objects
     allObjects = newObjects + dbObject
@@ -76,7 +85,6 @@ def db2wc(dry_run, force):
 
     # Check if object has change after commit store on the db
     for obj in allObjects:
-        lastCommit = obj["last_commit"]
         objectPath = obj["object_path"]
         objectName = obj["object_name"]
         objectType = obj["object_type"]
@@ -96,13 +104,13 @@ def db2wc(dry_run, force):
                 fileObject = files.createObject(objectName, objectType, dbContent)
                 
                 # Update metadata
-                obj.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
+                obj.update(object_path=fileObject, md5=dbMd5)
                 updated = db.createOrUpdateMetadata(obj)
 
             info.add_row([objectName, objectType, fileObject, 'Created', 'New object created on local repository'])
             
             continue
-        
+
         # Check if the object really has changes
         if metaMd5 == dbMd5:
             continue
@@ -119,7 +127,7 @@ def db2wc(dry_run, force):
             fileObject = files.createObject(objectName, objectType, dbContent)
         
             # Update metadata table
-            obj.update(last_commit=files.head_commit, object_path=fileObject, md5=dbMd5)
+            obj.update(object_path=fileObject, md5=dbMd5)
             updated = db.createOrUpdateMetadata(obj)
             
         info.add_row([objectName, objectType, objectPath, 'Updated', 'The object has been updated in local repository'])
@@ -139,7 +147,9 @@ def db2wc(dry_run, force):
 
         info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed from the repository'])
     
+    dba.close()
     print(info)
+
 
 def wc2db(dry_run, force):
     # Turn off loader bar
@@ -147,6 +157,11 @@ def wc2db(dry_run, force):
 
     if dry_run:
         utils.dryRun()
+
+    if not db.metadataTableExist():
+        print("You have not initialized PL-Admin in the current schema '%s'" % db.user)
+        print('Excute db2wc command to initialize PL-Admin and get all objects to you file system')
+        exit()
 
     # Objects in the loca repo
     wcObjects = files.listAllObjectFullData(md5=True)
@@ -252,6 +267,10 @@ def main():
     schedule = args.schedule
 
     # Create schema
+    if action == "init":
+        db = Database(displayInfo=True)
+        db.initMetadata()
+
     if action == "newSchema":
         db = Database(displayInfo=True)
 

@@ -1,4 +1,4 @@
-import os, sys, re, shutil, glob, git, time, hashlib
+import os, sys, re, shutil, glob, time, hashlib
 from datetime import datetime
 
 
@@ -9,9 +9,12 @@ class Files:
     def __init__(self, displayInfo=False):
 
         # Initialize git repo
-        self.repo = git.Repo(self.pl_path)
-        self.head_commit = str(self.repo.head.commit)[:7]
+        # self.repo = git.Repo(self.pl_path)
+        # self.head_commit = str(self.repo.head.commit)[:7]
+        # Setup config path
 
+        self.db_cnfpath = os.path.join(self.pl_path, '.env')
+        
         # Create dir and initialize dir types
         self.createDirs()
 
@@ -20,13 +23,13 @@ class Files:
         self.progress_len = 0
 
     def objectsTypes(self, inverted=False, objKey=None):
-        """ Do not change the order of items """
+        # Do not change the order of items
         data = {}
-        data["PACKAGE"] = ".psk"
-        data["VIEW"] = ".vew"
-        data["FUNCTION"] = ".fnc"
+        data["PACKAGE"] = ".pks"
+        data["VIEW"] = ".vw"
+        data["FUNCTION"] = ".fun"
         data["PROCEDURE"] = ".prc"
-        data["PACKAGE BODY"] = ".pbk"
+        data["PACKAGE BODY"] = ".pkb"
 
         if inverted:
             data = dict(map(reversed, data.items()))
@@ -104,34 +107,21 @@ class Files:
 
         return data
 
-    def filesChangesByTime(self, minutes):
-        """ This fuction return a list of files that changes in a range time """
-        _cached_stamp = 0
-        filename = "/plsql/packages/ALG_CORRECCION_DIRECCIONES.pbk"
-        stamp = os.stat(filename).st_mtime
-        now = datetime.now()
-        dateTimeObj = now.timestamp() - stamp
-        print(dateTimeObj)
-
-        if stamp != _cached_stamp:
-            _cached_stamp = stamp
-            # File has changed, so do something...
-
     def files_to_timestamp(self, path=None):
-        """ For each file found in path get the last modified timestamp """
+        """ For every file found in path get the last modified timestamp """
         files = self.listAllObjsFiles()
         data = dict([(f, os.path.getmtime(f)) for f in files])
 
         return data
 
     def listAllObjectFullData(self, path=None, md5=False):
-        """ For each file found in path get the last modified timestamp """
+        """ For every file found in path get the last modified timestamp """
         files = self.listAllObjsFiles()
         data = []
 
         for f in files:
             obj = {}
-            name, ext, oType = self.getFileName(f)
+            name, _, oType = self.getFileName(f)
 
             obj["object_name"] = name
             obj["object_type"] = oType
@@ -141,10 +131,6 @@ class Files:
             if md5:
                 obj["md5"] = self.fileMD5(f)
 
-                # with open(f) as opf:
-                #     content = opf.read().encode()
-                #     obj["md5"] = hashlib.md5(content).hexdigest()
-            
             data.append(obj)
 
         return data
@@ -174,7 +160,7 @@ class Files:
         objectType (string) Object Type on DB (PACKAGE, PACKAGE BODY, PROCEDURE, VIEW or FUNCTION)
         objectName (string) Object name on DB, the name has to be the same on DB and the repo (e.g MY_PACKAGE_EXAMPLE)
 
-        return (array) with the complete path of file """
+        return (list) with the complete path of file """
 
         oType = self.objectsTypes()[objectType]
 
@@ -186,7 +172,7 @@ class Files:
     def validateIfFileExist(self, name, path):
         """ Determinate if a exist into a tree directory """
 
-        for root, dirs, files in os.walk(path):
+        for _, _, files in os.walk(path):
             if name in files:
                 return True
 
@@ -247,7 +233,7 @@ class Files:
         os.makedirs(self.script_dir_dml, exist_ok=True)
 
     def createObject(self, objectName, objectType, contend):
-        """ Create object on correcponding dir """
+        """ Creates object on it's correcponding dir """
 
         # Validate if the object type is permited
         if not objectType in self.types:

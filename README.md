@@ -1,24 +1,38 @@
-# PL/SQL Manager
+# PL Admin
 [Cambiar a Español](docs/README.md)
 
-This tools has been created thinking on those apps that has to many logic into the database.
+PL-Amin is a PL/SQL Manager that provides you with an easy way to clone a main schema, compile pl/sql code on realtime, check for database errors, check for differences between repos and databases, and so much more.
 
-PL-Amin provide you an easy way to clone a main schema, compile pl/sql code on realtime, check database errors, check diferences between repo and database, etc.
+This tool was created to deal with database-centered apps, with too much logic on the database side and very little on the code side.
 
-### Requirements
-- Docker version ^19.03.1
-- Git ^2.22.0
-- docker-compose version ^1.25.2, build 698e2846
-
-### Clone the repository
+## Requirements
 ```sh
-git@gitlab.viva.com.do:anaiboa/plsql-manager.git
+$ docker -v
+  Docker version 19.03.5 # Or greater
 ```
 
-### Setup
-Copy .env.sample and replace the params with your own parameters
+## Setup
++ Clone the repo
 ```sh
-cp .env.sample .env
+git clone git@gitlab.viva.com.do:anaiboa/pl-admin.git
+```
+
++ Creating images and container
+```sh
+# Build the docker image
+docker build --no-cache -t viva/pl-admin .
+
+# Create the container
+# Do not forget replace <path_to_plsql_code> for your plsql path dir
+docker run -ti --name=pladmin-omega -d -v <path/to/plsql_code>:/plsql viva/pl-admin
+
+# In case that you have other schema just create another container with other name
+docker run -ti --name=pladmin-reclamaciones -d -v <path/to/plsql_code>:/plsql viva/pl-admin
+```
+
++ Copy `.env.sample` file to each pl/sql path and change the params
+```sh
+cp .env.sample you_plsql_path/.env
 ```
 
 Create an alias the made the proccess more easier
@@ -27,72 +41,31 @@ Create an alias the made the proccess more easier
 vim ~/.bash_profile
 
 # Enter this line:
-alias pladmin="docker container exec -ti pl-admin pladmin"
+alias pladmin="docker container exec -ti pladmin-omega pladmin"
+
+# If you have multiple schemas, enter this line too:
+alias pl-reclamaciones="docker container exec -ti pladmin-reclamaciones pladmin"
 
 # Close the file and source you new alias
 source ~/.bash_profile
 ```
 
-### Build the container
-```sh
-docker-compose up -d --build
-```
-
-### Synopsis
-pladmin [`command`] [`options`]
-- wc2db [--dry-run, --force]
-- db2wc [--dry-run, --force, --merge]
-- newSchema
-- compile
-- errors
-- watch
-
-### Essential Commands
-`newSchema`: Create new schema taking values from env vars
-```sh
-pladmin newSchema
-```
-
-`wc2db`: Compare the differences between the last synchronized commit and the local repository and take those changes to the database
-> - --dry-run: Show what would be removed, created, but do not actually remove anything
-> - --force: Will no do any validation to export the objects.
-```sh
-# usage
-pladmin wc2db [options]
-```
-
-`db2wc`: Look for objects that has been changed on the database and then export it to local repo.
-> - --dry-run: Show what would be exported but do not actually do anything.
-> - --force: Will no do any validation to export the objects.
-> - --merge: Merge the object that you are exporting with the local file. 
-```sh
-# usage
-pladmin wc2db [options]
-```
-
-`compile`: Look for invalid objects and try to compile it.
-```sh
-# usage
-pladmin compile
-```
-
-`errors`: List all the errors in the schema.
-```sh
-# usage
-pladmin errors
-```
-
-`watch`: Take the changes to the database in real time.
-```sh
-# usage
-pladmin watch
-```
-
 ### Topics
-- [Creating a New Shcema](docs/new-shcema.md)
+- [Usage](docs/usage.md)
+- [Creating a New Shcema](docs/new-schema.md)
 - [Export changes from your Database to Git (db2wc)](docs/db2wc.md)
 - [Change SYS DBA Password](docs/change-sys-password.md)
 
-### Important!
+### Important for your PL/SQL path
 - The file name has to be the same of the object name.
-- After each commit, PL-Admin excute `wc2db` command to sinchronize *git* with the database.
+- Do not duplicate files names.
+- The file extension indicates what kind of object it is.
+- Each object type has to be in it's corresponding directory.
+
+| Object Type | File Extention | Directory |
+| ------ | ------ | ------ |
+| PACKAGE | .pks | ./packages |
+| PACKAGE BODY | .pkb | ./packages |
+| VIEW | .vw | ./views |
+| FUNCTION | .fnc | ./functions |
+| PROCEDURE | .prc | ./procedures |
