@@ -11,10 +11,26 @@ $ docker -v
   Docker version 19.03.5 # Or greater
 ```
 
+## docker-compose example
+```yml
+version: "3.7"
+services:
+  pl-admin:
+    image: viva/pl-admin
+    container_name: pl-admin-omega
+    build:
+      context: '.'
+    volumes:
+      - <you_plsql_path>:/plsql # <-- DO NOT FORGET SETUP YOUR PL/SQL PATH
+    tty: true
+    networks:
+      - backend
+```
+
 ## Setup
 + Clone the repo
 ```sh
-git clone git@gitlab.viva.com.do:anaiboa/pl-admin.git
+git clone git@github.com:Trilogy-Dominicana/PL-Admin.git
 ```
 
 + Creating images and container
@@ -56,11 +72,11 @@ source ~/.bash_profile
 - [Export changes from your Database to Git (db2wc)](docs/db2wc.md)
 - [Change SYS DBA Password](docs/change-sys-password.md)
 
-### Important for your PL/SQL path
-- The file name has to be the same of the object name.
-- Do not duplicate files names.
-- The file extension indicates what kind of object it is.
-- Each object type has to be in it's corresponding directory.
+> ### Important for your PL/SQL path
+> - The file name has to be the same of the object name.
+> - Do not duplicate files names.
+> - The file extension indicates what kind of object it is.
+> - Each object type has to be in it's corresponding directory.
 
 | Object Type | File Extention | Directory |
 | ------ | ------ | ------ |

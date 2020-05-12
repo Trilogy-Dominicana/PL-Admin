@@ -4,7 +4,7 @@
 ### Synopsis
 pladmin [`comando`] [`opciones`]
 - wc2db [--dry-run, --force]
-- db2wc [--dry-run, --force, --merge]
+- db2wc [--dry-run, --force]
 - newSchema
 - watch
 - compileSchema
