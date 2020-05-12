@@ -16,8 +16,8 @@ RUN apk update; \
 RUN cp /usr/share/zoneinfo/America/Santo_Domingo /etc/localtime
 
 # Get instaclient
-RUN curl -k -o /tmp/basic.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-basic-linux.x64-11.2.0.4.0.zip && \
-  curl -k -o /tmp/devel.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-sdk-linux.x64-11.2.0.4.0.zip
+RUN curl -k -o /tmp/basic.zip https://download.oracle.com/otn_software/mac/instantclient/instantclient-basic-macos.zip
+  # curl -k -o /tmp/devel.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-sdk-linux.x64-11.2.0.4.0.zip
   # curl -k -o /tmp/sqlplus.zip https://gitlab.viva.com.do/public-repos/oracle-instaclient/raw/master/instantclient-sqlplus-linux.x64-11.2.0.4.0.zip
 
 # # Install Oracle Client and build OCI8 (Oracle Command Interface 8 - PHP extension)
