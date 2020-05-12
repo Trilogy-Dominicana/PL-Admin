@@ -4,7 +4,7 @@
 ### Synopsis
 [`**alias_name**`] [`command`] [`options`]
 - wc2db [--dry-run, --force]
-- db2wc [--dry-run, --force, --merge]
+- db2wc [--dry-run, --force]
 - newSchema
 - compile
 - errors

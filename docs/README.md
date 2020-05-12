@@ -11,6 +11,22 @@ Clone the repo
 git clone git@gitlab.viva.com.do:anaiboa/pl-admin.git
 ```
 
+## docker-compose example
+```yml
+version: "3.7"
+services:
+  pl-admin:
+    image: viva/pl-admin
+    container_name: pl-admin-omega
+    build:
+      context: '.'
+    volumes:
+      - <you_plsql_path>:/plsql # <-- NO OLVICES REEMPLAZAR <you_plsql_path> POR EL PATH A TO CÓDIGO PL/SQL
+    tty: true
+    networks:
+      - backend
+```
+
 Creating images and container
 ```sh
 # Construir la imagen con la aplicación
@@ -50,11 +66,11 @@ source ~/.bash_profile
 - [Exportar desde la base de datos al respositorio local (db2wc)](docs/db2wc-es.md)
 - [Cambiar el password del SYSDBA](change-sys-password-es.md)
 
-### ¡Importante para el repositorio del código PL/SQL!
-- Los nombres de los archivos deben ser el mismo que el nombre del objeto.
-- No pueden haber archivos duplicados en el albort de directorios.
-- Las extensiones de cada archivo determinará que tipo de objecto es.
-- Cada objecto debe estar dentro del directorio correspondiente.
+> ### ¡Importante para el repositorio del código PL/SQL!
+> - Los nombres de los archivos deben ser el mismo que el nombre del objeto.
+> - No pueden haber archivos duplicados en el albort de directorios.
+> - Las extensiones de cada archivo determinará que tipo de objecto es.
+> - Cada objecto debe estar dentro del directorio correspondiente.
 
 | Objecto | Extención | Ruta |
 | ------ | ------ | ------ |
