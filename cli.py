@@ -347,12 +347,9 @@ def main():
         # print(scriptRevision)
 
         allmigrations = scriptMigration.migrate(typeFile=script)
-        # print(allmigrations)
+     
         for script in allmigrations:
-            print(script)
-            # print(
-            #     scriptMigration.executeMigration(FullName=script)
-            # )
+            print(scriptMigration.executeMigration(FullName=script))
 
 
 if __name__ == "__main__":

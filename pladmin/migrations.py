@@ -59,13 +59,12 @@ class Migrations(Files, Database):
 
     def migrate(self, typeFile=""):
 
-        pattern = ['^ddl+', '^dml+']
+        path = '/plsql/scripts/%s' % typeFile.upper()
 
-        for p in pattern:
-            for filename in Path('/plsql/scripts').rglob('*.sql'):
-                if re.search(p, ntpath.basename(filename).lower()):
-                    yield filename
-                    # self.executeMigration(FullName=filename)
+        for filename in Path(path).rglob('*.sql'):
+            if re.search(typeFile, ntpath.basename(filename).lower()):
+                yield filename
+                # self.executeMigration(FullName=filename)
             
             
     def executeMigration(self, FullName):
