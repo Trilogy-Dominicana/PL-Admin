@@ -15,9 +15,9 @@ $ docker -v
 ```yml
 version: "3.7"
 services:
-  pl-admin:
+  pladmin-omega:
     image: viva/pl-admin
-    container_name: pl-admin-omega
+    container_name: pladmin-omega
     build:
       context: '.'
     volumes:
