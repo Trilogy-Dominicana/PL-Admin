@@ -15,13 +15,13 @@ git clone git@github.com:Trilogy-Dominicana/PL-Admin.git
 ```yml
 version: "3.7"
 services:
-  pl-admin:
+  pladmin-omega:
     image: viva/pl-admin
-    container_name: pl-admin-omega
+    container_name: pladmin-omega
     build:
       context: '.'
     volumes:
-      - <you_plsql_path>:/plsql # <-- NO OLVICES REEMPLAZAR <you_plsql_path> POR EL PATH DE TU CÓDIGO PL/SQL
+      - <you_plsql_path>:/plsql # <-- NO OLVIDES REEMPLAZAR <you_plsql_path> POR EL PATH DE TU CÓDIGO PL/SQL
     tty: true
     networks:
       - backend
