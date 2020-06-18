@@ -341,7 +341,10 @@ class Database:
     def createReplaceObject(self, object_name, object_type, md5, object_path):
         """ Create or replace object and update metadata table at the same time """
 
-        self.createReplaceDbObject([object_path])
+        _, error = self.createReplaceDbObject([object_path])
+        
+        if error:
+            return error, _
 
         # Get the new object that has been created with his last_ddl_time
         newObject = self.getObjects(
@@ -349,15 +352,14 @@ class Database:
         )
 
         if not newObject:
-            print('ERROR CREATING OBJECT %s' % object_name)
-            return none
+            return 'ERROR CREATING OBJECT %s' % object_name
 
         newObject.update(object_path=object_path, md5=md5)
 
         # Update metadata table
         updated = self.createOrUpdateMetadata(newObject)
 
-        return updated
+        return error, updated
 
     def dropDbObjects(self, object_type, object_name, db=None):
         """
@@ -403,7 +405,8 @@ class Database:
         return (list) with errors if some package were an error
         """
 
-        data = []
+        success = []
+        errors = []
         localClose = False
         if not db:
             db = self.dbConnect()
@@ -423,7 +426,6 @@ class Database:
 
         for f in path:
             fname, ftype, objectType = files.getFileName(f)
-
             # Only valid extencions sould be processed
             if not "." + ftype in self.extentions:
                 continue
@@ -443,21 +445,22 @@ class Database:
             # Execute create or replace package
             try:
                 cursor.execute(context + content)
+                success.append(fname)
             except Exception as e:
-                print(e)
+                errors.append(e)
                 pass
 
         files.progress(
             i,
             progressTotal,
-            status="OBJECTS HAS BEEN CREATED (ERRORS: %s)" % len(data),
+            status="OBJECTS HAS BEEN CREATED (ERRORS: %s)" % len(errors),
             end=True,
         )
 
         if localClose:
             db.close()
 
-        return data
+        return success, errors
 
     def getObjErrors(self, owner, object_name, object_type, db=None):
         """ Get object errors on execution time """
@@ -863,7 +866,10 @@ class Database:
 
         result = self.getData(sql, db=db)
         content = ""
-
+        
+        if not result:
+            return False
+        
         for res in result:
             content += res["text"]
 
