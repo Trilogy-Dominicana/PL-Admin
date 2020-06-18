@@ -30,7 +30,8 @@ services:
 ## Setup
 + Clone the repo
 ```sh
-git clone git@github.com:Trilogy-Dominicana/PL-Admin.git
+# Git
+git clone <repo_url>
 ```
 
 + Creating images and container
