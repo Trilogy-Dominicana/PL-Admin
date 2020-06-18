@@ -79,7 +79,7 @@ class Database:
 
         # Create o replace packages, views, functions and procedures (All elements in files.objectsTypes())
         data = files.listAllObjsFiles()
-        self.createReplaceDbObject(path=data)
+        self.createReplaceDbObject(path=data, showInfo=True)
 
         # If some objects are invalids, try to compile
         invalids = self.compileObjects()
@@ -393,7 +393,7 @@ class Database:
         if localClose:
             db.close()
 
-    def createReplaceDbObject(self, path=None, db=None):
+    def createReplaceDbObject(self, path=None, db=None, showInfo=False):
         """
         Creates or Replaces packges, views, procedures and functions.
 
@@ -448,6 +448,8 @@ class Database:
                 success.append(fname)
             except Exception as e:
                 errors.append(e)
+                if showInfo:
+                    print(e)
                 pass
 
         files.progress(
