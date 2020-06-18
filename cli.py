@@ -18,7 +18,7 @@ db = Database(displayInfo=True)
 files = Files(displayInfo=True)
 
 # Table for wc2db and db2wc methods
-info = PrettyTable(["Object", "Type", "Path", "Status", "Info"])
+info = PrettyTable(["Object", "Type", "Path", "Action", "Status", "Info"])
 info.align = 'l'
 
 def watch(path_to_watch):
@@ -107,7 +107,7 @@ def db2wc(dry_run, force):
                 obj.update(object_path=fileObject, md5=dbMd5)
                 updated = db.createOrUpdateMetadata(obj)
 
-            info.add_row([objectName, objectType, fileObject, 'Created', 'New object created on local repository'])
+            info.add_row([objectName, objectType, fileObject, 'Create','Success', 'New object created on local repository'])
             
             continue
 
@@ -120,7 +120,7 @@ def db2wc(dry_run, force):
 
         # The the object has changes in local file and not --force option continue
         if wcMd5 != metaMd5 and not force:
-            info.add_row([objectName, objectType, objectPath, 'Fail', 'The object has changes in the local repository'])
+            info.add_row([objectName, objectType, objectPath, 'Update', 'Fail', 'The object has changes in the local repository'])
             continue
         
         if not dry_run:
@@ -130,7 +130,7 @@ def db2wc(dry_run, force):
             obj.update(object_path=fileObject, md5=dbMd5)
             updated = db.createOrUpdateMetadata(obj)
             
-        info.add_row([objectName, objectType, objectPath, 'Updated', 'The object has been updated in local repository'])
+        info.add_row([objectName, objectType, objectPath, 'Update', 'Success', 'The object has been updated in local repository'])
 
 
     # Remove deleted objects
@@ -145,7 +145,7 @@ def db2wc(dry_run, force):
             if os.path.exists(object_path):
                 os.remove(object_path)
 
-        info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed from the repository'])
+        info.add_row([object_name, object_type, object_path, 'Remove', 'Success', 'The object has been removed from the repository'])
     
     dba.close()
     print(info)
@@ -184,31 +184,48 @@ def wc2db(dry_run, force):
 
         # If the object do not exist, that means that is a new object
         if not mObject:
+            action = 'Created'
+            status = 'Success'
+            msg = 'This package was added to the database'
             if not dry_run:
-                db.createReplaceObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=objPath)
+                error, _ = db.createReplaceObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=objPath)
+                if error:
+                    status = 'Error'
+                    action = 'Create'
+                    msg = error[0]
 
-            info.add_row([name, objectType, objPath, 'Created', 'This package was added to the database'])
-
+            info.add_row([name, objectType, objPath, action, status, msg])
             continue
 
-        # If the object exist, then validate if the hash is the same, if so, that means that the object does not has chenges, so, continue.
+        # If the object exist, then validate if the hash is the same, if so, that means that the object does not has chenges, so continue.
         if obj["md5"] == mObject["md5"]:
             continue
+            
+        # Before to try update de object, we need to validate if the object exist on the database
+        exitOnDb = utils.getObjectDict(dbObjects, name, objectType)
+        if exitOnDb:
+            # Before push the object to the database, we have to verify that the object has not changed in the db
+            # To do this, we draw the source, generate the MD5 and compare it with that of the metadata
+            dbmd5 = db.getObjSource(object_name=name, object_type=objectType, md5=True)
 
-        # Before taking the object to the database, it must be verified that the object has not changed in the db
-        # To do this, we draw the source, generate the MD5 and compare it with that of the metadata
-        dbmd5 = db.getObjSource(object_name=name, object_type=objectType, md5=True)
+            # If the object has database changes, avoid sending to database.
+            if dbmd5 != mObject["md5"] and not force:
+                info.add_row([name, objectType, objPath, 'Update', 'Fail', 'The object has changes in the database'])
+                continue
 
-        # If the object has database changes, avoid sending to database.
-        if dbmd5 != mObject["md5"] and not force:
-            info.add_row([name, objectType, objPath, 'Fail', 'The object has changes in the database'])
-            continue
+            # If not dry-run, replace the object and update metadata table
+            action = 'Updated'
+            status = 'Success'
+            msg = 'The object was updated successfully!'
+            if not dry_run:
+                error, _ = db.createReplaceObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=obj["object_path"])
+                if error:
+                    action = 'Update'
+                    status = 'Error'
+                    msg = error[0]
 
-        # If not dry-run, create the object and update metadata table
-        if not dry_run:
-            db.createReplaceObject(object_name=name, object_type=objectType, md5=obj["md5"], object_path=obj["object_path"])
+            info.add_row([name, objectType, objPath, action, status, msg])
 
-        info.add_row([name, objectType, objPath, 'Updated', 'The object was updated successfully!'])
 
     for metaObj in metaObjects:
         object_name = metaObj["object_name"]
@@ -227,15 +244,22 @@ def wc2db(dry_run, force):
                 # Remove objects that has been deleted on local repository
                 db.dropObject(object_type, object_name)
 
-            info.add_row([object_name, object_type, object_path, 'Removed', 'The object has been removed in the database'])
+            info.add_row([object_name, object_type, object_path, 'Remove', 'Success', 'The object has been removed in the database'])
             continue
         
         # IF exist on metadata table and exist on the repo, restored it.
         if not dbDroped and wcDroped:
+            action = 'Restored'
+            status = 'Success'
+            msg = 'The object has been restored in the database'
             if not dry_run:
-                db.createReplaceObject(object_name=object_name, object_type=object_type, md5=wcDroped["md5"], object_path=wcDroped["object_path"])
+                error, _ = db.createReplaceObject(object_name=object_name, object_type=object_type, md5=wcDroped["md5"], object_path=wcDroped["object_path"])
+                if error:
+                    action = 'Restore'
+                    status = 'Error'
+                    msg = error[0]
 
-            info.add_row([object_name, object_type, object_path, 'Restored', 'The object has been restored in the database'])
+            info.add_row([object_name, object_type, object_path, action, status, msg])
 
     print(info, '\n')
 
