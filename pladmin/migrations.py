@@ -58,7 +58,6 @@ class Migrations(Files, Database):
             raise
 
     def migrate(self, typeFile=""):
-
         path = '/plsql/scripts/%s' % typeFile.upper()
 
         for filename in Path(path).rglob('*.sql'):
@@ -140,7 +139,7 @@ class Migrations(Files, Database):
 
                 for word in reservedWords:
                     existsWord = statement.count(word)
-                    
+
                     if existsWord > 0:
                         scriptsMove.append(dirFiles)
                         os.rename(scriptRevision, os.path.join(self.__asPath, dirFiles))

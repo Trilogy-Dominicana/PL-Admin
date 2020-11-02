@@ -353,8 +353,19 @@ def main():
 
     if action == "watch":
         watch(files.pl_path)
+        
+    if action == "script":
+        # 1. Generar el archivo para los scripts 
+        # Se debe pasar un parametro para indicar si es AS (DDL) o DS (DML)
+        
+        # Listar los scripts pendiente de ejecución. 
+        # En este punot se debe agregar un metodo que creará la tabla para guardar los scripts ejecutados. 
+        # Sin importar el subdirectorio donde esté el script, si no se encuentra en la metadata, se ejecutará nuevamente.
+        # Solamente serán tomados en cuenta los scripts que cumplan con la nomeclarura apropiada en el nombre
+
 
     if action == "make" and script:
+        print(colored("script created", "green"))
         scriptMigration = Migrations()
 
         migration = scriptMigration.createScript(
@@ -363,8 +374,9 @@ def main():
 
         for i in migration:
             print(colored("script %s created", "green") % i)
-
+ 
     if action == "migrate" and script:
+
         scriptMigration = Migrations()
 
         # scriptRevision = scriptMigration.checkPlaceScript()
