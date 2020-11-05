@@ -195,9 +195,8 @@ class Files:
 
         return name, extention, objectType
 
-
     def createDirs(self):
-
+        """ Create default directories for """
         dt = datetime.now().strftime("%Y%m%d%H%M%S")
 
         # Create dir to save ftp files if not exits
@@ -295,7 +294,6 @@ class Files:
                 print("\n")
 
         return False
-    
 
     def fileMD5(self, filePath):
         """ Get file content, hash it and return a md5 hash"""
@@ -303,3 +301,11 @@ class Files:
             content = opf.read().encode()
         
         return hashlib.md5(content).hexdigest()
+
+#   Scripts methods
+    def createEmptyScript(self, objectName, objectType, contend):
+        content = "// AUTO GENERATED FILE "
+
+        with open(path, "wt+") as f:
+            f.truncate(0)
+            f.write(content)

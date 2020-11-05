@@ -355,6 +355,7 @@ def main():
         watch(files.pl_path)
         
     if action == "script":
+        print('Probando')
         # 1. Generar el archivo para los scripts 
         # Se debe pasar un parametro para indicar si es AS (DDL) o DS (DML)
         
