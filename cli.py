@@ -201,7 +201,7 @@ def wc2db(dry_run, force):
         if obj["md5"] == mObject["md5"]:
             continue
             
-        # Before to try update de object, we need to validate if the object exist on the database
+        # Before update the object, we need to validate if the object exist on the database
         exitOnDb = utils.getObjectDict(dbObjects, name, objectType)
         if exitOnDb:
             # Before push the object to the database, we have to verify that the object has not changed in the db
@@ -265,34 +265,37 @@ def wc2db(dry_run, force):
 
 
 def main():
-    # print(colored("script created", "green"))
-    # try:
     parser = argparse.ArgumentParser(
         prog="PL-Admin",
         usage="%(prog)s [action] arguments",
         description="You need to specify the action name (make, wc2db, db2wc, etc.)",
     )
-    parser.add_argument("action", action="store", help="You need to specify the action name (make, wc2db, db2wc, etc.)")
+    parser.add_argument(
+        "action", 
+        action="store",
+        choices=("newSchema", "compile", "errors", "db2wc", "wc2db", "invalids", "script", "migrate"),
+        help="You need to specify the action name (make, wc2db, db2wc, etc.)"
+        )
+    # parser.add_argument("make", )
+    parser.add_argument("--migrate", "-t", action="store", choices=("as", "ds", "all"), help="AS: DDL script types and DS: DML scripts types")
+    parser.add_argument("--script", "-s", help="AS: DDL script types and DS: DML scripts types")
     parser.add_argument("--dry-run", "-d", action="store_true")
     parser.add_argument("--force", "-f", action="store_true")
     
-    parser.add_argument("make", action="store", choices=("as", "ds"), help="AS: DDL script types and DS: DML scripts types")
     # parser.add_argument("script", "-t", type=str, choices=("AS", "DS"))
     # parser.add_argument("--quantity", "-q", default=1, type=int)
     # parser.add_argument("--basic_pl", "-pl", default="n", type=str)
     # parser.add_argument(
     #     "--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d")
     # )
-    # except Exception as e:
-        # print(colored("script created", "green"))
-        # print(colored(text=str(e), color='green'))
-        # exit()
+
 
     args = parser.parse_args()
     action = args.action 
     dry_run = args.dry_run
     force = args.force
-    scriptType = args.make
+    types = args.migrate
+    scriptTypes = args.script
     # quantity = args.quantity
     # basicPL = args.basic_pl
     # schedule = args.schedule
@@ -361,20 +364,17 @@ def main():
     if action == "watch":
         watch(files.pl_path)
 
-    if action == "make" and scriptType:
-        db = Database(displayInfo=True)
-        # 1. Generar el archivo para los scripts
-
+    if action == "make" and scriptTypes:
+        db = Database(displayInfo=False)
         content = utils.scriptExample()
-        filaName = files.createEmptyScript(type=scriptType.upper(), user=db.user, content=content)
+        filaName = files.createEmptyScript(type=types.upper(), user=db.user, content=content)
         
         print(colored("Script %s has been created", "green") % filaName)
-         
-        # Listar los scripts pendiente de ejecución.
-        # En este punto se debe agregar un metodo que creará la tabla para guardar los scripts ejecutados. 
-        # Sin importar el subdirectorio donde esté el script, si no se encuentra en la metadata, se ejecutará nuevamente.
-        # Solamente serán tomados en cuenta los scripts que cumplan con la nomeclarura apropiada en el nombre
 
+    if action == "migrate" and excuteType:
+
+        print(excuteType.upper())
+        print(files.listAllScriptsFiles(types=[excuteType.upper()]))
 
     # if action == "make" and script:
     #     print(colored("script created", "green"))
@@ -387,17 +387,17 @@ def main():
     #     for i in migration:
     #         print(colored("script %s created", "green") % i)
  
-    if action == "migrate" and script:
+    # if action == "migrate" and script:
 
-        scriptMigration = Migrations()
+    #     scriptMigration = Migrations()
 
-        # scriptRevision = scriptMigration.checkPlaceScript()
-        # print(scriptRevision)
+    #     # scriptRevision = scriptMigration.checkPlaceScript()
+    #     # print(scriptRevision)
 
-        allmigrations = scriptMigration.migrate(typeFile=script)
+    #     allmigrations = scriptMigration.migrate(typeFile=script)
      
-        for script in allmigrations:
-            print(scriptMigration.executeMigration(FullName=script))
+    #     for script in allmigrations:
+    #         print(scriptMigration.executeMigration(FullName=script))
 
 
 if __name__ == "__main__":

@@ -310,11 +310,23 @@ class Files:
 
         # Script path
         date = datetime.now().strftime("%Y%m%d%H%M%S")
-        name = '%s_%s_%s.sql' % (type, user, date)
+        name = '%s_%s_%s.sql' % (date, user, type)
         path = os.path.join(self.script_path, name)
 
         with open(path, "wt+") as f:
             f.write(content)
         
         return name
-            
+
+    def listAllScriptsFiles(self, types):
+        
+        # Validate if types comes
+        if not len(types):
+            return False
+
+        objs = []
+        for files in types:
+            path = self.script_path + "/**/*" + files
+            objs.extend(glob.glob(path, recursive=True))
+
+        return objs
