@@ -265,30 +265,37 @@ def wc2db(dry_run, force):
 
 
 def main():
+    # print(colored("script created", "green"))
+    # try:
     parser = argparse.ArgumentParser(
         prog="PL-Admin",
-        usage="%(prog)s [action] options",
-        description="Process some integers.",
+        usage="%(prog)s [action] arguments",
+        description="You need to specify the action name (make, wc2db, db2wc, etc.)",
     )
-
-    parser.add_argument("action", action="store", help="Push the method name")
+    parser.add_argument("action", action="store", help="You need to specify the action name (make, wc2db, db2wc, etc.)")
     parser.add_argument("--dry-run", "-d", action="store_true")
     parser.add_argument("--force", "-f", action="store_true")
-    parser.add_argument("--quantity", "-q", default=1, type=int)
-    parser.add_argument("--basic_pl", "-pl", default="n", type=str)
-    parser.add_argument("--script", "-s", type=str, choices=("ddl", "dml"))
-    parser.add_argument(
-        "--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d")
-    )
+    
+    parser.add_argument("make", action="store", choices=("as", "ds"), help="AS: DDL script types and DS: DML scripts types")
+    # parser.add_argument("script", "-t", type=str, choices=("AS", "DS"))
+    # parser.add_argument("--quantity", "-q", default=1, type=int)
+    # parser.add_argument("--basic_pl", "-pl", default="n", type=str)
+    # parser.add_argument(
+    #     "--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d")
+    # )
+    # except Exception as e:
+        # print(colored("script created", "green"))
+        # print(colored(text=str(e), color='green'))
+        # exit()
 
     args = parser.parse_args()
-    action = args.action
+    action = args.action 
     dry_run = args.dry_run
     force = args.force
-    script = args.script
-    quantity = args.quantity
-    basicPL = args.basic_pl
-    schedule = args.schedule
+    scriptType = args.make
+    # quantity = args.quantity
+    # basicPL = args.basic_pl
+    # schedule = args.schedule
 
     # Create schema
     if action == "init":
@@ -353,28 +360,32 @@ def main():
 
     if action == "watch":
         watch(files.pl_path)
+
+    if action == "make" and scriptType:
+        db = Database(displayInfo=True)
+        # 1. Generar el archivo para los scripts
+
+        content = utils.scriptExample()
+        filaName = files.createEmptyScript(type=scriptType.upper(), user=db.user, content=content)
         
-    if action == "script":
-        print('Probando')
-        # 1. Generar el archivo para los scripts 
-        # Se debe pasar un parametro para indicar si es AS (DDL) o DS (DML)
-        
-        # Listar los scripts pendiente de ejecución. 
-        # En este punot se debe agregar un metodo que creará la tabla para guardar los scripts ejecutados. 
+        print(colored("Script %s has been created", "green") % filaName)
+         
+        # Listar los scripts pendiente de ejecución.
+        # En este punto se debe agregar un metodo que creará la tabla para guardar los scripts ejecutados. 
         # Sin importar el subdirectorio donde esté el script, si no se encuentra en la metadata, se ejecutará nuevamente.
         # Solamente serán tomados en cuenta los scripts que cumplan con la nomeclarura apropiada en el nombre
 
 
-    if action == "make" and script:
-        print(colored("script created", "green"))
-        scriptMigration = Migrations()
+    # if action == "make" and script:
+    #     print(colored("script created", "green"))
+    #     scriptMigration = Migrations()
 
-        migration = scriptMigration.createScript(
-            fileType=script, quantity=quantity, basicPl=basicPL
-        )
+    #     migration = scriptMigration.createScript(
+    #         fileType=script, quantity=quantity, basicPl=basicPL
+    #     )
 
-        for i in migration:
-            print(colored("script %s created", "green") % i)
+    #     for i in migration:
+    #         print(colored("script %s created", "green") % i)
  
     if action == "migrate" and script:
 

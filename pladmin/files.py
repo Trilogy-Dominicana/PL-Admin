@@ -4,6 +4,7 @@ from datetime import datetime
 
 class Files:
     pl_path = os.path.join("/plsql")
+    script_path = os.path.join(pl_path, "scripts")
     displayInfo = False
 
     def __init__(self, displayInfo=False):
@@ -219,17 +220,17 @@ class Files:
         os.makedirs(self.functions_dir, exist_ok=True)
 
         # Create directory structure to save the files e.g (./YYYY/MM/DD)
-        self.script_dir_dll = os.path.join(
-            *[os.getcwd(), self.pl_path, 'scripts', 'DDL', dt[0:4], dt[4:6], dt[6:8]],
-        )
+        # self.script_dir_dll = os.path.join(
+        #     *[os.getcwd(), self.pl_path, 'scripts', 'DDL', dt[0:4], dt[4:6], dt[6:8]],
+        # )
 
-        self.script_dir_dml = os.path.join(
-            *[os.getcwd(), self.pl_path, 'scripts', 'DML', dt[0:4], dt[4:6], dt[6:8]],
-        )
+        # self.script_dir_dml = os.path.join(
+        #     *[os.getcwd(), self.pl_path, 'scripts', 'DML', dt[0:4], dt[4:6], dt[6:8]],
+        # )
 
-        os.makedirs(self.script_dir_dll, exist_ok=True)
+        # os.makedirs(self.script_dir_dll, exist_ok=True)
         
-        os.makedirs(self.script_dir_dml, exist_ok=True)
+        # os.makedirs(self.script_dir_dml, exist_ok=True)
 
     def createObject(self, objectName, objectType, contend):
         """ Creates object on it's correcponding dir """
@@ -296,16 +297,24 @@ class Files:
         return False
 
     def fileMD5(self, filePath):
-        """ Get file content, hash it and return a md5 hash"""
+        """ Get file content, hash it and return it in a md5 hash"""
         with open(filePath) as opf:
             content = opf.read().encode()
         
         return hashlib.md5(content).hexdigest()
 
-#   Scripts methods
-    def createEmptyScript(self, objectName, objectType, contend):
-        content = "// AUTO GENERATED FILE "
+    # Scripts objects
+    def createEmptyScript(self, type, user, content='', ):
+        # Create script if no t exist
+        os.makedirs(self.script_path, exist_ok=True)
+
+        # Script path
+        date = datetime.now().strftime("%Y%m%d%H%M%S")
+        name = '%s_%s_%s.sql' % (type, user, date)
+        path = os.path.join(self.script_path, name)
 
         with open(path, "wt+") as f:
-            f.truncate(0)
             f.write(content)
+        
+        return name
+            

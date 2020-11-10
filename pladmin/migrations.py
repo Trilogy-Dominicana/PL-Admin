@@ -64,8 +64,7 @@ class Migrations(Files, Database):
             if re.search(typeFile, ntpath.basename(filename).lower()):
                 yield filename
                 # self.executeMigration(FullName=filename)
-            
-            
+
     def executeMigration(self, FullName):
         """ this function execute all instruccion sql in indicate file
             and create records with file execute """ 

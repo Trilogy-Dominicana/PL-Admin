@@ -40,3 +40,26 @@ class utils:
         )
 
         return data
+
+
+    def scriptExample():
+            return """-------------------------------------------------------------
+-- ESTO ES UN ARCHIVO GENERADO AUTOMATICAMENTE POR PLADMIN
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+-- NO OLVIDES PONER AL MENOS UN DBMS_OUTPUT.PUT_LINE
+-------------------------------------------------------------
+-- DBMS_OUTPUT.PUT_LINE("Script ejecutado correctamente");
+
+-------------------------------------------------------------
+-- ESPESIFICA EL ESQUEMA EN CADA SENTENCIA
+-------------------------------------------------------------
+-- UPDATE SCHEMA.TABLE_NAME WHERE TALCOSA=0;
+
+-------------------------------------------------------------
+-- HACER COMMIT EN LOS DML DML(INSERT - UPDATE - DELETE)
+-------------------------------------------------------------
+-- COMMIT;
+
+"""
