@@ -14,7 +14,7 @@ class Migrations(Files, Database):
     __branch          = None
     __created         = None 
     __toDay           = None
-   
+
 
     def __init__(self):
         super().__init__()

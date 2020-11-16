@@ -270,15 +270,15 @@ def main():
         usage="%(prog)s [action] arguments",
         description="You need to specify the action name (make, wc2db, db2wc, etc.)",
     )
+
     parser.add_argument(
         "action", 
         action="store",
-        choices=("newSchema", "compile", "errors", "db2wc", "wc2db", "invalids", "script", "migrate"),
+        choices=("newSchema", "compile", "errors", "db2wc", "wc2db", "invalids", "make", "migrate"),
         help="You need to specify the action name (make, wc2db, db2wc, etc.)"
         )
-    # parser.add_argument("make", )
+    parser.add_argument("--make", "-m", action="store", choices=("as", "ds"), help="AS: DDL script types and DS: DML scripts types")
     parser.add_argument("--migrate", "-t", action="store", choices=("as", "ds", "all"), help="AS: DDL script types and DS: DML scripts types")
-    parser.add_argument("--script", "-s", help="AS: DDL script types and DS: DML scripts types")
     parser.add_argument("--dry-run", "-d", action="store_true")
     parser.add_argument("--force", "-f", action="store_true")
     
@@ -294,8 +294,8 @@ def main():
     action = args.action 
     dry_run = args.dry_run
     force = args.force
+    scriptTypes = args.make
     types = args.migrate
-    scriptTypes = args.script
     # quantity = args.quantity
     # basicPL = args.basic_pl
     # schedule = args.schedule
@@ -367,14 +367,15 @@ def main():
     if action == "make" and scriptTypes:
         db = Database(displayInfo=False)
         content = utils.scriptExample()
-        filaName = files.createEmptyScript(type=types.upper(), user=db.user, content=content)
+        filaName = files.createEmptyScript(type=scriptTypes.upper(), user=db.user, content=content)
         
         print(colored("Script %s has been created", "green") % filaName)
 
-    if action == "migrate" and excuteType:
-
-        print(excuteType.upper())
-        print(files.listAllScriptsFiles(types=[excuteType.upper()]))
+    if action == "migrate" and types:
+        # Listing objects files in pending
+        t = types.upper()
+        
+        print(files.listAllScriptsFiles(types=[t]))
 
     # if action == "make" and script:
     #     print(colored("script created", "green"))

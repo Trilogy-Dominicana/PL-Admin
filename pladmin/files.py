@@ -219,6 +219,15 @@ class Files:
         self.functions_dir = os.path.join(self.pl_path, "functions")
         os.makedirs(self.functions_dir, exist_ok=True)
 
+        # Pendings scripts 
+        self.scripts_pendings = os.path.join(self.script_path, "pendigns")
+        os.makedirs(self.scripts_pendings, exist_ok=True)
+        
+        # Excuted scripts 
+        self.scripts_excuted = os.path.join(self.script_path, "excuted")
+        os.makedirs( self.scripts_excuted , exist_ok=True)
+        
+        
         # Create directory structure to save the files e.g (./YYYY/MM/DD)
         # self.script_dir_dll = os.path.join(
         #     *[os.getcwd(), self.pl_path, 'scripts', 'DDL', dt[0:4], dt[4:6], dt[6:8]],
@@ -306,12 +315,12 @@ class Files:
     # Scripts objects
     def createEmptyScript(self, type, user, content='', ):
         # Create script if no t exist
-        os.makedirs(self.script_path, exist_ok=True)
+        os.makedirs(self.scripts_pendings, exist_ok=True)
 
         # Script path
         date = datetime.now().strftime("%Y%m%d%H%M%S")
         name = '%s_%s_%s.sql' % (date, user, type)
-        path = os.path.join(self.script_path, name)
+        path = os.path.join(self.scripts_pendings, name)
 
         with open(path, "wt+") as f:
             f.write(content)
@@ -326,7 +335,7 @@ class Files:
 
         objs = []
         for files in types:
-            path = self.script_path + "/**/*" + files
+            path = self.script_path + "/**/*" + files + ".sql"
             objs.extend(glob.glob(path, recursive=True))
 
         return objs
