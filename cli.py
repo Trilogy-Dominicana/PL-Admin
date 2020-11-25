@@ -10,9 +10,6 @@ from pladmin.files import Files
 from pladmin.utils import utils
 from pladmin.migrations import Migrations
 
-# parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
-# parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
-
 
 db = Database(displayInfo=True)
 files = Files(displayInfo=True)
@@ -20,6 +17,7 @@ files = Files(displayInfo=True)
 # Table for wc2db and db2wc methods
 info = PrettyTable(["Object", "Type", "Path", "Action", "Status", "Info"])
 info.align = 'l'
+
 
 def watch(path_to_watch):
     """ Watch the provided path for changes in any of it's subdirectories """
@@ -60,7 +58,7 @@ def db2wc(dry_run, force):
 
     # Create metadata table if not exist
     init = False
-    if not db.metadataTableExist():
+    if not db.tableExist(table_name='PLADMIN_METADATA'):
         print('Initializing PL-Admin... This acction can take a couple minutes!')
         if dry_run:
             exit()
@@ -158,7 +156,7 @@ def wc2db(dry_run, force):
     if dry_run:
         utils.dryRun()
 
-    if not db.metadataTableExist():
+    if not db.tableExist(table_name='PLADMIN_METADATA'):
         print("You have not initialized PL-Admin in the current schema '%s'" % db.user)
         print('Excute db2wc command to initialize PL-Admin and get all objects to you file system')
         exit()
@@ -263,6 +261,32 @@ def wc2db(dry_run, force):
 
     print(info, '\n')
 
+def migrate(dry_run, types='all'):
+    print('Ejecutando migración')
+    # db = Database(displayInfo=True)
+    dba = db.dbConnect(sysDBA=True)
+    
+    # Check if migration table exist
+    if not db.tableExist(table_name='PLADMIN_MIGRATIONS', user=db.db_main_schema):
+        # Create it if not exist
+        db.createMetaTableScripts()
+    
+
+    # Listing objects files in pending
+    t = [types.upper()]
+    if types == 'all':
+        t = ['AS','DS']
+
+    fScripts = files.listAllScriptsFiles(types=t)
+    
+    for script in fScripts:
+        name = files.getFileName(script)
+        
+        data = db.getScript(scriptName=name[0], db=dba)
+        print(data)
+
+    # close db connection
+    dba.close()
 
 def main():
     parser = argparse.ArgumentParser(
@@ -281,13 +305,6 @@ def main():
     parser.add_argument("--migrate", "-t", action="store", choices=("as", "ds", "all"), help="AS: DDL script types and DS: DML scripts types")
     parser.add_argument("--dry-run", "-d", action="store_true")
     parser.add_argument("--force", "-f", action="store_true")
-    
-    # parser.add_argument("script", "-t", type=str, choices=("AS", "DS"))
-    # parser.add_argument("--quantity", "-q", default=1, type=int)
-    # parser.add_argument("--basic_pl", "-pl", default="n", type=str)
-    # parser.add_argument(
-    #     "--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d")
-    # )
 
 
     args = parser.parse_args()
@@ -296,16 +313,13 @@ def main():
     force = args.force
     scriptTypes = args.make
     types = args.migrate
-    # quantity = args.quantity
-    # basicPL = args.basic_pl
-    # schedule = args.schedule
 
     # Create schema
     if action == "init":
         db = Database(displayInfo=True)
         db.initMetadata()
 
-    if action == "newSchema":
+    elif action == "newSchema":
         db = Database(displayInfo=True)
 
         # The create Scheme method returns the packages that are still invalid
@@ -318,7 +332,7 @@ def main():
         else:
             print("Schema created successfully!")
 
-    if action == "compile":
+    elif action == "compile":
         # Try to compile invalid objects
         db = Database(displayInfo=True)
         result = db.compileObjects()
@@ -328,7 +342,7 @@ def main():
         for inv in result:
             print(inv["object_type"], inv["object_name"])
 
-    if action == "errors":
+    elif action == "errors":
         db = Database(displayInfo=True)
         result = db.compileObjects()
 
@@ -347,13 +361,13 @@ def main():
 
         print(t)
 
-    if action == "db2wc":
+    elif action == "db2wc":
         db2wc(dry_run, force)
 
-    if action == "wc2db":
+    elif action == "wc2db":
         wc2db(dry_run, force)
 
-    if action == "invalids":
+    elif action == "invalids":
         db = Database(displayInfo=True)
         invalids = db.getObjects(status="INVALID")
         objLen = len(invalids)
@@ -361,21 +375,22 @@ def main():
         for obj in invalids:
             print(obj["object_type"], "-", obj["object_name"])
 
-    if action == "watch":
+    elif action == "watch":
         watch(files.pl_path)
 
-    if action == "make" and scriptTypes:
+    elif action == "make" and scriptTypes:
         db = Database(displayInfo=False)
         content = utils.scriptExample()
         filaName = files.createEmptyScript(type=scriptTypes.upper(), user=db.user, content=content)
         
         print(colored("Script %s has been created", "green") % filaName)
 
-    if action == "migrate" and types:
-        # Listing objects files in pending
-        t = types.upper()
-        
-        print(files.listAllScriptsFiles(types=[t]))
+    elif action == "migrate" and types:
+        migrate(dry_run, types)
+
+
+
+
 
     # if action == "make" and script:
     #     print(colored("script created", "green"))
