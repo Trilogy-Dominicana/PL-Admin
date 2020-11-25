@@ -269,7 +269,7 @@ def migrate(dry_run, types='all'):
     # Check if migration table exist
     if not db.tableExist(table_name='PLADMIN_MIGRATIONS', user=db.db_main_schema):
         # Create it if not exist
-        db.createMetaTableScripts()
+        db.scriptsMigrationTable()
     
 
     # Listing objects files in pending
@@ -280,13 +280,35 @@ def migrate(dry_run, types='all'):
     fScripts = files.listAllScriptsFiles(types=t)
     
     for script in fScripts:
-        name = files.getFileName(script)
-        
-        data = db.getScript(scriptName=name[0], db=dba)
-        print(data)
+        name = files.getFileName(script)[0]
+        dbScript = db.getScript(scriptName=name, db=dba)
 
-    # close db connection
+        data = {}
+        data['name'] = name
+        data['type'] = name[-2:]
+        
+        if not dbScript:
+            # Se debe ejecutar el script y luego de ejecutarlo meterlo en la tabla
+            db.executeScript(script_path)
+
+            data['status'] = 'OK'
+            data['output'] = 'EJECUTADO CORRECTAMENTE CON SU COMMIT'
+            
+            # Si el script se ejecuta correctamente entonces lo insertamos en la tabla
+            insert = db.insertScript(data)
+            
+            print(insert, "\n")
+            print(data, name[0])
+            exit(0)
+            data = "test"
+
+
+            # Si no se por alguna razon, agregarlo a un array para luego motrarlo junto al mensaje de error. 
+
+
+    # Close db connection
     dba.close()
+
 
 def main():
     parser = argparse.ArgumentParser(

@@ -90,7 +90,6 @@ class Database:
 
         return invalids
 
-
     def tableExist(self, table_name, user=False):
         """ Validate if a table exist"""
         if not user:
@@ -894,9 +893,10 @@ class Database:
         return "Removed"
 
 
-
-# Script methods
-    def createMetaTableScripts(self, db=None):
+#############################################################
+#                      SCRIPTS METHODS                      #
+#############################################################
+    def scriptsMigrationTable(self, db=None):
         """
         Create migration table for scripts excution
         Migration table has to be created on main schema
@@ -915,13 +915,12 @@ class Database:
         sql = (
             """ CREATE TABLE %s.PLADMIN_MIGRATIONS (
                 ID NUMBER GENERATED ALWAYS AS IDENTITY ( START WITH 1 INCREMENT BY 1 ) PRIMARY KEY,
-                SCRIPT_NAME VARCHAR2(50) NOT NULL,
-                STATUS VARCHAR(5), 
-                CREATED_AT timestamp DEFAULT SYSDATE,
-                FULL_PATH VARCHAR2(250),
-                TYPE_SCRIPT VARCHAR2(6),
+                NAME VARCHAR2(100) NOT NULL,
+                TYPE VARCHAR2(2),
+                STATUS VARCHAR(4), 
                 OUTPUT VARCHAR2(4000),
-                CONSTRAINT script_name_unique unique (script_name)
+                EXECUTED_AT timestamp DEFAULT SYSDATE,
+                CONSTRAINT name_unique unique (name)
             )"""
             % self.db_main_schema
         )
@@ -943,7 +942,7 @@ class Database:
         cursor = db.cursor()
 
         sql = (
-            "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE SCRIPT_NAME = '%s'"
+            "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE NAME = '%s'"
             % (self.db_main_schema, scriptName)
         )
         data = cursor.execute(sql)
@@ -955,7 +954,103 @@ class Database:
 
         return obj
 
- 
+    def insertScript(self, data, md5=False, db=None):
+        """ Insert script on to migrations table
+        Params: 
+            data: list that contains and dictionary with the following keys: 
+            object_name, 
+            object_type, 
+            object_path, 
+            last_commit, 
+            last_ddl_time
+        """
+
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
+
+        # for obj in data:
+
+        sql = (
+            "INSERT INTO %s.PLADMIN_MIGRATIONS (name, type, status, output) VALUES('%s', '%s', '%s','%s')"
+            % (
+                self.db_main_schema,
+                data["name"],
+                data["type"],
+                data["status"],
+                data["output"]
+            )
+        )
+        # print(sql)
+        cursor.execute(sql)
+
+        cursor.close()
+
+        if localClose:
+            db.commit()
+            db.close()
+
+
+
+    def executeScript(self, path, db=None):
+        """
+        Execute scripts
+
+        params:
+        ------
+        path: path routes of the object on the file system
+        db (cx_Oracle.Connection): The database connection
+
+        return (list) with errors if some package were an error
+        """
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+
+        cursor = db.cursor()
+        cursor.callproc("dbms_output.enable")
+
+        opf = open(f, "r")
+        content = opf.read()
+        opf.close()
+
+        print(content)
+
+        # Execute create or replace package
+        try:
+            cursor.execute(content)
+        except Exception as e:
+            errors.append(e)
+            pass
+
+        if localClose:
+            db.close()
+
+        return success, errors
+
+
+    def dbms_output(self, cursor):
+         output = []
+
+        # Perform loop to fetch the text that was added by PL/SQL
+        textVar = cursor.var(str)
+        statusVar = cursor.var(int)
+            
+        while True:
+            # get output in oracle script
+            cursor.callproc("dbms_output.get_line", (textVar, statusVar))
+            if statusVar.getvalue() != 0:
+                break
+            output.append(textVar.getvalue())
+        
+        dbmsOutPut = ' '.join(output)
+        
+        return dbmsOutPut
+
+
     # def createMigration(
     #     self, scriptName, fullPath, status, typeScript, output, db=None
     # ):

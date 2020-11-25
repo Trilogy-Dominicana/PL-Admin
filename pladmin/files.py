@@ -335,7 +335,7 @@ class Files:
 
         objs = []
         for files in types:
-            path = self.script_path + "/**/*" + files + ".sql"
+            path = self.scripts_pendings + "/**/*" + files + ".sql"
             objs.extend(glob.glob(path, recursive=True))
 
         return objs
