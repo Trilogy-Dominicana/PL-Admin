@@ -223,9 +223,9 @@ class Files:
         self.scripts_pendings = os.path.join(self.script_path, "pendigns")
         os.makedirs(self.scripts_pendings, exist_ok=True)
         
-        # Excuted scripts 
-        self.scripts_excuted = os.path.join(self.script_path, "excuted")
-        os.makedirs( self.scripts_excuted , exist_ok=True)
+        # Executed scripts 
+        self.scripts_executed = os.path.join(self.script_path, "executed")
+        os.makedirs( self.scripts_executed , exist_ok=True)
         
         
         # Create directory structure to save the files e.g (./YYYY/MM/DD)
