@@ -91,13 +91,15 @@ class Database:
         return invalids
 
 
-    def metadataTableExist(self):
-        """ Validate if metadata table exits, if not, create it """
+    def tableExist(self, table_name, user=False):
+        """ Validate if a table exist"""
+        if not user:
+            user = self.user
+            
         sql = (
-            "SELECT * FROM USER_TABLES WHERE table_name = 'PLADMIN_METADATA' AND TABLESPACE_NAME = '%s'"
-            % self.db_default_table_space
+            "SELECT * FROM DBA_TABLES WHERE TABLESPACE_NAME = '%s' AND TABLE_NAME = '%s' AND owner = '%s'"
+            % (self.db_default_table_space, table_name, user)
         )
-
         metatable = self.getData(query=sql, fetchOne=True)
 
         if metatable:
@@ -107,7 +109,7 @@ class Database:
 
     def createMetaTable(self, db=None):
         """
-        Create metadata to manage meta information
+        Create metadata table to manage meta information
         """
         if not db:
             db = self.dbConnect()
@@ -880,20 +882,35 @@ class Database:
 
         return content
 
+    def dropObject(self, object_type, object_name):
+        """ This method has to be executed to remove object from database and in the metadata table"""
+
+        # Remove the object in the database
+        self.dropDbObjects(object_type, object_name)
+
+        # Remove the object in metadata table
+        self.metadataDelete(object_type, object_name)
+
+        return "Removed"
+
+
+
+# Script methods
     def createMetaTableScripts(self, db=None):
         """
-        Create metadata to manage meta information
+        Create migration table for scripts excution
+        Migration table has to be created on main schema
         """
         localClose = False
 
         if not db:
-            db = self.dbConnect()
+            db = self.dbConnect(sysDBA=True)
             localClose = True
 
         cursor = db.cursor()
 
-        # Drop
-        data = cursor.execute("DROP TABLE %s.PLADMIN_MIGRATIONS" % self.user)
+        # Drop (CHECK IF NECESSARY)
+        # cursor.execute("DROP TABLE %s.PLADMIN_MIGRATIONS" % self.db_main_schema)
 
         sql = (
             """ CREATE TABLE %s.PLADMIN_MIGRATIONS (
@@ -906,9 +923,9 @@ class Database:
                 OUTPUT VARCHAR2(4000),
                 CONSTRAINT script_name_unique unique (script_name)
             )"""
-            % self.user
+            % self.db_main_schema
         )
-
+        
         data = cursor.execute(sql)
 
         if localClose:
@@ -916,46 +933,69 @@ class Database:
 
         return data
 
-    def createMigration(
-        self, scriptName, fullPath, status, typeScript, output, db=None
-    ):
+    def getScript(self, scriptName, db=None):
 
         localClose = False
-
         if not db:
             db = self.dbConnect()
             localClose = True
 
         cursor = db.cursor()
 
-        migration = self.getScriptByName(scriptName=scriptName)
+        sql = (
+            "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE SCRIPT_NAME = '%s'"
+            % (self.db_main_schema, scriptName)
+        )
+        data = cursor.execute(sql)
+        obj = data.fetchone()
 
-        if not migration:
-
-            sql = (
-                (
-                    """ 
-                      INSERT INTO omega.PLADMIN_MIGRATIONS (SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
-                      VALUES('%s', '%s', '%s', '%s', '%s')
-                     
-                      """
-                )
-                % (scriptName, status, fullPath, typeScript, output)
-            )
-            data = cursor.execute(sql)
-
+        cursor.close()
         if localClose:
-            db.commit()
             db.close()
 
-    def getScriptByName(self, scriptName):
-        sql = "SELECT * FROM PLADMIN_MIGRATIONS WHERE script_name='%s' " % (scriptName)
+        return obj
 
-        data = self.getData(query=sql, fetchOne=True)
+ 
+    # def createMigration(
+    #     self, scriptName, fullPath, status, typeScript, output, db=None
+    # ):
 
-        return data
+    #     localClose = False
 
-    def getScriptDB(self, status="OK", date=None):
+    #     if not db:
+    #         db = self.dbConnect()
+    #         localClose = True
+
+    #     cursor = db.cursor()
+
+    #     migration = self.getScriptByName(scriptName=scriptName)
+
+    #     if not migration:
+
+    #         sql = (
+    #             (
+    #                 """ 
+    #                   INSERT INTO omega.PLADMIN_MIGRATIONS (SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
+    #                   VALUES('%s', '%s', '%s', '%s', '%s')
+                     
+    #                   """
+    #             )
+    #             % (scriptName, status, fullPath, typeScript, output)
+    #         )
+    #         data = cursor.execute(sql)
+
+    #     if localClose:
+    #         db.commit()
+    #         db.close()
+
+    # def getScriptByName(self, scriptName):
+    #     sql = "SELECT * FROM PLADMIN_MIGRATIONS WHERE script_name='%s' " % (scriptName)
+
+    #     data = self.getData(query=sql, fetchOne=True)
+
+    #     return data
+
+    # def getScriptDB(self, status="OK", date=None):
 
         if not date:
             date = datetime.now().strftime("%Y%m%d")
@@ -974,13 +1014,6 @@ class Database:
 
         return data
 
-    def dropObject(self, object_type, object_name):
-        """ This method has to be executed to remove object from database and in the metadata table"""
 
-        # Remove the object in the database
-        self.dropDbObjects(object_type, object_name)
 
-        # Remove the object in metadata table
-        self.metadataDelete(object_type, object_name)
 
-        return "Removed"
