@@ -993,47 +993,94 @@ class Database:
             db.close()
 
 
+    def RunSqlScript(self, conn, **kwargs):
+        statementParts = []
+        cursor = conn.cursor()
+        replaceValues = [("&" + k + ".", v) for k, v in kwargs.items()] + \
+                [("&" + k, v) for k, v in kwargs.items()]
+        
+        # scriptDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        # fileName = os.path.join(scriptDir, "sql", scriptName + "Exec.sql")
+        
+        scriptDir = '/plsql/scripts/pendigns/'
+        fileName = os.path.join(scriptDir,"20201125102318_WDELACRUZ_AS.sql")
 
-    def executeScript(self, path, db=None):
-        """
-        Execute scripts
+        for line in open(fileName):
+            # print(line.strip())
+            if line.strip() == "/":
+                statement = "".join(statementParts).strip()
+                if statement:
+                    for searchValue, replaceValue in replaceValues:
+                        statement = statement.replace(searchValue, replaceValue)
+                    
+                    try:
+                        cursor.execute(statement)
+                    except Exception as e:
+                        print("\nFailed to execute SQL: %s \n" % fileName, e)
+                        # print(e, "\n")
+                        # raise
+                        pass
+                statementParts = []
+            else:
+                statementParts.append(line)
+                cursor.execute("""
+                select name, type, line, position, text
+                from dba_errors
+                where owner = upper(:owner)
+                order by name, type, line, position""",
+                owner = self.db_main_schema)
 
-        params:
-        ------
-        path: path routes of the object on the file system
-        db (cx_Oracle.Connection): The database connection
+        # exit(0)
+        # prevName = prevObjType = None
+        # for name, objType, lineNum, position, text in cursor:
+        #     if name != prevName or objType != prevObjType:
+        #         print("%s (%s)" % (name, objType))
+        #         prevName = name
+        #         prevObjType = objType
+        #     print("        %s/%s %s" % (lineNum, position, text))
 
-        return (list) with errors if some package were an error
-        """
-        localClose = False
-        if not db:
-            db = self.dbConnect()
-            localClose = True
 
-        cursor = db.cursor()
-        cursor.callproc("dbms_output.enable")
+    # def executeScript(self, script_path, db=None):
+    #     """
+    #     Execute scripts
 
-        opf = open(f, "r")
-        content = opf.read()
-        opf.close()
+    #     params:
+    #     ------
+    #     path: path routes of the object on the file system
+    #     db (cx_Oracle.Connection): The database connection
 
-        print(content)
+    #     return (list) with errors if some package were an error
+    #     """
+    #     localClose = False
+    #     if not db:
+    #         db = self.dbConnect()
+    #         localClose = True
 
-        # Execute create or replace package
-        try:
-            cursor.execute(content)
-        except Exception as e:
-            errors.append(e)
-            pass
+    #     cursor = db.cursor()
+    #     cursor.callproc("dbms_output.enable")
 
-        if localClose:
-            db.close()
+    #     opf = open(script_path, "r")
+    #     content = opf.read()
+    #     opf.close()
+        
+    #     # print(content)
 
-        return success, errors
+    #     # Execute create or replace package
+    #     try:
+    #         cursor.execute(content)
+    #         print(self.dbms_output(cursor))
+    #     except Exception as e:
+    #         # errors.append(e)
+    #         pass
+
+    #     if localClose:
+    #         db.close()
+
+    #     return True
 
 
     def dbms_output(self, cursor):
-         output = []
+        output = []
 
         # Perform loop to fetch the text that was added by PL/SQL
         textVar = cursor.var(str)

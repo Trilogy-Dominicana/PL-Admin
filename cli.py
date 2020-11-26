@@ -289,7 +289,9 @@ def migrate(dry_run, types='all'):
         
         if not dbScript:
             # Se debe ejecutar el script y luego de ejecutarlo meterlo en la tabla
-            db.executeScript(script_path)
+            db.RunSqlScript(conn=dba)
+            # db.executeScript(script_path=script)
+            exit(0)
 
             data['status'] = 'OK'
             data['output'] = 'EJECUTADO CORRECTAMENTE CON SU COMMIT'
@@ -297,10 +299,9 @@ def migrate(dry_run, types='all'):
             # Si el script se ejecuta correctamente entonces lo insertamos en la tabla
             insert = db.insertScript(data)
             
-            print(insert, "\n")
-            print(data, name[0])
-            exit(0)
-            data = "test"
+            # print(insert, "\n")
+            # print(data, name[0])
+            
 
 
             # Si no se por alguna razon, agregarlo a un array para luego motrarlo junto al mensaje de error. 
