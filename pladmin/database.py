@@ -942,7 +942,7 @@ class Database:
         cursor = db.cursor()
 
         sql = (
-            "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE NAME = '%s'"
+            "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE name = '%s' AND status != 'Fail'"
             % (self.db_main_schema, scriptName)
         )
         data = cursor.execute(sql)
@@ -993,51 +993,35 @@ class Database:
             db.close()
 
 
-    def RunSqlScript(self, conn, **kwargs):
+    def RunSqlScript(self, script_path, db):
         statementParts = []
-        cursor = conn.cursor()
-        replaceValues = [("&" + k + ".", v) for k, v in kwargs.items()] + \
-                [("&" + k, v) for k, v in kwargs.items()]
+        cursor = db.cursor()
+        cursor.callproc("dbms_output.enable")
         
-        # scriptDir = os.path.dirname(os.path.abspath(sys.argv[0]))
-        # fileName = os.path.join(scriptDir, "sql", scriptName + "Exec.sql")
-        
-        scriptDir = '/plsql/scripts/pendigns/'
-        fileName = os.path.join(scriptDir,"20201125102318_WDELACRUZ_AS.sql")
-
-        for line in open(fileName):
-            # print(line.strip())
+        output = []
+        status = 'OK'
+        # scriptDir = '/plsql/scripts/pendigns/'
+        # fileName = os.path.join(scriptDir,"20201125102318_WDELACRUZ_AS.sql")
+    
+        for line in open(script_path, 'r'):
             if line.strip() == "/":
                 statement = "".join(statementParts).strip()
+                
                 if statement:
-                    for searchValue, replaceValue in replaceValues:
-                        statement = statement.replace(searchValue, replaceValue)
-                    
                     try:
                         cursor.execute(statement)
+                        output.append(self.dbms_output(cursor))
                     except Exception as e:
-                        print("\nFailed to execute SQL: %s \n" % fileName, e)
-                        # print(e, "\n")
-                        # raise
+                        output.append(str(e))
+                        status = 'Fail'
+                        break
                         pass
+                    
                 statementParts = []
             else:
                 statementParts.append(line)
-                cursor.execute("""
-                select name, type, line, position, text
-                from dba_errors
-                where owner = upper(:owner)
-                order by name, type, line, position""",
-                owner = self.db_main_schema)
 
-        # exit(0)
-        # prevName = prevObjType = None
-        # for name, objType, lineNum, position, text in cursor:
-        #     if name != prevName or objType != prevObjType:
-        #         print("%s (%s)" % (name, objType))
-        #         prevName = name
-        #         prevObjType = objType
-        #     print("        %s/%s %s" % (lineNum, position, text))
+        return status, output
 
 
     # def executeScript(self, script_path, db=None):
@@ -1080,6 +1064,7 @@ class Database:
 
 
     def dbms_output(self, cursor):
+        """ Get Oracle OUTPUT, > BEFORE USER THIS METHOD ENSURE TURN ON cursor.callproc("dbms_output.enable") <"""
         output = []
 
         # Perform loop to fetch the text that was added by PL/SQL
@@ -1089,9 +1074,12 @@ class Database:
         while True:
             # get output in oracle script
             cursor.callproc("dbms_output.get_line", (textVar, statusVar))
+            
             if statusVar.getvalue() != 0:
                 break
-            output.append(textVar.getvalue())
+            
+            if textVar.getvalue():
+                output.append(textVar.getvalue())
         
         dbmsOutPut = ' '.join(output)
         
@@ -1139,22 +1127,22 @@ class Database:
 
     # def getScriptDB(self, status="OK", date=None):
 
-        if not date:
-            date = datetime.now().strftime("%Y%m%d")
+        # if not date:
+        #     date = datetime.now().strftime("%Y%m%d")
 
-        sql = (
-            (
-                """ SELECT * FROM %s.PLADMIN_MIGRATIONS 
-                   WHERE status = '%s'
-                   AND created_at >= TO_DATE ('%s', 'YYYYMMDD') 
-               """
-            )
-            % (self.user, status, date)
-        )
+        # sql = (
+        #     (
+        #         """ SELECT * FROM %s.PLADMIN_MIGRATIONS 
+        #            WHERE status = '%s'
+        #            AND created_at >= TO_DATE ('%s', 'YYYYMMDD') 
+        #        """
+        #     )
+        #     % (self.user, status, date)
+        # )
 
-        data = self.getData(query=sql)
+        # data = self.getData(query=sql)
 
-        return data
+        # return data
 
 
 

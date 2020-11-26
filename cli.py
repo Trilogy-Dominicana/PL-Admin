@@ -279,8 +279,8 @@ def migrate(dry_run, types='all'):
 
     fScripts = files.listAllScriptsFiles(types=t)
     
-    for script in fScripts:
-        name = files.getFileName(script)[0]
+    for script_path in fScripts:
+        name = files.getFileName(script_path)[0]
         dbScript = db.getScript(scriptName=name, db=dba)
 
         data = {}
@@ -289,21 +289,18 @@ def migrate(dry_run, types='all'):
         
         if not dbScript:
             # Se debe ejecutar el script y luego de ejecutarlo meterlo en la tabla
-            db.RunSqlScript(conn=dba)
-            # db.executeScript(script_path=script)
-            exit(0)
+            status, output = db.RunSqlScript(script_path, db=dba)
+            # print(status, output)
 
-            data['status'] = 'OK'
-            data['output'] = 'EJECUTADO CORRECTAMENTE CON SU COMMIT'
-            
+            data['status'] = status
+            data['output'] = "\n".join(output)
+
             # Si el script se ejecuta correctamente entonces lo insertamos en la tabla
-            insert = db.insertScript(data)
+            insert = db.insertScript(data) # TODO se debe actualizar si ya existe, por ahora da error
             
             # print(insert, "\n")
-            # print(data, name[0])
+            print(data['output'])
             
-
-
             # Si no se por alguna razon, agregarlo a un array para luego motrarlo junto al mensaje de error. 
 
 
