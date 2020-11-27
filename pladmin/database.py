@@ -932,18 +932,21 @@ class Database:
 
         return data
 
-    def getScript(self, scriptName, db=None):
+    def getMigration(self, scriptName, status='', db=None):
 
         localClose = False
         if not db:
             db = self.dbConnect()
             localClose = True
-
         cursor = db.cursor()
 
+
+        if len(status):
+            status = "AND status = '%s'" % status
+
         sql = (
-            "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE name = '%s' AND status != 'Fail'"
-            % (self.db_main_schema, scriptName)
+            "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE name = '%s' %s"
+            % (self.db_main_schema, scriptName, status)
         )
         data = cursor.execute(sql)
         obj = data.fetchone()
@@ -954,7 +957,7 @@ class Database:
 
         return obj
 
-    def insertScript(self, data, md5=False, db=None):
+    def insertMigration(self, data, db=None):
         """ Insert script on to migrations table
         Params: 
             data: list that contains and dictionary with the following keys: 
@@ -971,8 +974,6 @@ class Database:
             localClose = True
         cursor = db.cursor()
 
-        # for obj in data:
-
         sql = (
             "INSERT INTO %s.PLADMIN_MIGRATIONS (name, type, status, output) VALUES('%s', '%s', '%s','%s')"
             % (
@@ -983,15 +984,13 @@ class Database:
                 data["output"]
             )
         )
-        # print(sql)
+        
         cursor.execute(sql)
-
         cursor.close()
 
         if localClose:
             db.commit()
             db.close()
-
 
     def RunSqlScript(self, script_path, db):
         statementParts = []
@@ -1000,8 +999,6 @@ class Database:
         
         output = []
         status = 'OK'
-        # scriptDir = '/plsql/scripts/pendigns/'
-        # fileName = os.path.join(scriptDir,"20201125102318_WDELACRUZ_AS.sql")
     
         for line in open(script_path, 'r'):
             if line.strip() == "/":
@@ -1013,17 +1010,51 @@ class Database:
                         output.append(self.dbms_output(cursor))
                     except Exception as e:
                         output.append(str(e))
-                        status = 'Fail'
+                        status = 'FAIL'
                         break
                         pass
                     
                 statementParts = []
             else:
                 statementParts.append(line)
+        
+        db_output = "\n".join(output)
+        return status, db_output
 
-        return status, output
+    def updateMigration(self, data, db=None):
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
 
+        status = ""
+        if "status" in data:
+            status = "STATUS = '%s', " % data["status"]
+        
+        output = ""
+        if "output" in data:
+            output = "OUTPUT = '%s', " % data["output"]
 
+        sql = """UPDATE %s.PLADMIN_MIGRATIONS SET %s %s EXECUTED_AT=SYSDATE WHERE name = '%s' """ % (
+            self.db_main_schema,
+            status,
+            output,
+            data["name"],
+        )
+
+        cursor.execute(sql)
+
+        if localClose:
+            db.commit()
+            db.close()
+
+    def insertOrUpdateMigration(self, data, db):
+        if self.getMigration(scriptName=data['name'], status='FAIL'):
+            return self.updateMigration(data, db)
+        else:
+            return self.insertMigration(data, db)
+         
     # def executeScript(self, script_path, db=None):
     #     """
     #     Execute scripts

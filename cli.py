@@ -16,7 +16,8 @@ files = Files(displayInfo=True)
 
 # Table for wc2db and db2wc methods
 info = PrettyTable(["Object", "Type", "Path", "Action", "Status", "Info"])
-info.align = 'l'
+infoScript = PrettyTable(["Name", "Type", "Status", "OUTPUT"])
+info.align = infoScript.align = 'l'
 
 
 def watch(path_to_watch):
@@ -263,8 +264,10 @@ def wc2db(dry_run, force):
 
 def migrate(dry_run, types='all'):
     print('Ejecutando migración')
-    # db = Database(displayInfo=True)
     dba = db.dbConnect(sysDBA=True)
+
+    # Connection to insert migrations in migration table
+    dbm = db.dbConnect(sysDBA=True) 
     
     # Check if migration table exist
     if not db.tableExist(table_name='PLADMIN_MIGRATIONS', user=db.db_main_schema):
@@ -281,30 +284,32 @@ def migrate(dry_run, types='all'):
     
     for script_path in fScripts:
         name = files.getFileName(script_path)[0]
-        dbScript = db.getScript(scriptName=name, db=dba)
+        dbScript = db.getMigration(scriptName=name, status="OK", db=dba)
 
         data = {}
         data['name'] = name
         data['type'] = name[-2:]
         
         if not dbScript:
-            # Se debe ejecutar el script y luego de ejecutarlo meterlo en la tabla
-            status, output = db.RunSqlScript(script_path, db=dba)
-            # print(status, output)
+            # Run the script. This return status (OK or FAIL) and output.
+            data['status'], data['output'] = db.RunSqlScript(script_path, db=dba)
 
-            data['status'] = status
-            data['output'] = "\n".join(output)
-
-            # Si el script se ejecuta correctamente entonces lo insertamos en la tabla
-            insert = db.insertScript(data) # TODO se debe actualizar si ya existe, por ahora da error
+            # If status is FAIL, update it into the database, if it's OK, that means the script is new, so insert it.
+            insert = db.insertOrUpdateMigration(data, db=dbm)
             
-            # print(insert, "\n")
-            print(data['output'])
-            
-            # Si no se por alguna razon, agregarlo a un array para luego motrarlo junto al mensaje de error. 
+            # Crear una tabla de consola para motrar el resumen de la ejecución.
+            # Agregar dry-run para ver los scripts a ejecutar
+            # Agregar un parametro espesifico para ejecutar un script por su nombre
+            # Validar el orden de ejecución, los AS deben ser agrupado primero. 
+            # print(data.values())
+            infoScript.add_row(data.values())
+        
+    print(infoScript)
 
 
     # Close db connection
+    dbm.commit()
+    dbm.close()
     dba.close()
 
 
