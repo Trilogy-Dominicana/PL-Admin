@@ -918,7 +918,7 @@ class Database:
                 NAME VARCHAR2(100) NOT NULL,
                 TYPE VARCHAR2(2),
                 STATUS VARCHAR(4), 
-                OUTPUT VARCHAR2(4000),
+                OUTPUT CLOB,
                 EXECUTED_AT timestamp DEFAULT SYSDATE,
                 CONSTRAINT name_unique unique (name)
             )"""

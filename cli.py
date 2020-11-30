@@ -263,7 +263,7 @@ def wc2db(dry_run, force):
     print(info, '\n')
 
 def migrate(dry_run, types='all'):
-    print('Ejecutando migración')
+    print(" << MIGRATIONS >> \n")
     dba = db.dbConnect(sysDBA=True)
 
     # Connection to insert migrations in migration table
@@ -274,13 +274,15 @@ def migrate(dry_run, types='all'):
         # Create it if not exist
         db.scriptsMigrationTable()
     
-
     # Listing objects files in pending
-    t = [types.upper()]
-    if types == 'all':
-        t = ['AS','DS']
+    if not types:
+        types = ['AS','DS']
 
-    fScripts = files.listAllScriptsFiles(types=t)
+    fScripts = files.listAllScriptsFiles(types)
+    # for script in fScripts:
+    #     print(script)
+    
+    # exit(0)
     
     for script_path in fScripts:
         name = files.getFileName(script_path)[0]
@@ -294,14 +296,11 @@ def migrate(dry_run, types='all'):
             # Run the script. This return status (OK or FAIL) and output.
             data['status'], data['output'] = db.RunSqlScript(script_path, db=dba)
 
-            # If status is FAIL, update it into the database, if it's OK, that means the script is new, so insert it.
+            # Update status on the
             insert = db.insertOrUpdateMigration(data, db=dbm)
-            
-            # Crear una tabla de consola para motrar el resumen de la ejecución.
-            # Agregar dry-run para ver los scripts a ejecutar
-            # Agregar un parametro espesifico para ejecutar un script por su nombre
-            # Validar el orden de ejecución, los AS deben ser agrupado primero. 
-            # print(data.values())
+
+            # Agregar dry-run para ver los scripts a ejecutar.
+            # Agregar un parametro espesifico para ejecutar un script por su nombre.
             infoScript.add_row(data.values())
         
     print(infoScript)
@@ -326,8 +325,8 @@ def main():
         choices=("newSchema", "compile", "errors", "db2wc", "wc2db", "invalids", "make", "migrate"),
         help="You need to specify the action name (make, wc2db, db2wc, etc.)"
         )
-    parser.add_argument("--make", "-m", action="store", choices=("as", "ds"), help="AS: DDL script types and DS: DML scripts types")
-    parser.add_argument("--migrate", "-t", action="store", choices=("as", "ds", "all"), help="AS: DDL script types and DS: DML scripts types")
+
+    parser.add_argument("--type", "-t", action="store", choices=("as", "ds"), help="AS: DDL script types and DS: DML scripts types")
     parser.add_argument("--dry-run", "-d", action="store_true")
     parser.add_argument("--force", "-f", action="store_true")
 
@@ -336,8 +335,7 @@ def main():
     action = args.action 
     dry_run = args.dry_run
     force = args.force
-    scriptTypes = args.make
-    types = args.migrate
+    types = args.type
 
     # Create schema
     if action == "init":
@@ -403,14 +401,18 @@ def main():
     elif action == "watch":
         watch(files.pl_path)
 
-    elif action == "make" and scriptTypes:
+    elif action == "make":
+        if not types:
+            print(colored("Please, add the --type paramerer to now what kind of script you want to generate. e.g: pladmin make --type as", 'red'))
+            exit(0)
+
         db = Database(displayInfo=False)
         content = utils.scriptExample()
-        filaName = files.createEmptyScript(type=scriptTypes.upper(), user=db.user, content=content)
+        filaName = files.createEmptyScript(type=types.upper(), user=db.user, content=content)
         
         print(colored("Script %s has been created", "green") % filaName)
 
-    elif action == "migrate" and types:
+    elif action == "migrate":
         migrate(dry_run, types)
 
 
