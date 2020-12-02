@@ -263,7 +263,6 @@ def wc2db(dry_run, force):
     print(info, '\n')
 
 def migrate(dry_run, types='all'):
-    print(" << MIGRATIONS >> \n")
     dba = db.dbConnect(sysDBA=True)
 
     # Connection to insert migrations in migration table
@@ -279,34 +278,42 @@ def migrate(dry_run, types='all'):
         types = ['AS','DS']
 
     fScripts = files.listAllScriptsFiles(types)
-    # for script in fScripts:
-    #     print(script)
-    
-    # exit(0)
     
     for script_path in fScripts:
         name = files.getFileName(script_path)[0]
-        dbScript = db.getMigration(scriptName=name, status="OK", db=dba)
+        dbScript = db.getMigration(scriptName=name, db=dba)
 
         data = {}
         data['name'] = name
         data['type'] = name[-2:]
+        data['status']= "NEW"
+        data['output']= "-"
         
-        if not dbScript:
+        if (dbScript) and dbScript[3] == 'OK': 
+            continue
+        
+        if dbScript:
+            data['status']= dbScript[3]
+            data['output']= dbScript[4]
+
+        if not dry_run:
             # Run the script. This return status (OK or FAIL) and output.
             data['status'], data['output'] = db.RunSqlScript(script_path, db=dba)
-
+            
+            # if data['status'] == 'FAIL':
+            #     break
             # Update status on the
             insert = db.insertOrUpdateMigration(data, db=dbm)
 
-            # Agregar dry-run para ver los scripts a ejecutar.
-            # Agregar un parametro espesifico para ejecutar un script por su nombre.
-            infoScript.add_row(data.values())
+        # Adding data to console table.
+        infoScript.add_row(data.values())
         
-    print(infoScript)
+    if dry_run:
+        utils.dryRun()
+    print(" << MIGRATIONS >> \n", infoScript)
 
 
-    # Close db connection
+    # Close dbm connection
     dbm.commit()
     dbm.close()
     dba.close()

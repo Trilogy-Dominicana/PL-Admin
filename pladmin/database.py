@@ -948,6 +948,7 @@ class Database:
             "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE name = '%s' %s"
             % (self.db_main_schema, scriptName, status)
         )
+
         data = cursor.execute(sql)
         obj = data.fetchone()
 
@@ -1055,43 +1056,6 @@ class Database:
         else:
             return self.insertMigration(data, db)
          
-    # def executeScript(self, script_path, db=None):
-    #     """
-    #     Execute scripts
-
-    #     params:
-    #     ------
-    #     path: path routes of the object on the file system
-    #     db (cx_Oracle.Connection): The database connection
-
-    #     return (list) with errors if some package were an error
-    #     """
-    #     localClose = False
-    #     if not db:
-    #         db = self.dbConnect()
-    #         localClose = True
-
-    #     cursor = db.cursor()
-    #     cursor.callproc("dbms_output.enable")
-
-    #     opf = open(script_path, "r")
-    #     content = opf.read()
-    #     opf.close()
-        
-    #     # print(content)
-
-    #     # Execute create or replace package
-    #     try:
-    #         cursor.execute(content)
-    #         print(self.dbms_output(cursor))
-    #     except Exception as e:
-    #         # errors.append(e)
-    #         pass
-
-    #     if localClose:
-    #         db.close()
-
-    #     return True
 
 
     def dbms_output(self, cursor):
