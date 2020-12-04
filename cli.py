@@ -16,7 +16,7 @@ files = Files(displayInfo=True)
 
 # Table for wc2db and db2wc methods
 info = PrettyTable(["Object", "Type", "Path", "Action", "Status", "Info"])
-infoScript = PrettyTable(["Name", "Type", "Status", "OUTPUT"])
+infoScript = PrettyTable(["Name", "Type", "Status", "Output"])
 info.align = infoScript.align = 'l'
 
 
@@ -262,7 +262,11 @@ def wc2db(dry_run, force):
 
     print(info, '\n')
 
-def migrate(dry_run, types='all'):
+def migrate(dry_run, force, types='all'):
+    if dry_run:
+        utils.dryRun()
+
+    failedGroups = []
     dba = db.dbConnect(sysDBA=True)
 
     # Connection to insert migrations in migration table
@@ -273,43 +277,43 @@ def migrate(dry_run, types='all'):
         # Create it if not exist
         db.scriptsMigrationTable()
     
-    # Listing objects files in pending
-    if not types:
-        types = ['AS','DS']
 
-    fScripts = files.listAllScriptsFiles(types)
+    fScripts = files.listAllScriptsFiles()
     
-    for script_path in fScripts:
-        name = files.getFileName(script_path)[0]
-        dbScript = db.getMigration(scriptName=name, db=dba)
+    # print(fScripts.items())
+    # exit()
+    # Execute scripts by groups 
+    for groupID, group in sorted(fScripts.items()):
+        infoScript.add_row([groupID,'','',''])
+        for item in group:
+            # If some 
+            if item['group'] in failedGroups and not force:
+                continue
 
-        data = {}
-        data['name'] = name
-        data['type'] = name[-2:]
-        data['status']= "NEW"
-        data['output']= "-"
-        
-        if (dbScript) and dbScript[3] == 'OK': 
-            continue
-        
-        if dbScript:
-            data['status']= dbScript[3]
-            data['output']= dbScript[4]
+            dbScript = db.getMigration(scriptName=item['name'], db=dba)
 
-        if not dry_run:
-            # Run the script. This return status (OK or FAIL) and output.
-            data['status'], data['output'] = db.RunSqlScript(script_path, db=dba)
+            if dbScript:
+                if dbScript[3] == 'OK': continue
+                item['status']= dbScript[3]
+                item['output']= str(dbScript[4])
+
+            if not dry_run:
+                # Run the script. This return status (OK or FAIL) and output.
+                item['status'], item['output'] = db.RunSqlScript(item['path'], db=dba)
             
-            # if data['status'] == 'FAIL':
-            #     break
-            # Update status on the
-            insert = db.insertOrUpdateMigration(data, db=dbm)
+                if item['status'] == 'FAIL':
+                    failedGroups.append(groupID)
+            
+                # Update status on the
+                insert = db.insertOrUpdateMigration(item, db=dbm)
+            
+            infoScript.add_row([item['name'], item['type'], item['status'], item['output']])
+            # print(item)
 
-        # Adding data to console table.
-        infoScript.add_row(data.values())
-        
-    if dry_run:
-        utils.dryRun()
+        # Add new line to split group table
+        infoScript.add_row(['','','',''])
+
+    # print(failedGroups)
     print(" << MIGRATIONS >> \n", infoScript)
 
 
@@ -318,6 +322,23 @@ def migrate(dry_run, types='all'):
     dbm.close()
     dba.close()
 
+def make(name):
+    if not name:
+        print(colored("Please, add the --name parameter to with the type of script, group and the order. e.g: pladmin make --name AS_T00495_01", 'red'))
+        exit(0)
+
+    content = utils.scriptExample()
+    filaName = files.createEmptyScript(name=name, user=db.user, content=content)
+
+    if filaName == '0001':
+        print(colored("Please, make sure that you are using the correct way to script name. e.g: AS_T00495_01 or DS_RQX9945_01", 'red'))
+        exit(0)
+    
+    if filaName == '0002':
+        print(colored("The script already exist", 'red'))
+        exit(0)
+
+    print(colored("Script %s has been created", "green") % filaName)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -333,6 +354,7 @@ def main():
         help="You need to specify the action name (make, wc2db, db2wc, etc.)"
         )
 
+    parser.add_argument("--name", "-n", action="store", help="Indate the name of your script ORDER_ISSUE_TYPE")
     parser.add_argument("--type", "-t", action="store", choices=("as", "ds"), help="AS: DDL script types and DS: DML scripts types")
     parser.add_argument("--dry-run", "-d", action="store_true")
     parser.add_argument("--force", "-f", action="store_true")
@@ -343,6 +365,7 @@ def main():
     dry_run = args.dry_run
     force = args.force
     types = args.type
+    name = args.name
 
     # Create schema
     if action == "init":
@@ -409,18 +432,10 @@ def main():
         watch(files.pl_path)
 
     elif action == "make":
-        if not types:
-            print(colored("Please, add the --type paramerer to now what kind of script you want to generate. e.g: pladmin make --type as", 'red'))
-            exit(0)
-
-        db = Database(displayInfo=False)
-        content = utils.scriptExample()
-        filaName = files.createEmptyScript(type=types.upper(), user=db.user, content=content)
-        
-        print(colored("Script %s has been created", "green") % filaName)
+        make(name)
 
     elif action == "migrate":
-        migrate(dry_run, types)
+        migrate(dry_run, force, name)
 
 
 
@@ -452,3 +467,7 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+{'type': 'AS', 'group': 'T00001', 'order': '04', 'user': 'WDELACRUZ2', 'name': 'AS_T00001_04_WDELACRUZ2_20201204161235.sql', 'path': '/plsql/scripts/pendigns/AS_T00001_04_WDELACRUZ2_20201204161235.sql', 'status': 'NEW', 'output': '-'}, 
+{'type': 'AS', 'group': 'T00001', 'order': '01', 'user': 'WDELACRUZ2', 'name': 'AS_T00001_01_WDELACRUZ2_20201204092326.sql', 'path': '/plsql/scripts/pendigns/T00001/AS_T00001_01_WDELACRUZ2_20201204092326.sql', 'status': 'NEW', 'output': '-'}

@@ -12,8 +12,8 @@ class Files:
         # Initialize git repo
         # self.repo = git.Repo(self.pl_path)
         # self.head_commit = str(self.repo.head.commit)[:7]
+        
         # Setup config path
-
         self.db_cnfpath = os.path.join(self.pl_path, '.env')
         
         # Create dir and initialize dir types
@@ -313,29 +313,60 @@ class Files:
         return hashlib.md5(content).hexdigest()
 
     # Scripts objects
-    def createEmptyScript(self, type, user, content='', ):
+    def createEmptyScript(self, name, user, content=''):
+        data = re.match("(^AS|DS)_(\w?\d+.)_(\d{2})", name.upper())
+        
+        if not data:
+            return '0001'
+
+        parts = data.groups()
+        type = parts[0]
+        group = parts[1]
+        order = parts[2]
+        date = datetime.now().strftime("%Y%m%d%H%M%S")
+        
+        fName = '%s_%s_%s_%s_%s.sql' % (type, group, order, user, date)
+        path = os.path.join(self.scripts_pendings, fName)
+
+        
+        # Validate if the file exist
+        if os.path.isfile(path):
+            return '0002'
+
         # Create script if no t exist
         os.makedirs(self.scripts_pendings, exist_ok=True)
-
-        # Script path
-        date = datetime.now().strftime("%Y%m%d%H%M%S")
-        name = '%s_%s_%s.sql' % (date, user, type)
-        path = os.path.join(self.scripts_pendings, name)
 
         with open(path, "wt+") as f:
             f.write(content)
         
-        return name
+        return fName
 
-    def listAllScriptsFiles(self, types):
+    def listAllScriptsFiles(self):
+        new = {}
+        path = self.scripts_pendings + "/**/*.sql"
+        files = glob.glob(path, recursive=True)
         
-        # Validate if types comes
-        if not len(types):
-            return False
+        # List files
+        for f in files:
+            # <TODO: validate script structre and return files with invalid names>
+            name = f.split("/")[-1]
+            data = name.split('_')
+            group = data[1]
+            newData = {
+                'type': data[0],
+                'group':data[1],
+                'order': data[2],
+                'user': data[3],
+                'name': name,
+                'path': f,
+                'status': 'NEW',
+                'output': '-'
+            }
 
-        objs = []
-        for files in types:
-            path = self.scripts_pendings + "/**/*" + files + ".sql"
-            objs.extend(glob.glob(path, recursive=True))
-
-        return objs
+            # Check if the group exist, if no exist add the new one
+            if group in new:
+                new[group].append(newData)
+            else:
+                new[group] = [newData]
+        
+        return new
