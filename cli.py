@@ -16,7 +16,7 @@ files = Files(displayInfo=True)
 
 # Table for wc2db and db2wc methods
 info = PrettyTable(["Object", "Type", "Path", "Action", "Status", "Info"])
-infoScript = PrettyTable(["Name", "Type", "Status", "Output"])
+infoScript = PrettyTable(["Name", "GroupID", "Type", "Status", "Output"])
 info.align = infoScript.align = 'l'
 
 
@@ -262,7 +262,7 @@ def wc2db(dry_run, force):
 
     print(info, '\n')
 
-def migrate(dry_run, force, types='all'):
+def migrate(dry_run, force, name=None, types=None):
     if dry_run:
         utils.dryRun()
 
@@ -276,22 +276,30 @@ def migrate(dry_run, force, types='all'):
     if not db.tableExist(table_name='PLADMIN_MIGRATIONS', user=db.db_main_schema):
         # Create it if not exist
         db.scriptsMigrationTable()
-    
 
-    fScripts = files.listAllScriptsFiles()
     
-    # print(fScripts.items())
-    # exit()
+    fScripts = files.listAllScriptsFiles()
     # Execute scripts by groups 
     for groupID, group in sorted(fScripts.items()):
-        infoScript.add_row([groupID,'','',''])
+        
+        # Apply type filter
+        if types:
+            group = list(filter(lambda d: d['type'] in [types.upper()], group))
+
+        # Filter by name
+        if name:
+            group = list(filter(lambda d: d['name'] in [name], group))
+
+        # For each script in group
         for item in group:
-            # If some 
-            if item['group'] in failedGroups and not force:
+            # Is the object group exist on failed group, avoid it. 
+            if groupID in failedGroups and not force:
+                item['status'] = 'HOLD'
+                db.insertOrUpdateMigration(item, db=dbm)
+                infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
                 continue
-
+            
             dbScript = db.getMigration(scriptName=item['name'], db=dba)
-
             if dbScript:
                 if dbScript[3] == 'OK': continue
                 item['status']= dbScript[3]
@@ -307,11 +315,11 @@ def migrate(dry_run, force, types='all'):
                 # Update status on the
                 insert = db.insertOrUpdateMigration(item, db=dbm)
             
-            infoScript.add_row([item['name'], item['type'], item['status'], item['output']])
+            infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
             # print(item)
 
         # Add new line to split group table
-        infoScript.add_row(['','','',''])
+        infoScript.add_row(['', '', '', '', ''])
 
     # print(failedGroups)
     print(" << MIGRATIONS >> \n", infoScript)
@@ -435,10 +443,7 @@ def main():
         make(name)
 
     elif action == "migrate":
-        migrate(dry_run, force, name)
-
-
-
+        migrate(dry_run, force, name, types)
 
 
     # if action == "make" and script:
@@ -467,7 +472,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-{'type': 'AS', 'group': 'T00001', 'order': '04', 'user': 'WDELACRUZ2', 'name': 'AS_T00001_04_WDELACRUZ2_20201204161235.sql', 'path': '/plsql/scripts/pendigns/AS_T00001_04_WDELACRUZ2_20201204161235.sql', 'status': 'NEW', 'output': '-'}, 
-{'type': 'AS', 'group': 'T00001', 'order': '01', 'user': 'WDELACRUZ2', 'name': 'AS_T00001_01_WDELACRUZ2_20201204092326.sql', 'path': '/plsql/scripts/pendigns/T00001/AS_T00001_01_WDELACRUZ2_20201204092326.sql', 'status': 'NEW', 'output': '-'}
