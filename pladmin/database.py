@@ -24,6 +24,7 @@ class Database:
             # Load database config
             load_dotenv(files.db_cnfpath)
 
+            self.disallowed_keywords = os.getenv("DISALLOW_KEYWORDS")
             self.db_admin_user = os.getenv("DB_ADMIN_USER").upper()
             self.db_admin_password = os.getenv("DB_ADMIN_PASSWORD")
             self.db_default_table_space = os.getenv("DB_DEFAULT_TABLE_SPACE").upper()

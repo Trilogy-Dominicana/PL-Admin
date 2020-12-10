@@ -371,42 +371,17 @@ class Files:
         
         return new
 
+
     def checkWordsInFile(self, wordList, path):
         wordScripts = []
         fContent = open(path, 'r')
         content = str(fContent.read())
 
-        # print(content.read())
-        # for line in file:
-        #     line = line.strip()
-        #     lista = line.split()
-        #     print()
-
         for word in wordList:
-            paterm = "(%s|%s)" % (word.upper(), word.lower())
-            d = re.findall(paterm, content)
-            if d:
-            wordScripts.extend(lista)
-                # print(word)
-
-
-            # print(paterm)
-            # if word in lista:
-            #     print(word)
-            #     break
-        # wordScripts.extend(lista)
-        # print(line)
-
-        # for word in wordList:
-            # print(word)
+            lowers = content.count(word.lower())
+            uppers = content.count(word.upper())
+            if lowers + uppers:
+                wordScripts.append(word)
         
-        # print(wordScripts)
-        # word_list = list(set(wordList))
-
-        # while True:
-        #     word = input('Type in word, must be in English and at least 3 letters long: ')
-        #     if word in word_list:
-        #         break
-        #     else:
-        #         print("Try Again")
         fContent.close()
+        return wordScripts

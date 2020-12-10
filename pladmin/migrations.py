@@ -142,7 +142,7 @@ class Migrations(Files, Database):
                     if existsWord > 0:
                         scriptsMove.append(dirFiles)
                         os.rename(scriptRevision, os.path.join(self.__asPath, dirFiles))
-                 
+
                 if scriptsMove:
                     message = ''' the scripts %s was moved to the execution of 
                     ace scripts, because it contained ddl instructions' % scriptsMove '''

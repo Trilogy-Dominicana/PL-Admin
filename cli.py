@@ -264,14 +264,15 @@ def wc2db(dry_run, force):
 
 
 def migrate(dry_run, force, name=None, types=None):
-    path = '/plsql/scripts/pendigns/T00001/AS_T00001_01_WDELACRUZ2_20201204092326.sql'
-    words = ['ANALYZE', 'AUDIT', 'ALTER', 'DATABASE', 'DROP', 'FOR', 'UPDATE', 'GRANT', 'LINK', 'LOCK', 'PUBLIC', 'TRUNCATE', 'RENAME', 'USER']
-    
-    files.checkWordsInFile(wordList=words, path=path)
-    exit()
-
+    # If -d options exist, print dry run message
     if dry_run:
         utils.dryRun()
+    
+    disallowed_keywords=[]
+    words = db.disallowed_keywords
+    if words:
+        disallowed_keywords = words.split(',')
+
 
     failedGroups = []
     dba = db.dbConnect(sysDBA=True)
@@ -284,7 +285,6 @@ def migrate(dry_run, force, name=None, types=None):
         # Create it if not exist
         db.scriptsMigrationTable()
 
-    
     fScripts = files.listAllScriptsFiles()
     # Execute scripts by groups 
     for groupID, group in sorted(fScripts.items()):
@@ -298,16 +298,21 @@ def migrate(dry_run, force, name=None, types=None):
             group = list(filter(lambda d: d['name'] in [name], group))
 
         # For each script in group
-        for item in group:
+        for item in group:  
+            # Before excute the script, we have to checkout if special keywords exist
+            wordInScripts = files.checkWordsInFile(wordList=disallowed_keywords, path=item['path'])
+            if wordInScripts:
+                item['output'] = "Please, remove the following DDL instructions: %s " % ', '.join(wordInScripts)
+                item['status'] = 'BLOCKED'
+                infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
+                continue
+
             # Is the object group exist on failed group, avoid it. 
             if groupID in failedGroups and not force:
                 item['status'] = 'HOLD'
                 db.insertOrUpdateMigration(item, db=dbm)
                 infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
                 continue
-            
-            # Before excute the script, we have to checkout if special keywords exist
-
 
             dbScript = db.getMigration(scriptName=item['name'], db=dba)
             if dbScript:
