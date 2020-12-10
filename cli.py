@@ -262,7 +262,14 @@ def wc2db(dry_run, force):
 
     print(info, '\n')
 
+
 def migrate(dry_run, force, name=None, types=None):
+    path = '/plsql/scripts/pendigns/T00001/AS_T00001_01_WDELACRUZ2_20201204092326.sql'
+    words = ['ANALYZE', 'AUDIT', 'ALTER', 'DATABASE', 'DROP', 'FOR', 'UPDATE', 'GRANT', 'LINK', 'LOCK', 'PUBLIC', 'TRUNCATE', 'RENAME', 'USER']
+    
+    files.checkWordsInFile(wordList=words, path=path)
+    exit()
+
     if dry_run:
         utils.dryRun()
 
@@ -299,6 +306,9 @@ def migrate(dry_run, force, name=None, types=None):
                 infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
                 continue
             
+            # Before excute the script, we have to checkout if special keywords exist
+
+
             dbScript = db.getMigration(scriptName=item['name'], db=dba)
             if dbScript:
                 if dbScript[3] == 'OK': continue

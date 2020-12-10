@@ -41,6 +41,20 @@ class utils:
 
         return data
 
+    # def filterScript(objects, name, type):
+    #     """ Get an spesific object from a list of dicts and return a dict"""
+
+    #     data = next(
+    #         (
+    #             item
+    #             for item in objects
+    #             if item["object_name"] == name and item["object_type"] == type
+    #         ),
+    #         None,
+    #     )
+
+    #     return data
+
 
     def scriptExample():
             return """-------------------------------------------------------------

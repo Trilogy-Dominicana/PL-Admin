@@ -315,7 +315,7 @@ class Files:
     # Scripts objects
     def createEmptyScript(self, name, user, content=''):
         data = re.match("(^AS|DS)_(\w?\d+.)_(\d{2})", name.upper())
-        
+
         if not data:
             return '0001'
 
@@ -333,7 +333,7 @@ class Files:
         if os.path.isfile(path):
             return '0002'
 
-        # Create script if no t exist
+        # Create script if not exist
         os.makedirs(self.scripts_pendings, exist_ok=True)
 
         with open(path, "wt+") as f:
@@ -370,3 +370,43 @@ class Files:
                 new[group] = [newData]
         
         return new
+
+    def checkWordsInFile(self, wordList, path):
+        wordScripts = []
+        fContent = open(path, 'r')
+        content = str(fContent.read())
+
+        # print(content.read())
+        # for line in file:
+        #     line = line.strip()
+        #     lista = line.split()
+        #     print()
+
+        for word in wordList:
+            paterm = "(%s|%s)" % (word.upper(), word.lower())
+            d = re.findall(paterm, content)
+            if d:
+            wordScripts.extend(lista)
+                # print(word)
+
+
+            # print(paterm)
+            # if word in lista:
+            #     print(word)
+            #     break
+        # wordScripts.extend(lista)
+        # print(line)
+
+        # for word in wordList:
+            # print(word)
+        
+        # print(wordScripts)
+        # word_list = list(set(wordList))
+
+        # while True:
+        #     word = input('Type in word, must be in English and at least 3 letters long: ')
+        #     if word in word_list:
+        #         break
+        #     else:
+        #         print("Try Again")
+        fContent.close()
