@@ -933,7 +933,7 @@ class Database:
 
         return data
 
-    def getMigration(self, scriptName, status='', db=None):
+    def getMigration(self, scriptName, where='', db=None):
 
         localClose = False
         if not db:
@@ -942,14 +942,15 @@ class Database:
         cursor = db.cursor()
 
 
-        if len(status):
-            status = "AND status = '%s'" % status
+        if where:
+            where = "AND %s" % where
 
         sql = (
             "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE name = '%s' %s"
-            % (self.db_main_schema, scriptName, status)
+            % (self.db_main_schema, scriptName, where)
         )
 
+        print(sql)
         data = cursor.execute(sql)
         obj = data.fetchone()
 
@@ -1052,7 +1053,7 @@ class Database:
             db.close()
 
     def insertOrUpdateMigration(self, data, db):
-        if self.getMigration(scriptName=data['name'], status='FAIL'):
+        if self.getMigration(scriptName=data['name'], where=" status = 'FAIL' or status = 'HOLD' "):
             return self.updateMigration(data, db)
         else:
             return self.insertMigration(data, db)

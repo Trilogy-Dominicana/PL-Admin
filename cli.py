@@ -264,15 +264,14 @@ def wc2db(dry_run, force):
 
 
 def migrate(dry_run, force, name=None, types=None):
-    # If -d options exist, print dry run message
-    if dry_run:
-        utils.dryRun()
     
     disallowed_keywords=[]
     words = db.disallowed_keywords
     if words:
         disallowed_keywords = words.split(',')
 
+    if dry_run:
+        utils.dryRun()
 
     failedGroups = []
     dba = db.dbConnect(sysDBA=True)
@@ -304,6 +303,8 @@ def migrate(dry_run, force, name=None, types=None):
             if wordInScripts:
                 item['output'] = "Please, remove the following DDL instructions: %s " % ', '.join(wordInScripts)
                 item['status'] = 'BLOCKED'
+                
+                failedGroups.append(groupID)
                 infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
                 continue
 
@@ -323,7 +324,7 @@ def migrate(dry_run, force, name=None, types=None):
             if not dry_run:
                 # Run the script. This return status (OK or FAIL) and output.
                 item['status'], item['output'] = db.RunSqlScript(item['path'], db=dba)
-            
+
                 if item['status'] == 'FAIL':
                     failedGroups.append(groupID)
             

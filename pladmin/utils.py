@@ -72,7 +72,7 @@ class utils:
 -- UPDATE SCHEMA.TABLE_NAME WHERE TALCOSA=0;
 
 -------------------------------------------------------------
--- HACER COMMIT EN LOS DML DML(INSERT - UPDATE - DELETE)
+-- HACER COMMIT EN LOS DML
 -------------------------------------------------------------
 -- COMMIT;
 
