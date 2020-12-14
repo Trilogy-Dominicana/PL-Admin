@@ -14,7 +14,7 @@ class Migrations(Files, Database):
     __branch          = None
     __created         = None 
     __toDay           = None
-   
+
 
     def __init__(self):
         super().__init__()
@@ -58,15 +58,13 @@ class Migrations(Files, Database):
             raise
 
     def migrate(self, typeFile=""):
-
         path = '/plsql/scripts/%s' % typeFile.upper()
 
         for filename in Path(path).rglob('*.sql'):
             if re.search(typeFile, ntpath.basename(filename).lower()):
                 yield filename
                 # self.executeMigration(FullName=filename)
-            
-            
+
     def executeMigration(self, FullName):
         """ this function execute all instruccion sql in indicate file
             and create records with file execute """ 
@@ -140,11 +138,11 @@ class Migrations(Files, Database):
 
                 for word in reservedWords:
                     existsWord = statement.count(word)
-                    
+
                     if existsWord > 0:
                         scriptsMove.append(dirFiles)
                         os.rename(scriptRevision, os.path.join(self.__asPath, dirFiles))
-                 
+
                 if scriptsMove:
                     message = ''' the scripts %s was moved to the execution of 
                     ace scripts, because it contained ddl instructions' % scriptsMove '''

@@ -4,6 +4,7 @@ from datetime import datetime
 
 class Files:
     pl_path = os.path.join("/plsql")
+    script_path = os.path.join(pl_path, "scripts")
     displayInfo = False
 
     def __init__(self, displayInfo=False):
@@ -11,8 +12,8 @@ class Files:
         # Initialize git repo
         # self.repo = git.Repo(self.pl_path)
         # self.head_commit = str(self.repo.head.commit)[:7]
+        
         # Setup config path
-
         self.db_cnfpath = os.path.join(self.pl_path, '.env')
         
         # Create dir and initialize dir types
@@ -195,9 +196,8 @@ class Files:
 
         return name, extention, objectType
 
-
     def createDirs(self):
-
+        """ Create default directories for """
         dt = datetime.now().strftime("%Y%m%d%H%M%S")
 
         # Create dir to save ftp files if not exits
@@ -219,18 +219,27 @@ class Files:
         self.functions_dir = os.path.join(self.pl_path, "functions")
         os.makedirs(self.functions_dir, exist_ok=True)
 
-        # Create directory structure to save the files e.g (./YYYY/MM/DD)
-        self.script_dir_dll = os.path.join(
-            *[os.getcwd(), self.pl_path, 'scripts', 'DDL', dt[0:4], dt[4:6], dt[6:8]],
-        )
-
-        self.script_dir_dml = os.path.join(
-            *[os.getcwd(), self.pl_path, 'scripts', 'DML', dt[0:4], dt[4:6], dt[6:8]],
-        )
-
-        os.makedirs(self.script_dir_dll, exist_ok=True)
+        # Pendings scripts 
+        self.scripts_pendings = os.path.join(self.script_path, "pendigns")
+        os.makedirs(self.scripts_pendings, exist_ok=True)
         
-        os.makedirs(self.script_dir_dml, exist_ok=True)
+        # Executed scripts 
+        self.scripts_executed = os.path.join(self.script_path, "executed")
+        os.makedirs( self.scripts_executed , exist_ok=True)
+        
+        
+        # Create directory structure to save the files e.g (./YYYY/MM/DD)
+        # self.script_dir_dll = os.path.join(
+        #     *[os.getcwd(), self.pl_path, 'scripts', 'DDL', dt[0:4], dt[4:6], dt[6:8]],
+        # )
+
+        # self.script_dir_dml = os.path.join(
+        #     *[os.getcwd(), self.pl_path, 'scripts', 'DML', dt[0:4], dt[4:6], dt[6:8]],
+        # )
+
+        # os.makedirs(self.script_dir_dll, exist_ok=True)
+        
+        # os.makedirs(self.script_dir_dml, exist_ok=True)
 
     def createObject(self, objectName, objectType, contend):
         """ Creates object on it's correcponding dir """
@@ -295,11 +304,83 @@ class Files:
                 print("\n")
 
         return False
-    
 
     def fileMD5(self, filePath):
-        """ Get file content, hash it and return a md5 hash"""
+        """ Get file content, hash it and return it in a md5 hash"""
         with open(filePath) as opf:
             content = opf.read().encode()
         
         return hashlib.md5(content).hexdigest()
+
+    # Scripts objects
+    def createEmptyScript(self, name, user, content=''):
+        data = re.match("(^AS|DS)_(\w?\d+.)_(\d{2})", name.upper())
+
+        if not data:
+            return '0001'
+
+        parts = data.groups()
+        type = parts[0]
+        group = parts[1]
+        order = parts[2]
+        date = datetime.now().strftime("%Y%m%d%H%M%S")
+        
+        fName = '%s_%s_%s_%s_%s.sql' % (type, group, order, user, date)
+        path = os.path.join(self.scripts_pendings, fName)
+
+        
+        # Validate if the file exist
+        if os.path.isfile(path):
+            return '0002'
+
+        # Create script if not exist
+        os.makedirs(self.scripts_pendings, exist_ok=True)
+
+        with open(path, "wt+") as f:
+            f.write(content)
+        
+        return fName
+
+    def listAllScriptsFiles(self):
+        new = {}
+        path = self.scripts_pendings + "/**/*.sql"
+        files = glob.glob(path, recursive=True)
+        
+        # List files
+        for f in files:
+            # <TODO: validate script structre and return files with invalid names>
+            name = f.split("/")[-1]
+            data = name.split('_')
+            group = data[1]
+            newData = {
+                'type': data[0],
+                'group':data[1],
+                'order': data[2],
+                'user': data[3],
+                'name': name,
+                'path': f,
+                'status': 'NEW',
+                'output': '-'
+            }
+
+            # Check if the group exist, if no exist add the new one
+            if group in new:
+                new[group].append(newData)
+            else:
+                new[group] = [newData]
+        
+        return new
+
+    def checkWordsInFile(self, wordList, path):
+        wordScripts = []
+        fContent = open(path, 'r')
+        content = str(fContent.read())
+
+        for word in wordList:
+            lowers = content.count(word.lower())
+            uppers = content.count(word.upper())
+            if lowers + uppers:
+                wordScripts.append(word)
+        
+        fContent.close()
+        return wordScripts

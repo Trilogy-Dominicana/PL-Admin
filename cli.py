@@ -10,16 +10,15 @@ from pladmin.files import Files
 from pladmin.utils import utils
 from pladmin.migrations import Migrations
 
-# parser.add_argument('integers', metavar='N', type=int, nargs='+', default=max, help='an integer for the accumulator')
-# parser.add_argument('--sum', dest='accumulate', action='store_const', const=sum, default=max, help='sum the integers (default: find the max)')
-
 
 db = Database(displayInfo=True)
 files = Files(displayInfo=True)
 
 # Table for wc2db and db2wc methods
 info = PrettyTable(["Object", "Type", "Path", "Action", "Status", "Info"])
-info.align = 'l'
+infoScript = PrettyTable(["Name", "GroupID", "Type", "Status", "Output"])
+info.align = infoScript.align = 'l'
+
 
 def watch(path_to_watch):
     """ Watch the provided path for changes in any of it's subdirectories """
@@ -60,7 +59,7 @@ def db2wc(dry_run, force):
 
     # Create metadata table if not exist
     init = False
-    if not db.metadataTableExist():
+    if not db.tableExist(table_name='PLADMIN_METADATA'):
         print('Initializing PL-Admin... This acction can take a couple minutes!')
         if dry_run:
             exit()
@@ -158,7 +157,7 @@ def wc2db(dry_run, force):
     if dry_run:
         utils.dryRun()
 
-    if not db.metadataTableExist():
+    if not db.tableExist(table_name='PLADMIN_METADATA'):
         print("You have not initialized PL-Admin in the current schema '%s'" % db.user)
         print('Excute db2wc command to initialize PL-Admin and get all objects to you file system')
         exit()
@@ -201,7 +200,7 @@ def wc2db(dry_run, force):
         if obj["md5"] == mObject["md5"]:
             continue
             
-        # Before to try update de object, we need to validate if the object exist on the database
+        # Before update the object, we need to validate if the object exist on the database
         exitOnDb = utils.getObjectDict(dbObjects, name, objectType)
         if exitOnDb:
             # Before push the object to the database, we have to verify that the object has not changed in the db
@@ -264,38 +263,140 @@ def wc2db(dry_run, force):
     print(info, '\n')
 
 
+def migrate(dry_run, force, name=None, types=None):
+    
+    disallowed_keywords=[]
+    words = db.disallowed_keywords
+    if words:
+        disallowed_keywords = words.split(',')
+
+    if dry_run:
+        utils.dryRun()
+
+    failedGroups = []
+    dba = db.dbConnect(sysDBA=True)
+
+    # Connection to insert migrations in migration table
+    dbm = db.dbConnect(sysDBA=True) 
+    
+    # Check if migration table exist
+    if not db.tableExist(table_name='PLADMIN_MIGRATIONS', user=db.db_main_schema):
+        # Create it if not exist
+        db.scriptsMigrationTable()
+
+    fScripts = files.listAllScriptsFiles()
+    # Execute scripts by groups 
+    for groupID, group in sorted(fScripts.items()):
+        
+        # Apply type filter
+        if types:
+            group = list(filter(lambda d: d['type'] in [types.upper()], group))
+
+        # Filter by name
+        if name:
+            group = list(filter(lambda d: d['name'] in [name], group))
+
+        # For each script in group
+        for item in group:  
+            # Before excute the script, we have to checkout if special keywords exist
+            wordInScripts = files.checkWordsInFile(wordList=disallowed_keywords, path=item['path'])
+            if wordInScripts:
+                item['output'] = "Please, remove the following DDL instructions: %s " % ', '.join(wordInScripts)
+                item['status'] = 'BLOCKED'
+                
+                failedGroups.append(groupID)
+                infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
+                continue
+
+            # Is the object group exist on failed group, avoid it. 
+            if groupID in failedGroups and not force:
+                item['status'] = 'HOLD'
+                db.insertOrUpdateMigration(item, db=dbm)
+                infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
+                continue
+
+            dbScript = db.getMigration(scriptName=item['name'], db=dba)
+            if dbScript:
+                if dbScript[3] == 'OK': continue
+                item['status']= dbScript[3]
+                item['output']= str(dbScript[4])
+
+            if not dry_run:
+                # Run the script. This return status (OK or FAIL) and output.
+                item['status'], item['output'] = db.RunSqlScript(item['path'], db=dba)
+
+                if item['status'] == 'FAIL':
+                    failedGroups.append(groupID)
+            
+                # Update status on the
+                insert = db.insertOrUpdateMigration(item, db=dbm)
+            
+            infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
+            # print(item)
+
+        # Add new line to split group table
+        infoScript.add_row(['', '', '', '', ''])
+
+    # print(failedGroups)
+    print(" << MIGRATIONS >> \n", infoScript)
+
+
+    # Close dbm connection
+    dbm.commit()
+    dbm.close()
+    dba.close()
+
+def make(name):
+    if not name:
+        print(colored("Please, add the --name parameter to with the type of script, group and the order. e.g: pladmin make --name AS_T00495_01", 'red'))
+        exit(0)
+
+    content = utils.scriptExample()
+    filaName = files.createEmptyScript(name=name, user=db.user, content=content)
+
+    if filaName == '0001':
+        print(colored("Please, make sure that you are using the correct way to script name. e.g: AS_T00495_01 or DS_RQX9945_01", 'red'))
+        exit(0)
+    
+    if filaName == '0002':
+        print(colored("The script already exist", 'red'))
+        exit(0)
+
+    print(colored("Script %s has been created", "green") % filaName)
+
 def main():
     parser = argparse.ArgumentParser(
         prog="PL-Admin",
-        usage="%(prog)s [action] options",
-        description="Process some integers.",
+        usage="%(prog)s [action] arguments",
+        description="You need to specify the action name (make, wc2db, db2wc, etc.)",
     )
 
-    parser.add_argument("action", action="store", help="Push the method name")
+    parser.add_argument(
+        "action", 
+        action="store",
+        choices=("newSchema", "compile", "errors", "db2wc", "wc2db", "invalids", "make", "migrate"),
+        help="You need to specify the action name (make, wc2db, db2wc, etc.)"
+        )
+
+    parser.add_argument("--name", "-n", action="store", help="Indate the name of your script ORDER_ISSUE_TYPE")
+    parser.add_argument("--type", "-t", action="store", choices=("as", "ds"), help="AS: DDL script types and DS: DML scripts types")
     parser.add_argument("--dry-run", "-d", action="store_true")
     parser.add_argument("--force", "-f", action="store_true")
-    parser.add_argument("--quantity", "-q", default=1, type=int)
-    parser.add_argument("--basic_pl", "-pl", default="n", type=str)
-    parser.add_argument("--script", "-s", type=str, choices=("ddl", "dml"))
-    parser.add_argument(
-        "--schedule", "-p", type=str, default=datetime.now().strftime("%Y%m%d")
-    )
+
 
     args = parser.parse_args()
-    action = args.action
+    action = args.action 
     dry_run = args.dry_run
     force = args.force
-    script = args.script
-    quantity = args.quantity
-    basicPL = args.basic_pl
-    schedule = args.schedule
+    types = args.type
+    name = args.name
 
     # Create schema
     if action == "init":
         db = Database(displayInfo=True)
         db.initMetadata()
 
-    if action == "newSchema":
+    elif action == "newSchema":
         db = Database(displayInfo=True)
 
         # The create Scheme method returns the packages that are still invalid
@@ -308,7 +409,7 @@ def main():
         else:
             print("Schema created successfully!")
 
-    if action == "compile":
+    elif action == "compile":
         # Try to compile invalid objects
         db = Database(displayInfo=True)
         result = db.compileObjects()
@@ -318,7 +419,7 @@ def main():
         for inv in result:
             print(inv["object_type"], inv["object_name"])
 
-    if action == "errors":
+    elif action == "errors":
         db = Database(displayInfo=True)
         result = db.compileObjects()
 
@@ -337,13 +438,13 @@ def main():
 
         print(t)
 
-    if action == "db2wc":
+    elif action == "db2wc":
         db2wc(dry_run, force)
 
-    if action == "wc2db":
+    elif action == "wc2db":
         wc2db(dry_run, force)
 
-    if action == "invalids":
+    elif action == "invalids":
         db = Database(displayInfo=True)
         invalids = db.getObjects(status="INVALID")
         objLen = len(invalids)
@@ -351,29 +452,38 @@ def main():
         for obj in invalids:
             print(obj["object_type"], "-", obj["object_name"])
 
-    if action == "watch":
+    elif action == "watch":
         watch(files.pl_path)
 
-    if action == "make" and script:
-        scriptMigration = Migrations()
+    elif action == "make":
+        make(name)
 
-        migration = scriptMigration.createScript(
-            fileType=script, quantity=quantity, basicPl=basicPL
-        )
+    elif action == "migrate":
+        migrate(dry_run, force, name, types)
 
-        for i in migration:
-            print(colored("script %s created", "green") % i)
 
-    if action == "migrate" and script:
-        scriptMigration = Migrations()
+    # if action == "make" and script:
+    #     print(colored("script created", "green"))
+    #     scriptMigration = Migrations()
 
-        # scriptRevision = scriptMigration.checkPlaceScript()
-        # print(scriptRevision)
+    #     migration = scriptMigration.createScript(
+    #         fileType=script, quantity=quantity, basicPl=basicPL
+    #     )
 
-        allmigrations = scriptMigration.migrate(typeFile=script)
+    #     for i in migration:
+    #         print(colored("script %s created", "green") % i)
+ 
+    # if action == "migrate" and script:
+
+    #     scriptMigration = Migrations()
+
+    #     # scriptRevision = scriptMigration.checkPlaceScript()
+    #     # print(scriptRevision)
+
+    #     allmigrations = scriptMigration.migrate(typeFile=script)
      
-        for script in allmigrations:
-            print(scriptMigration.executeMigration(FullName=script))
+    #     for script in allmigrations:
+    #         print(scriptMigration.executeMigration(FullName=script))
 
 
 if __name__ == "__main__":

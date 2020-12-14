@@ -24,6 +24,7 @@ class Database:
             # Load database config
             load_dotenv(files.db_cnfpath)
 
+            self.disallowed_keywords = os.getenv("DISALLOW_KEYWORDS")
             self.db_admin_user = os.getenv("DB_ADMIN_USER").upper()
             self.db_admin_password = os.getenv("DB_ADMIN_PASSWORD")
             self.db_default_table_space = os.getenv("DB_DEFAULT_TABLE_SPACE").upper()
@@ -90,14 +91,15 @@ class Database:
 
         return invalids
 
-
-    def metadataTableExist(self):
-        """ Validate if metadata table exits, if not, create it """
+    def tableExist(self, table_name, user=False):
+        """ Validate if a table exist"""
+        if not user:
+            user = self.user
+            
         sql = (
-            "SELECT * FROM USER_TABLES WHERE table_name = 'PLADMIN_METADATA' AND TABLESPACE_NAME = '%s'"
-            % self.db_default_table_space
+            "SELECT * FROM DBA_TABLES WHERE TABLESPACE_NAME = '%s' AND TABLE_NAME = '%s' AND owner = '%s'"
+            % (self.db_default_table_space, table_name, user)
         )
-
         metatable = self.getData(query=sql, fetchOne=True)
 
         if metatable:
@@ -107,7 +109,7 @@ class Database:
 
     def createMetaTable(self, db=None):
         """
-        Create metadata to manage meta information
+        Create metadata table to manage meta information
         """
         if not db:
             db = self.dbConnect()
@@ -880,100 +882,6 @@ class Database:
 
         return content
 
-    def createMetaTableScripts(self, db=None):
-        """
-        Create metadata to manage meta information
-        """
-        localClose = False
-
-        if not db:
-            db = self.dbConnect()
-            localClose = True
-
-        cursor = db.cursor()
-
-        # Drop
-        data = cursor.execute("DROP TABLE %s.PLADMIN_MIGRATIONS" % self.user)
-
-        sql = (
-            """ CREATE TABLE %s.PLADMIN_MIGRATIONS (
-                ID NUMBER GENERATED ALWAYS AS IDENTITY ( START WITH 1 INCREMENT BY 1 ) PRIMARY KEY,
-                SCRIPT_NAME VARCHAR2(50) NOT NULL,
-                STATUS VARCHAR(5), 
-                CREATED_AT timestamp DEFAULT SYSDATE,
-                FULL_PATH VARCHAR2(250),
-                TYPE_SCRIPT VARCHAR2(6),
-                OUTPUT VARCHAR2(4000),
-                CONSTRAINT script_name_unique unique (script_name)
-            )"""
-            % self.user
-        )
-
-        data = cursor.execute(sql)
-
-        if localClose:
-            db.close()
-
-        return data
-
-    def createMigration(
-        self, scriptName, fullPath, status, typeScript, output, db=None
-    ):
-
-        localClose = False
-
-        if not db:
-            db = self.dbConnect()
-            localClose = True
-
-        cursor = db.cursor()
-
-        migration = self.getScriptByName(scriptName=scriptName)
-
-        if not migration:
-
-            sql = (
-                (
-                    """ 
-                      INSERT INTO omega.PLADMIN_MIGRATIONS (SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
-                      VALUES('%s', '%s', '%s', '%s', '%s')
-                     
-                      """
-                )
-                % (scriptName, status, fullPath, typeScript, output)
-            )
-            data = cursor.execute(sql)
-
-        if localClose:
-            db.commit()
-            db.close()
-
-    def getScriptByName(self, scriptName):
-        sql = "SELECT * FROM PLADMIN_MIGRATIONS WHERE script_name='%s' " % (scriptName)
-
-        data = self.getData(query=sql, fetchOne=True)
-
-        return data
-
-    def getScriptDB(self, status="OK", date=None):
-
-        if not date:
-            date = datetime.now().strftime("%Y%m%d")
-
-        sql = (
-            (
-                """ SELECT * FROM %s.PLADMIN_MIGRATIONS 
-                   WHERE status = '%s'
-                   AND created_at >= TO_DATE ('%s', 'YYYYMMDD') 
-               """
-            )
-            % (self.user, status, date)
-        )
-
-        data = self.getData(query=sql)
-
-        return data
-
     def dropObject(self, object_type, object_name):
         """ This method has to be executed to remove object from database and in the metadata table"""
 
@@ -984,3 +892,255 @@ class Database:
         self.metadataDelete(object_type, object_name)
 
         return "Removed"
+
+
+#############################################################
+#                      SCRIPTS METHODS                      #
+#############################################################
+    def scriptsMigrationTable(self, db=None):
+        """
+        Create migration table for scripts excution
+        Migration table has to be created on main schema
+        """
+        localClose = False
+
+        if not db:
+            db = self.dbConnect(sysDBA=True)
+            localClose = True
+
+        cursor = db.cursor()
+
+        # Drop (CHECK IF NECESSARY)
+        # cursor.execute("DROP TABLE %s.PLADMIN_MIGRATIONS" % self.db_main_schema)
+
+        sql = (
+            """ CREATE TABLE %s.PLADMIN_MIGRATIONS (
+                ID NUMBER GENERATED ALWAYS AS IDENTITY ( START WITH 1 INCREMENT BY 1 ) PRIMARY KEY,
+                NAME VARCHAR2(100) NOT NULL,
+                TYPE VARCHAR2(2),
+                STATUS VARCHAR(4), 
+                OUTPUT CLOB,
+                EXECUTED_AT timestamp DEFAULT SYSDATE,
+                CONSTRAINT name_unique unique (name)
+            )"""
+            % self.db_main_schema
+        )
+        
+        data = cursor.execute(sql)
+
+        if localClose:
+            db.close()
+
+        return data
+
+    def getMigration(self, scriptName, where='', db=None):
+
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
+
+
+        if where:
+            where = "AND %s" % where
+
+        sql = (
+            "SELECT * FROM %s.PLADMIN_MIGRATIONS WHERE name = '%s' %s"
+            % (self.db_main_schema, scriptName, where)
+        )
+
+        print(sql)
+        data = cursor.execute(sql)
+        obj = data.fetchone()
+
+        cursor.close()
+        if localClose:
+            db.close()
+
+        return obj
+
+    def insertMigration(self, data, db=None):
+        """ Insert script on to migrations table
+        Params: 
+            data: list that contains and dictionary with the following keys: 
+            object_name, 
+            object_type, 
+            object_path, 
+            last_commit, 
+            last_ddl_time
+        """
+
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
+
+        sql = (
+            "INSERT INTO %s.PLADMIN_MIGRATIONS (name, type, status, output) VALUES('%s', '%s', '%s','%s')"
+            % (
+                self.db_main_schema,
+                data["name"],
+                data["type"],
+                data["status"],
+                data["output"]
+            )
+        )
+        
+        cursor.execute(sql)
+        cursor.close()
+
+        if localClose:
+            db.commit()
+            db.close()
+
+    def RunSqlScript(self, script_path, db):
+        statementParts = []
+        cursor = db.cursor()
+        cursor.callproc("dbms_output.enable")
+        
+        output = []
+        status = 'OK'
+    
+        for line in open(script_path, 'r'):
+            if line.strip() == "/":
+                statement = "".join(statementParts).strip()
+                
+                if statement:
+                    try:
+                        cursor.execute(statement)
+                        output.append(self.dbms_output(cursor))
+                    except Exception as e:
+                        output.append(str(e))
+                        status = 'FAIL'
+                        break
+                        pass
+                    
+                statementParts = []
+            else:
+                statementParts.append(line)
+        
+        db_output = "\n".join(output)
+        return status, db_output
+
+    def updateMigration(self, data, db=None):
+        localClose = False
+        if not db:
+            db = self.dbConnect()
+            localClose = True
+        cursor = db.cursor()
+
+        status = ""
+        if "status" in data:
+            status = "STATUS = '%s', " % data["status"]
+        
+        output = ""
+        if "output" in data:
+            output = "OUTPUT = '%s', " % data["output"]
+
+        sql = """UPDATE %s.PLADMIN_MIGRATIONS SET %s %s EXECUTED_AT=SYSDATE WHERE name = '%s' """ % (
+            self.db_main_schema,
+            status,
+            output,
+            data["name"],
+        )
+
+        cursor.execute(sql)
+
+        if localClose:
+            db.commit()
+            db.close()
+
+    def insertOrUpdateMigration(self, data, db):
+        if self.getMigration(scriptName=data['name'], where=" status = 'FAIL' or status = 'HOLD' "):
+            return self.updateMigration(data, db)
+        else:
+            return self.insertMigration(data, db)
+         
+
+
+    def dbms_output(self, cursor):
+        """ Get Oracle OUTPUT, > BEFORE USER THIS METHOD ENSURE TURN ON cursor.callproc("dbms_output.enable") <"""
+        output = []
+
+        # Perform loop to fetch the text that was added by PL/SQL
+        textVar = cursor.var(str)
+        statusVar = cursor.var(int)
+            
+        while True:
+            # get output in oracle script
+            cursor.callproc("dbms_output.get_line", (textVar, statusVar))
+            
+            if statusVar.getvalue() != 0:
+                break
+            
+            if textVar.getvalue():
+                output.append(textVar.getvalue())
+        
+        dbmsOutPut = ' '.join(output)
+        
+        return dbmsOutPut
+
+
+    # def createMigration(
+    #     self, scriptName, fullPath, status, typeScript, output, db=None
+    # ):
+
+    #     localClose = False
+
+    #     if not db:
+    #         db = self.dbConnect()
+    #         localClose = True
+
+    #     cursor = db.cursor()
+
+    #     migration = self.getScriptByName(scriptName=scriptName)
+
+    #     if not migration:
+
+    #         sql = (
+    #             (
+    #                 """ 
+    #                   INSERT INTO omega.PLADMIN_MIGRATIONS (SCRIPT_NAME, STATUS, FULL_PATH, TYPE_SCRIPT, OUTPUT) 
+    #                   VALUES('%s', '%s', '%s', '%s', '%s')
+                     
+    #                   """
+    #             )
+    #             % (scriptName, status, fullPath, typeScript, output)
+    #         )
+    #         data = cursor.execute(sql)
+
+    #     if localClose:
+    #         db.commit()
+    #         db.close()
+
+    # def getScriptByName(self, scriptName):
+    #     sql = "SELECT * FROM PLADMIN_MIGRATIONS WHERE script_name='%s' " % (scriptName)
+
+    #     data = self.getData(query=sql, fetchOne=True)
+
+    #     return data
+
+    # def getScriptDB(self, status="OK", date=None):
+
+        # if not date:
+        #     date = datetime.now().strftime("%Y%m%d")
+
+        # sql = (
+        #     (
+        #         """ SELECT * FROM %s.PLADMIN_MIGRATIONS 
+        #            WHERE status = '%s'
+        #            AND created_at >= TO_DATE ('%s', 'YYYYMMDD') 
+        #        """
+        #     )
+        #     % (self.user, status, date)
+        # )
+
+        # data = self.getData(query=sql)
+
+        # return data
+
+
+
+
