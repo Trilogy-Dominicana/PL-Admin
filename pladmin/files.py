@@ -371,7 +371,6 @@ class Files:
         
         return new
 
-
     def checkWordsInFile(self, wordList, path):
         wordScripts = []
         fContent = open(path, 'r')
