@@ -46,3 +46,26 @@ pladmin compile
 # uso
 pladmin watch
 ```
+
+`make` --name: Genera un script en blanco para ser ejecutado
+
+```sh
+# --name params TIPO_GRUPO_ORDEN <AS_T3004_01> (El tipo puede ser AS o DS)
+pladmin make --name=AS_T0001_01
+```
+
+`migrate`: Ejecuta las migracioes (scripts) pendientes 
+> - --dry-run: Muestra que será ejecutado pero no ejecuta nada
+> - --force: Si una migración falla no se detiene, continua ejecutando los demas scripts
+> - --type [as|ds]: Ejecuta el tipo indicado AS (DDL) or DS (DML)
+> Recuerda que puedes utilizar las opciones en conjunto ej: pladmin migrate -d -f -t=as
+```sh
+# Excecute AS (DDL) or DS (DML) scrits
+pladmin migrate --type=as
+
+# List pending scripts
+pladmin migrate --dry-run
+
+# Force to execute all scripts 
+pladmin migrate --force 
+```
