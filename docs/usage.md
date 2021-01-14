@@ -51,7 +51,7 @@ pladmin errors
 pladmin watch
 ```
 
-`make` --name: Generate a migration (script()
+`make` --name: Generate a migration (script)
 
 ```sh
 # --name params TYPE_GROUP_ORDER <AS_T3004_01>
