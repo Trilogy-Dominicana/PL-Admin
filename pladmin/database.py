@@ -950,7 +950,6 @@ class Database:
             % (self.db_main_schema, scriptName, where)
         )
 
-        print(sql)
         data = cursor.execute(sql)
         obj = data.fetchone()
 
