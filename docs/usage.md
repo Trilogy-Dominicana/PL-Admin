@@ -51,7 +51,7 @@ pladmin errors
 pladmin watch
 ```
 
-`make` --name: Generate an script file to be excuted
+`make` --name: Generate a migration (script)
 
 ```sh
 # --name params TYPE_GROUP_ORDER <AS_T3004_01>
@@ -60,7 +60,7 @@ pladmin make --name=AS_T0001_01
 
 `migrate`: Execute pendding migrations 
 > - --dry-run: Show what would be executed, but do not execute anything
-> - --force: If and script execution fail do not stop, continue executing the others scripts
+> - --force: If a script execution fail do not stop, continue executing the others scripts
 > - --type [as|ds]: Execute only as (DDL) or ds (DML)
 > Remember that you can user options together, e.g: pladmin migrate -d -f -t=as
 ```sh

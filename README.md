@@ -11,7 +11,7 @@ $ docker -v
   Docker version 19.03.5 # Or greater
 ```
 
-## docker-compose example
+## docker-compose
 ```yml
 version: "3.7"
 services:
@@ -40,7 +40,7 @@ git clone <repo_url>
 docker build --no-cache -t viva/pl-admin .
 
 # Create the container
-# Do not forget replace <path_to_plsql_code> for your plsql path dir
+# Do not forget replace <path_to_plsql_code> for your plsql path
 docker run -ti --name=pladmin-omega -d -v <path/to/plsql_code>:/plsql viva/pl-admin
 
 # In case that you have other schema just create another container with other name
