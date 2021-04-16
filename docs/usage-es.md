@@ -1,7 +1,7 @@
 ## PL-Admin - Uso
 [Change to english](usage.md)
 
-### Synopsis
+### Sy
 pladmin [`comando`] [`opciones`]
 - wc2db [--dry-run, --force]
 - db2wc [--dry-run, --force]
