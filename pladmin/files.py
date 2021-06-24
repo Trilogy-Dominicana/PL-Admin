@@ -348,10 +348,9 @@ class Files:
         
         # List files
         for f in files:
-            # <TODO: validate script structre and return files with invalid names>
             name  = f.split("/")[-1]
             data  = name.split('_')
-            group = 'unknow'
+            group = 'UNKNOW'
             newData = {
                 'name'  : name,
                 'path'  : f,
@@ -360,12 +359,12 @@ class Files:
             }
 
             if len(data) <= 3:
-                newData['type']  = 'unknow'
+                newData['type']  = 'UNKNOW'
                 newData['group'] = group
                 newData['order'] = 0
-                newData['user']  = 'unknow'
-                newData['status']  = 'Error'
-                newData['output']  = '[Error] - Script name not suported. Fix the script name e.g: AS_4510542_USERNAME_0000000002.sql'
+                newData['user']  = 'UNKNOW'
+                newData['status']  = 'NOT EXECUTED'
+                newData['output']  = 'Script name not suported, example: AS_4510542_USERNAME_0000000002.sql'
             else:
                 group = data[1]
                 newData['type']  = data[0]

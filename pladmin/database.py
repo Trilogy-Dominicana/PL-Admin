@@ -1021,7 +1021,8 @@ class Database:
                 statementParts.append(line)
         
         db_output = "\n".join(output)
-        return status, db_output
+        output = "\n".join(re.findall("(?s).{,85}", db_output))[:-1]
+        return status, output
 
     def updateMigration(self, data, db=None):
         localClose = False
