@@ -349,19 +349,29 @@ class Files:
         # List files
         for f in files:
             # <TODO: validate script structre and return files with invalid names>
-            name = f.split("/")[-1]
-            data = name.split('_')
-            group = data[1]
+            name  = f.split("/")[-1]
+            data  = name.split('_')
+            group = 'unknow'
             newData = {
-                'type': data[0],
-                'group':data[1],
-                'order': data[2],
-                'user': data[3],
-                'name': name,
-                'path': f,
+                'name'  : name,
+                'path'  : f,
                 'status': 'NEW',
                 'output': '-'
             }
+
+            if len(data) <= 3:
+                newData['type']  = 'unknow'
+                newData['group'] = group
+                newData['order'] = 0
+                newData['user']  = 'unknow'
+                newData['status']  = 'Error'
+                newData['output']  = '[Error] - Script name not suported. Fix the script name e.g: AS_4510542_USERNAME_0000000002.sql'
+            else:
+                group = data[1]
+                newData['type']  = data[0]
+                newData['group'] = group
+                newData['order'] = data[2]
+                newData['user']  = data[3]
 
             # Check if the group exist, if no exist add the new one
             if group in new:
