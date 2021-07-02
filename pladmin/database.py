@@ -1037,7 +1037,7 @@ class Database:
         
         output = ""
         if "output" in data:
-            output = "OUTPUT = '%s', " % data["output"]
+            output = "OUTPUT = '%s', " % data["output"].replace("'", " ")
 
         sql = """UPDATE %s.PLADMIN_MIGRATIONS SET %s %s EXECUTED_AT=SYSDATE WHERE name = '%s' """ % (
             self.db_main_schema,
