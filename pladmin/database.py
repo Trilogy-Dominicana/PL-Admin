@@ -983,7 +983,7 @@ class Database:
                 data["name"],
                 data["type"],
                 data["status"],
-                data["output"]
+                data["output"].replace("'", " ")
             )
         )
         
