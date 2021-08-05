@@ -321,7 +321,6 @@ def migrate(dry_run, force, name=None, types=None):
                 db.insertOrUpdateMigration(item, db=dbm)
                 infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
                 continue
-            
 
 
             dbScript = db.getMigration(scriptName=item['name'], db=dba)
