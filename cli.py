@@ -297,7 +297,7 @@ def migrate(dry_run, force, name=None, types=None):
             group = list(filter(lambda d: d['name'] in [name], group))
 
         # For each script in group
-        for item in group:            
+        for item in group:
             
             if item['type'] == 'UNKNOW':
                 item['status'] == 'NOT EXCUTED'
@@ -305,15 +305,14 @@ def migrate(dry_run, force, name=None, types=None):
                 continue
             
             # Before excute the script, we have to checkout if special keywords exist
-            if not force:
-                wordInScripts = files.checkWordsInFile(wordList=disallowed_keywords, path=item['path'])
-                if wordInScripts:
-                    item['output'] = "Please, user -f flag or remove the following DDL instructions: %s " % ', '.join(wordInScripts)
-                    item['status'] = 'BLOCKED'
-   
-                    failedGroups.append(groupID)
-                    infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
-                    continue
+            wordInScripts = files.checkWordsInFile(wordList=disallowed_keywords, path=item['path'])
+            if wordInScripts and not force:
+                item['output'] = "Please, user -f flag or remove the following DDL instructions: %s " % ', '.join(wordInScripts)
+                item['status'] = 'BLOCKED'
+
+                failedGroups.append(groupID)
+                infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
+                continue
 
             # Is the object group exist on failed group, avoid it.
             if groupID in failedGroups and not force:

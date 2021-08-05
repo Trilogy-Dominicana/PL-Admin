@@ -384,11 +384,13 @@ class Files:
         wordScripts = []
         fContent = open(path, 'r')
         content = str(fContent.read())
+        
 
         for word in wordList:
-            lowers = content.count(word.lower())
-            uppers = content.count(word.upper())
-            if lowers + uppers:
+            my_regex = r"\b(" + word + r")\b"
+            matchWord = re.search(my_regex, content, re.I)
+
+            if matchWord:
                 wordScripts.append(word)
         
         fContent.close()
