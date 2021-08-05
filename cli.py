@@ -297,20 +297,19 @@ def migrate(dry_run, force, name=None, types=None):
             group = list(filter(lambda d: d['name'] in [name], group))
 
         # For each script in group
-        for item in group:            
+        for item in group:
             
             if item['type'] == 'UNKNOW':
                 item['status'] == 'NOT EXCUTED'
                 infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
                 continue
-
+            
             # Before excute the script, we have to checkout if special keywords exist
             wordInScripts = files.checkWordsInFile(wordList=disallowed_keywords, path=item['path'])
-
-            if wordInScripts:
-                item['output'] = "Please, remove the following DDL instructions: %s " % ', '.join(wordInScripts)
+            if wordInScripts and not force:
+                item['output'] = "Please, user -f flag or remove the following DDL instructions: %s " % ', '.join(wordInScripts)
                 item['status'] = 'BLOCKED'
-                
+
                 failedGroups.append(groupID)
                 infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
                 continue
@@ -321,7 +320,6 @@ def migrate(dry_run, force, name=None, types=None):
                 db.insertOrUpdateMigration(item, db=dbm)
                 infoScript.add_row([item['name'], groupID, item['type'], item['status'], item['output']])
                 continue
-            
 
 
             dbScript = db.getMigration(scriptName=item['name'], db=dba)
