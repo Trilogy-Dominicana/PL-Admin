@@ -1,5 +1,5 @@
 cx-Oracle==7.3
-requests==2.20
+requests==2.31.0
 python-dotenv==0.10.5
 jsonify==0.5
 argparse==1.4.0
